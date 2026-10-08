@@ -1,0 +1,2035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Simba WMS</title>
+
+  <script>
+    if (localStorage.getItem('simba_theme') === 'dark') document.documentElement.classList.add('dark');
+  </script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            simba: {
+              50: '#fdf2f2', 100: '#fbe8e8', 200: '#f5d3d5', 300: '#ecb1b4', 400: '#df8287',
+              500: '#cf545b', 600: '#a22631', 700: '#891e27', 800: '#731c24', 900: '#611a21', 950: '#350b10'
+            }
+          },
+          fontFamily: { sans: ['DM Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'] }
+        }
+      }
+    }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..800&display=swap" rel="stylesheet">
+
+  <style type="text/tailwindcss">
+    @layer components {
+      .card { @apply bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm; }
+      .card-header { @apply flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-200 dark:border-slate-800; }
+      .card-title { @apply text-sm font-bold text-slate-900 dark:text-white; }
+      .card-body { @apply p-5; }
+      .card-footer { @apply flex flex-wrap items-center justify-end gap-3 px-5 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/20 rounded-b-xl; }
+
+      .label { @apply block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5; }
+      .input { @apply w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-simba-600/30 focus:border-simba-600 transition; }
+      .input[readonly] { @apply bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 cursor-not-allowed; }
+      .input-sm { @apply px-2.5 py-1.5 text-xs; }
+      .hint { @apply mt-1 text-xs text-slate-500 dark:text-slate-400; }
+      .section-label { @apply text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400; }
+
+      .btn { @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-simba-600/40; }
+      .btn-sm { @apply px-3 py-1.5 text-xs; }
+      .btn-primary { @apply bg-simba-600 text-white hover:bg-simba-700 shadow-sm shadow-simba-600/20; }
+      .btn-secondary { @apply bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700; }
+      .btn-ghost { @apply text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800; }
+      .btn-success { @apply bg-emerald-600 text-white hover:bg-emerald-700; }
+      .btn-danger { @apply bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-500/10 dark:text-red-400 dark:hover:bg-red-500/20; }
+      .icon-btn { @apply inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800 transition; }
+
+      .badge { @apply inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset; }
+      .badge-slate { @apply bg-slate-100 text-slate-700 ring-slate-500/20 dark:bg-slate-500/10 dark:text-slate-300 dark:ring-slate-500/30; }
+      .badge-blue { @apply bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-500/10 dark:text-blue-400 dark:ring-blue-500/30; }
+      .badge-amber { @apply bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-500/10 dark:text-amber-400 dark:ring-amber-500/30; }
+      .badge-green { @apply bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-500/10 dark:text-emerald-400 dark:ring-emerald-500/30; }
+      .badge-red { @apply bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-500/10 dark:text-red-400 dark:ring-red-500/30; }
+      .badge-simba { @apply bg-simba-50 text-simba-700 ring-simba-600/20 dark:bg-simba-500/10 dark:text-simba-300 dark:ring-simba-500/30; }
+      .badge-violet { @apply bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-500/10 dark:text-violet-400 dark:ring-violet-500/30; }
+      .dot { @apply w-1.5 h-1.5 rounded-full bg-current; }
+
+      .table { @apply w-full text-left text-sm whitespace-nowrap; }
+      .table thead th { @apply px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/40; }
+      .table tbody td { @apply px-5 py-3.5 border-t border-slate-100 dark:border-slate-800; }
+      .table tbody tr { @apply hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition; }
+      .mono { @apply font-mono text-[13px]; }
+
+      .page-header { @apply flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between; }
+      .page-title { @apply text-2xl font-bold tracking-tight text-slate-900 dark:text-white; }
+      .page-sub { @apply mt-1 text-sm text-slate-500 dark:text-slate-400; }
+
+     .sidebar-link { @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/5 dark:hover:text-white transition; }
+.sidebar-link.active { @apply bg-simba-50 text-simba-700 dark:bg-simba-600 dark:text-white shadow-none; }
+      .tabs { @apply inline-flex flex-wrap gap-1 p-1 rounded-lg bg-slate-100 dark:bg-slate-800; }
+      .tab { @apply px-3 py-1.5 rounded-md text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition; }
+      .tab.active { @apply bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm; }
+
+      .kpi-icon { @apply w-10 h-10 rounded-lg flex items-center justify-center shrink-0; }
+      .dropdown-item { @apply flex w-full items-center gap-2.5 px-3 py-2 rounded-md text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800; }
+      .list-row { @apply flex items-center justify-between gap-3 px-5 py-3 border-t border-slate-100 dark:border-slate-800 first:border-t-0; }
+      .alert-info { @apply flex gap-3 p-4 rounded-lg text-sm bg-blue-50 text-blue-800 border border-blue-200 dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/20; }
+      .alert-warn { @apply flex gap-3 p-4 rounded-lg text-sm bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/20; }
+      .radio-card { @apply w-full p-3 rounded-lg border border-slate-300 dark:border-slate-700 cursor-pointer transition peer-checked:border-simba-600 peer-checked:bg-simba-50 peer-checked:ring-1 peer-checked:ring-simba-600 dark:peer-checked:bg-simba-500/10; }
+      .dropzone { @apply flex flex-col items-center justify-center gap-2 p-6 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 text-center cursor-pointer hover:border-simba-500 hover:bg-simba-50/40 dark:hover:bg-simba-500/5 transition; }
+      .progress { @apply h-2 w-full rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden; }
+      .progress > div { @apply h-full rounded-full; }
+    }
+  </style>
+
+  <style>
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .dark ::-webkit-scrollbar-thumb { background: #475569; }
+    @media print {
+      body * { visibility: hidden; }
+      .printable-area, .printable-area * { visibility: visible; }
+      .printable-area { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 24px; box-shadow: none !important; border: none !important; background: #fff !important; color: #000 !important; }
+      #app-shell, #main { height: auto !important; overflow: visible !important; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body class="font-sans bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased">
+
+  <!-- ==================== LOGIN ==================== -->
+  <section id="screen-login" class="hidden fixed inset-0 z-50 grid lg:grid-cols-2 bg-white dark:bg-slate-950">
+    <div class="hidden lg:flex flex-col justify-between relative overflow-hidden bg-slate-900 p-12 text-white">
+      <div class="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-simba-600/30 blur-3xl"></div>
+      <div class="absolute -bottom-40 -left-20 w-96 h-96 rounded-full bg-simba-800/30 blur-3xl"></div>
+      <div class="relative flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-simba-600 flex items-center justify-center font-bold">SC</div>
+        <div>
+          <p class="font-bold leading-tight">Simba Courier</p>
+          <p class="text-xs text-slate-400 uppercase tracking-wider">Warehouse Management</p>
+        </div>
+      </div>
+      <div class="relative space-y-6 max-w-md">
+        <h2 class="text-4xl font-bold leading-tight tracking-tight">Warehouse operations, from yard to doorstep.</h2>
+        <p class="text-slate-400">Containers, receiving, storage, dispatch and proof of delivery in one controlled workflow.</p>
+        <ul class="space-y-3 text-sm text-slate-300">
+          <li class="flex items-center gap-3"><i data-icon="check" class="w-4 h-4 text-simba-400"></i>Real-time stock visibility across virtual warehouses</li>
+          <li class="flex items-center gap-3"><i data-icon="check" class="w-4 h-4 text-simba-400"></i>RF handheld put-away and cycle counting</li>
+          <li class="flex items-center gap-3"><i data-icon="check" class="w-4 h-4 text-simba-400"></i>Approval workflows with full audit trail</li>
+        </ul>
+      </div>
+      <p class="relative text-xs text-slate-500">&copy; 2026 Simba Courier & Logistics Ltd. All rights reserved.</p>
+    </div>
+
+    <div class="flex items-center justify-center p-6">
+      <div class="w-full max-w-sm">
+        <div class="lg:hidden flex items-center gap-3 mb-10">
+          <div class="w-10 h-10 rounded-lg bg-simba-600 text-white flex items-center justify-center font-bold">SC</div>
+          <p class="font-bold">Simba Courier WMS</p>
+        </div>
+        <h1 class="text-2xl font-bold tracking-tight">Sign in to your account</h1>
+        <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Use your Simba Courier staff credentials.</p>
+        <form onsubmit="handleLogin(event)" class="mt-8 space-y-5">
+          <div>
+            <label class="label">Email address</label>
+            <input type="email" required value="admin@simbacourier.co.tz" class="input py-2.5">
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="label !mb-0">Password</label>
+              <a href="#login" class="text-xs font-semibold text-simba-600 hover:underline">Forgot password?</a>
+            </div>
+            <input type="password" required value="password123" class="input py-2.5">
+          </div>
+          <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+            <input type="checkbox" checked class="rounded border-slate-300 text-simba-600 focus:ring-simba-600">
+            Keep me signed in
+          </label>
+          <button type="submit" class="btn btn-primary w-full py-2.5">Sign in</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== APP SHELL ==================== -->
+  <div id="app-shell" class="hidden h-screen flex overflow-hidden">
+    <div id="sidebar-overlay" onclick="closeSidebar()" class="hidden lg:hidden fixed inset-0 z-30 bg-slate-950/60 backdrop-blur-sm"></div>
+
+    <!-- SIDEBAR -->
+<aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 -translate-x-full lg:translate-x-0 lg:static flex flex-col shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 transition-transform duration-200">
+  <div class="h-16 flex items-center justify-between px-5 border-b border-slate-200 dark:border-slate-800">
+    <a href="#dashboard" class="flex items-center gap-3">
+  <img src="logo.png" alt="Simba Courier" class="h-9 w-auto object-contain dark:hidden">
+  <img src="/logo.png" alt="Simba Courier" class="h-9 w-auto object-contain hidden dark:block">
+  <div>
+    <span class="block font-bold text-slate-900 dark:text-white text-sm leading-tight">Simba WMS</span>
+    <span class="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tanzania Hub</span>
+  </div>
+</a>
+    <button onclick="closeSidebar()" class="lg:hidden icon-btn"><i data-icon="x" class="w-5 h-5"></i></button>
+  </div>
+  <nav id="sidebar-nav" class="flex-1 overflow-y-auto px-3 py-5 space-y-6"></nav>
+  <div class="p-3 border-t border-slate-200 dark:border-slate-800">
+    <button onclick="logout()" class="sidebar-link w-full hover:!bg-red-50 hover:!text-red-600 dark:hover:!bg-red-500/10 dark:hover:!text-red-400">
+      <i data-icon="logout" class="w-[18px] h-[18px]"></i>
+      Sign out
+    </button>
+  </div>
+</aside>
+    <!-- MAIN -->
+    <div class="flex-1 flex flex-col min-w-0">
+      <header class="h-16 shrink-0 flex items-center gap-3 px-4 sm:px-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 no-print">
+        <button onclick="openSidebar()" class="icon-btn lg:hidden"><i data-icon="menu" class="w-5 h-5"></i></button>
+        <div class="min-w-0">
+          <p id="breadcrumb-group" class="text-[11px] font-semibold uppercase tracking-wider text-slate-400"></p>
+          <h1 id="page-title" class="text-sm font-bold truncate"></h1>
+        </div>
+
+        <div class="ml-auto flex items-center gap-1.5 sm:gap-2">
+          <div class="relative hidden md:block">
+            <i data-icon="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+            <input type="text" onkeydown="globalSearch(event)" placeholder="Search SKU and press Enter" class="input !pl-9 w-64 !bg-slate-50 dark:!bg-slate-800">
+          </div>
+          <select class="input !w-auto hidden sm:block text-xs font-semibold">
+            <option>DAR-01 &middot; Dar es Salaam</option>
+            <option>ZNZ-01 &middot; Zanzibar</option>
+            <option>ARK-01 &middot; Arusha</option>
+          </select>
+          <button onclick="toggleDarkMode()" class="icon-btn" title="Toggle theme">
+            <i data-icon="moon" class="w-5 h-5 dark:hidden"></i>
+            <i data-icon="sun" class="w-5 h-5 hidden dark:block"></i>
+          </button>
+          <button class="icon-btn relative" title="Notifications">
+            <i data-icon="bell" class="w-5 h-5"></i>
+            <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-simba-600 ring-2 ring-white dark:ring-slate-900"></span>
+          </button>
+          <div class="relative">
+            <button onclick="toggleDropdown(event, 'user-menu')" class="flex items-center gap-2.5 pl-2 sm:pl-3 sm:border-l border-slate-200 dark:border-slate-800">
+              <div class="w-8 h-8 rounded-full bg-simba-600 text-white font-bold flex items-center justify-center text-xs">DH</div>
+              <div class="hidden md:block text-left">
+                <p class="text-xs font-semibold leading-tight">David Haule</p>
+                <p class="text-[11px] text-slate-500">System Admin</p>
+              </div>
+              <i data-icon="chevron-down" class="w-4 h-4 text-slate-400 hidden md:block"></i>
+            </button>
+            <div id="user-menu" data-menu class="hidden absolute right-0 mt-2 w-52 card p-1.5 z-50">
+              <div class="px-3 py-2 mb-1 border-b border-slate-100 dark:border-slate-800">
+                <p class="text-sm font-semibold">David Haule</p>
+                <p class="text-xs text-slate-500 truncate">admin@simbacourier.co.tz</p>
+              </div>
+              <a href="#profile" class="dropdown-item"><i data-icon="user" class="w-4 h-4"></i>My Profile</a>
+              <a href="#index" class="dropdown-item"><i data-icon="grid" class="w-4 h-4"></i>Screen Directory</a>
+              <button onclick="logout()" class="dropdown-item !text-red-600"><i data-icon="logout" class="w-4 h-4"></i>Sign out</button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main id="main" class="flex-1 overflow-y-auto">
+        <div class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+
+          <!-- ==================== DASHBOARD ==================== -->
+          <section id="screen-dashboard" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Operations Overview</h2>
+                <p class="page-sub">Dar es Salaam Hub (DAR-01) &middot; Live snapshot of inbound, storage and outbound activity</p>
+              </div>
+              <div class="flex gap-2">
+                <a href="#orders" class="btn btn-secondary"><i data-icon="cart" class="w-4 h-4"></i>New Order</a>
+                <a href="#grn-create" class="btn btn-primary"><i data-icon="plus" class="w-4 h-4"></i>New Receiving</a>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <div class="card p-5">
+                <div class="flex items-start justify-between">
+                  <div>
+                    <p class="text-xs font-medium text-slate-500">Stock on Hand</p>
+                    <p class="mt-2 text-3xl font-bold tabular-nums">48,250</p>
+                  </div>
+                  <div class="kpi-icon bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400"><i data-icon="archive" class="w-5 h-5"></i></div>
+                </div>
+                <p class="mt-3 text-xs text-slate-500"><span class="font-semibold text-emerald-600">+4.2%</span> vs last week</p>
+              </div>
+              <div class="card p-5">
+                <div class="flex items-start justify-between">
+                  <div>
+                    <p class="text-xs font-medium text-slate-500">Pending GRNs</p>
+                    <p class="mt-2 text-3xl font-bold tabular-nums">6</p>
+                  </div>
+                  <div class="kpi-icon bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"><i data-icon="clipboard" class="w-5 h-5"></i></div>
+                </div>
+                <p class="mt-3 text-xs text-slate-500"><span class="font-semibold text-amber-600">2 overdue</span> more than 24h</p>
+              </div>
+              <div class="card p-5">
+                <div class="flex items-start justify-between">
+                  <div>
+                    <p class="text-xs font-medium text-slate-500">Active Containers</p>
+                    <p class="mt-2 text-3xl font-bold tabular-nums">18</p>
+                  </div>
+                  <div class="kpi-icon bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400"><i data-icon="cube" class="w-5 h-5"></i></div>
+                </div>
+                <p class="mt-3 text-xs text-slate-500"><span class="font-semibold text-blue-600">5 arriving</span> this week</p>
+              </div>
+              <div class="card p-5">
+                <div class="flex items-start justify-between">
+                  <div>
+                    <p class="text-xs font-medium text-slate-500">Today's Dispatches</p>
+                    <p class="mt-2 text-3xl font-bold tabular-nums">28</p>
+                  </div>
+                  <div class="kpi-icon bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"><i data-icon="truck" class="w-5 h-5"></i></div>
+                </div>
+                <p class="mt-3 text-xs text-slate-500"><span class="font-semibold text-emerald-600">96%</span> on-time rate</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div class="card lg:col-span-2">
+                <div class="card-header">
+                  <h3 class="card-title">Inbound Pipeline</h3>
+                  <a href="#containers" class="text-xs font-semibold text-simba-600 hover:underline">View all containers</a>
+                </div>
+                <div class="overflow-x-auto">
+                  <table class="table">
+                    <thead><tr><th>Container</th><th>Vessel</th><th>ETA</th><th>Yard Slot</th><th>Status</th></tr></thead>
+                    <tbody>
+                      <tr><td class="mono font-semibold">MSKU1234567</td><td>COSCO Pride V.42</td><td class="tabular-nums">2026-10-02</td><td class="mono text-simba-600 font-semibold">SLOT-A03</td><td><span class="badge badge-blue"><span class="dot"></span>Unloading</span></td></tr>
+                      <tr><td class="mono font-semibold">MRKU8829102</td><td>MSC Diana V.12</td><td class="tabular-nums">2026-10-03</td><td class="mono text-simba-600 font-semibold">SLOT-B12</td><td><span class="badge badge-amber"><span class="dot"></span>Arrived</span></td></tr>
+                      <tr><td class="mono font-semibold">CMAU5543219</td><td>CMA CGM Africa V.08</td><td class="tabular-nums">2026-10-05</td><td class="text-slate-400">Not assigned</td><td><span class="badge badge-slate"><span class="dot"></span>Expected</span></td></tr>
+                      <tr><td class="mono font-semibold">MSCU4410983</td><td>MSC Diana V.12</td><td class="tabular-nums">2026-10-06</td><td class="text-slate-400">Not assigned</td><td><span class="badge badge-slate"><span class="dot"></span>Expected</span></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header"><h3 class="card-title">Warehouse Utilization</h3></div>
+                <div class="card-body space-y-5">
+                  <div>
+                    <div class="flex justify-between text-sm mb-2"><span class="font-medium">DAR-General Store</span><span class="tabular-nums font-semibold">78%</span></div>
+                    <div class="progress"><div class="bg-simba-600" style="width:78%"></div></div>
+                  </div>
+                  <div>
+                    <div class="flex justify-between text-sm mb-2"><span class="font-medium">DAR-Tech Vault</span><span class="tabular-nums font-semibold">54%</span></div>
+                    <div class="progress"><div class="bg-blue-600" style="width:54%"></div></div>
+                  </div>
+                  <div>
+                    <div class="flex justify-between text-sm mb-2"><span class="font-medium">Cold Room</span><span class="tabular-nums font-semibold text-amber-600">91%</span></div>
+                    <div class="progress"><div class="bg-amber-500" style="width:91%"></div></div>
+                    <p class="hint">Approaching capacity, plan re-slotting.</p>
+                  </div>
+                  <div>
+                    <div class="flex justify-between text-sm mb-2"><span class="font-medium">Yard Slots</span><span class="tabular-nums font-semibold">12 / 20</span></div>
+                    <div class="progress"><div class="bg-slate-500" style="width:60%"></div></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div class="card lg:col-span-2">
+                <div class="card-header"><h3 class="card-title">Recent Activity</h3></div>
+                <ul class="divide-y divide-slate-100 dark:divide-slate-800">
+                  <li class="flex gap-4 px-5 py-4">
+                    <div class="kpi-icon !w-8 !h-8 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10"><i data-icon="truck" class="w-4 h-4"></i></div>
+                    <div class="flex-1 min-w-0"><p class="text-sm"><span class="font-semibold">GP-2026-088</span> released for Azam Ltd, vehicle T 452 ABC</p><p class="text-xs text-slate-500 mt-0.5">Juma Kassim &middot; 12 minutes ago</p></div>
+                  </li>
+                  <li class="flex gap-4 px-5 py-4">
+                    <div class="kpi-icon !w-8 !h-8 bg-blue-50 text-blue-600 dark:bg-blue-500/10"><i data-icon="clipboard" class="w-4 h-4"></i></div>
+                    <div class="flex-1 min-w-0"><p class="text-sm"><span class="font-semibold">GRN-2026-089</span> receiving started for container MSKU1234567</p><p class="text-xs text-slate-500 mt-0.5">Onesmo Mlelwa &middot; 45 minutes ago</p></div>
+                  </li>
+                  <li class="flex gap-4 px-5 py-4">
+                    <div class="kpi-icon !w-8 !h-8 bg-red-50 text-red-600 dark:bg-red-500/10"><i data-icon="alert" class="w-4 h-4"></i></div>
+                    <div class="flex-1 min-w-0"><p class="text-sm">Shortage of <span class="font-semibold">12 bags</span> logged against GRN-2026-089</p><p class="text-xs text-slate-500 mt-0.5">Onesmo Mlelwa &middot; 1 hour ago</p></div>
+                  </li>
+                  <li class="flex gap-4 px-5 py-4">
+                    <div class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10"><i data-icon="arrows" class="w-4 h-4"></i></div>
+                    <div class="flex-1 min-w-0"><p class="text-sm">150 units of <span class="font-semibold">SKU-AZ-001</span> moved to DAR-A-03-02-B</p><p class="text-xs text-slate-500 mt-0.5">Neema Joseph &middot; 3 hours ago</p></div>
+                  </li>
+                </ul>
+              </div>
+
+              <div class="card flex flex-col">
+                <div class="card-header">
+                  <h3 class="card-title">Awaiting Your Approval</h3>
+                  <span class="badge badge-simba">4</span>
+                </div>
+                <ul class="flex-1">
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">ADJ-2026-014</p><p class="text-xs text-slate-500">Cycle count variance, -50 units</p></div><span class="badge badge-amber">Adjustment</span></li>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">TRF-2026-031</p><p class="text-xs text-slate-500">Tech Vault to Zanzibar, 200 units</p></div><span class="badge badge-violet">Transfer</span></li>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">INS-2026-022</p><p class="text-xs text-slate-500">GRN shortage, 12 bags</p></div><span class="badge badge-red">Discrepancy</span></li>
+                </ul>
+                <div class="p-4 border-t border-slate-100 dark:border-slate-800">
+                  <a href="#approvals" class="btn btn-secondary w-full">Open Approvals Inbox</a>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== APPROVALS ==================== -->
+          <section id="screen-approvals" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Approvals Inbox</h2>
+                <p class="page-sub">Requests that need a supervisor decision before stock records are updated.</p>
+              </div>
+              <span class="badge badge-simba !text-sm !px-3 !py-1"><span id="approvals-count">4</span>&nbsp;pending</span>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="tabs">
+                  <button class="tab active" onclick="filterStatus(this, 'approvals-table', 'all')">All</button>
+                  <button class="tab" onclick="filterStatus(this, 'approvals-table', 'adjustment')">Adjustments</button>
+                  <button class="tab" onclick="filterStatus(this, 'approvals-table', 'transfer')">Transfers</button>
+                  <button class="tab" onclick="filterStatus(this, 'approvals-table', 'discrepancy')">Discrepancies</button>
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table id="approvals-table" class="table">
+                  <thead><tr><th>Request</th><th>Details</th><th>Requested By</th><th>Submitted</th><th class="text-right">Impact</th><th class="text-right">Decision</th></tr></thead>
+                  <tbody>
+                    <tr data-status="adjustment">
+                      <td><p data-ref class="mono font-semibold">ADJ-2026-014</p><span class="badge badge-amber mt-1">Adjustment</span></td>
+                      <td class="text-slate-600 dark:text-slate-300">SKU-AZ-001 at DAR-A-03-02-B<br><span class="text-xs text-slate-500">Counted 450 vs system 500</span></td>
+                      <td>Onesmo Mlelwa</td><td class="tabular-nums">2026-10-03 09:12</td>
+                      <td class="text-right tabular-nums font-semibold text-red-600">-50</td>
+                      <td class="text-right"><div class="inline-flex gap-2"><button onclick="decide(this, 'rejected')" class="btn btn-danger btn-sm">Reject</button><button onclick="decide(this, 'approved')" class="btn btn-success btn-sm">Approve</button></div></td>
+                    </tr>
+                    <tr data-status="transfer">
+                      <td><p data-ref class="mono font-semibold">TRF-2026-031</p><span class="badge badge-violet mt-1">Transfer</span></td>
+                      <td class="text-slate-600 dark:text-slate-300">200 x SKU-VOD-SIM<br><span class="text-xs text-slate-500">DAR-Tech Vault to Zanzibar Regional Hub</span></td>
+                      <td>Neema Joseph</td><td class="tabular-nums">2026-10-03 08:40</td>
+                      <td class="text-right tabular-nums font-semibold">200</td>
+                      <td class="text-right"><div class="inline-flex gap-2"><button onclick="decide(this, 'rejected')" class="btn btn-danger btn-sm">Reject</button><button onclick="decide(this, 'approved')" class="btn btn-success btn-sm">Approve</button></div></td>
+                    </tr>
+                    <tr data-status="discrepancy">
+                      <td><p data-ref class="mono font-semibold">INS-2026-022</p><span class="badge badge-red mt-1">Discrepancy</span></td>
+                      <td class="text-slate-600 dark:text-slate-300">GRN-2026-089 shortage<br><span class="text-xs text-slate-500">12 bags of SKU-AZ-001 missing</span></td>
+                      <td>Onesmo Mlelwa</td><td class="tabular-nums">2026-10-02 16:05</td>
+                      <td class="text-right tabular-nums font-semibold text-red-600">-12</td>
+                      <td class="text-right"><div class="inline-flex gap-2"><button onclick="decide(this, 'rejected')" class="btn btn-danger btn-sm">Reject</button><button onclick="decide(this, 'approved')" class="btn btn-success btn-sm">Approve</button></div></td>
+                    </tr>
+                    <tr data-status="adjustment">
+                      <td><p data-ref class="mono font-semibold">ADJ-2026-013</p><span class="badge badge-amber mt-1">Adjustment</span></td>
+                      <td class="text-slate-600 dark:text-slate-300">Found stock SKU-AZ-SUG<br><span class="text-xs text-slate-500">DAR-B-01-04-A</span></td>
+                      <td>Neema Joseph</td><td class="tabular-nums">2026-10-02 14:22</td>
+                      <td class="text-right tabular-nums font-semibold text-emerald-600">+24</td>
+                      <td class="text-right"><div class="inline-flex gap-2"><button onclick="decide(this, 'rejected')" class="btn btn-danger btn-sm">Reject</button><button onclick="decide(this, 'approved')" class="btn btn-success btn-sm">Approve</button></div></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== CONTAINERS LIST ==================== -->
+          <section id="screen-containers" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Containers & Yard</h2>
+                <p class="page-sub">Track containers from vessel arrival to yard release.</p>
+              </div>
+              <a href="#containers-create" class="btn btn-primary"><i data-icon="plus" class="w-4 h-4"></i>New Container</a>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="tabs">
+                  <button class="tab active" onclick="filterStatus(this, 'containers-table', 'all')">All</button>
+                  <button class="tab" onclick="filterStatus(this, 'containers-table', 'expected')">Expected</button>
+                  <button class="tab" onclick="filterStatus(this, 'containers-table', 'arrived')">Arrived</button>
+                  <button class="tab" onclick="filterStatus(this, 'containers-table', 'unloading')">Unloading</button>
+                  <button class="tab" onclick="filterStatus(this, 'containers-table', 'released')">Released</button>
+                </div>
+                <div class="relative">
+                  <i data-icon="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                  <input type="text" oninput="filterTable(this, 'containers-table')" placeholder="Search container, BL, vessel" class="input !pl-9 sm:w-64">
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table id="containers-table" class="table">
+                  <thead><tr><th>Container</th><th>Seal No.</th><th>BL Reference</th><th>Vessel / Voyage</th><th>ETA</th><th>Yard Slot</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    <tr data-status="unloading">
+                      <td><p class="mono font-semibold">MSKU1234567</p><p class="text-xs text-slate-500">40HC High Cube</p></td>
+                      <td class="mono">TZ-998234</td><td class="mono">BL-DAR-2026-001</td><td>COSCO Pride V.42</td><td class="tabular-nums">2026-10-02</td>
+                      <td class="mono font-semibold text-simba-600">SLOT-A03</td><td><span class="badge badge-blue"><span class="dot"></span>Unloading</span></td>
+                      <td class="text-right"><a href="#grn-create" class="btn btn-ghost btn-sm">Receive</a></td>
+                    </tr>
+                    <tr data-status="arrived">
+                      <td><p class="mono font-semibold">MRKU8829102</p><p class="text-xs text-slate-500">20ft Standard</p></td>
+                      <td class="mono">TZ-998235</td><td class="mono">BL-DAR-2026-002</td><td>MSC Diana V.12</td><td class="tabular-nums">2026-10-03</td>
+                      <td class="mono font-semibold text-simba-600">SLOT-B12</td><td><span class="badge badge-amber"><span class="dot"></span>Arrived</span></td>
+                      <td class="text-right"><a href="#grn-create" class="btn btn-ghost btn-sm">Receive</a></td>
+                    </tr>
+                    <tr data-status="expected">
+                      <td><p class="mono font-semibold">CMAU5543219</p><p class="text-xs text-slate-500">40ft Reefer</p></td>
+                      <td class="mono">TZ-998236</td><td class="mono">BL-DAR-2026-003</td><td>CMA CGM Africa V.08</td><td class="tabular-nums">2026-10-05</td>
+                      <td class="text-slate-400">Not assigned</td><td><span class="badge badge-slate"><span class="dot"></span>Expected</span></td>
+                      <td class="text-right"><button onclick="toast('Yard slot assignment opened', 'info')" class="btn btn-ghost btn-sm">Assign Slot</button></td>
+                    </tr>
+                    <tr data-status="expected">
+                      <td><p class="mono font-semibold">MSCU4410983</p><p class="text-xs text-slate-500">20ft Standard</p></td>
+                      <td class="mono">TZ-998237</td><td class="mono">BL-DAR-2026-004</td><td>MSC Diana V.12</td><td class="tabular-nums">2026-10-06</td>
+                      <td class="text-slate-400">Not assigned</td><td><span class="badge badge-slate"><span class="dot"></span>Expected</span></td>
+                      <td class="text-right"><button onclick="toast('Yard slot assignment opened', 'info')" class="btn btn-ghost btn-sm">Assign Slot</button></td>
+                    </tr>
+                    <tr data-status="released">
+                      <td><p class="mono font-semibold">TGHU7712045</p><p class="text-xs text-slate-500">40ft Standard</p></td>
+                      <td class="mono">TZ-998230</td><td class="mono">BL-DAR-2026-000</td><td>Maersk Kowloon V.31</td><td class="tabular-nums">2026-09-28</td>
+                      <td class="mono text-slate-400">SLOT-A01</td><td><span class="badge badge-green"><span class="dot"></span>Released</span></td>
+                      <td class="text-right"><a href="#print-document" class="btn btn-ghost btn-sm">Documents</a></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== CONTAINER CREATE ==================== -->
+          <section id="screen-containers-create" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <a href="#containers" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-simba-600 mb-2"><i data-icon="arrow-left" class="w-3.5 h-3.5"></i>Back to containers</a>
+                <h2 class="page-title">Register Container</h2>
+                <p class="page-sub">Capture shipment details before the container reaches the yard.</p>
+              </div>
+            </div>
+
+            <form onsubmit="submitForm(event, 'Container registered successfully', '#containers')" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div class="lg:col-span-2 card">
+                <div class="card-body space-y-8">
+                  <div class="space-y-4">
+                    <p class="section-label">Container Details</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label class="label">Container number *</label>
+                        <input type="text" required pattern="[A-Za-z]{4}[0-9]{7}" placeholder="MSKU1234567" class="input font-mono uppercase">
+                        <p class="hint">ISO 6346 format: 4 letters followed by 7 digits.</p>
+                      </div>
+                      <div>
+                        <label class="label">Seal number *</label>
+                        <input type="text" required placeholder="TZ-998238" class="input font-mono">
+                      </div>
+                      <div>
+                        <label class="label">Size / type *</label>
+                        <select class="input">
+                          <option>20ft Standard</option>
+                          <option>40ft Standard</option>
+                          <option selected>40HC High Cube</option>
+                          <option>40ft Reefer</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label class="label">Bill of Lading number *</label>
+                        <input type="text" required placeholder="BL-DAR-2026-005" class="input font-mono">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="space-y-4 pt-6 border-t border-slate-100 dark:border-slate-800">
+                    <p class="section-label">Shipment</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div><label class="label">Vessel name</label><input type="text" placeholder="MSC Diana" class="input"></div>
+                      <div><label class="label">Voyage number</label><input type="text" placeholder="V.12" class="input font-mono"></div>
+                      <div>
+                        <label class="label">Shipping line</label>
+                        <select class="input"><option>Maersk</option><option>MSC</option><option>CMA CGM</option><option>COSCO</option></select>
+                      </div>
+                      <div><label class="label">ETA date *</label><input type="date" required class="input tabular-nums"></div>
+                      <div>
+                        <label class="label">Port of discharge</label>
+                        <select class="input"><option>Dar es Salaam Port</option><option>Zanzibar Port</option><option>Tanga Port</option></select>
+                      </div>
+                      <div>
+                        <label class="label">Consignee / client *</label>
+                        <select class="input"><option>Azam Consumer Goods Ltd</option><option>Vodacom Tanzania PLC</option></select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="space-y-4 pt-6 border-t border-slate-100 dark:border-slate-800">
+                    <p class="section-label">Yard Allocation</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label class="label">Yard slot</label>
+                        <select class="input"><option>Assign on arrival</option><option>SLOT-A04</option><option>SLOT-A07</option><option>SLOT-B02</option></select>
+                      </div>
+                      <div>
+                        <label class="label">Initial status</label>
+                        <select class="input"><option>Expected</option><option>Arrived</option></select>
+                      </div>
+                      <div class="md:col-span-2">
+                        <label class="label">Remarks</label>
+                        <textarea rows="3" placeholder="Handling instructions, special requirements..." class="input"></textarea>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="card-footer">
+                  <a href="#containers" class="btn btn-secondary">Cancel</a>
+                  <button type="submit" class="btn btn-primary">Save Container</button>
+                </div>
+              </div>
+
+              <div class="space-y-6">
+                <div class="card">
+                  <div class="card-header"><h3 class="card-title">Before you save</h3></div>
+                  <ul class="card-body space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                    <li class="flex gap-3"><i data-icon="check" class="w-4 h-4 mt-0.5 text-emerald-600 shrink-0"></i>Container number matches the BL and seal record.</li>
+                    <li class="flex gap-3"><i data-icon="check" class="w-4 h-4 mt-0.5 text-emerald-600 shrink-0"></i>Reefer units have power-equipped slots available.</li>
+                    <li class="flex gap-3"><i data-icon="check" class="w-4 h-4 mt-0.5 text-emerald-600 shrink-0"></i>Consignee has an active storage agreement.</li>
+                  </ul>
+                </div>
+                <div class="card">
+                  <div class="card-header"><h3 class="card-title">Yard Availability</h3><span class="badge badge-green">8 free</span></div>
+                  <div class="card-body">
+                    <div class="grid grid-cols-5 gap-2">
+                      <div class="h-8 rounded bg-slate-300 dark:bg-slate-700"></div><div class="h-8 rounded bg-slate-300 dark:bg-slate-700"></div><div class="h-8 rounded bg-simba-600"></div><div class="h-8 rounded border-2 border-dashed border-emerald-500"></div><div class="h-8 rounded bg-slate-300 dark:bg-slate-700"></div>
+                      <div class="h-8 rounded border-2 border-dashed border-emerald-500"></div><div class="h-8 rounded bg-slate-300 dark:bg-slate-700"></div><div class="h-8 rounded border-2 border-dashed border-emerald-500"></div><div class="h-8 rounded bg-slate-300 dark:bg-slate-700"></div><div class="h-8 rounded border-2 border-dashed border-emerald-500"></div>
+                    </div>
+                    <div class="flex gap-4 mt-4 text-xs text-slate-500">
+                      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-slate-300 dark:bg-slate-700"></span>Occupied</span>
+                      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-simba-600"></span>Unloading</span>
+                      <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded border-2 border-dashed border-emerald-500"></span>Free</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </section>
+
+          <!-- ==================== GRN LIST ==================== -->
+          <section id="screen-grn" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Goods Receipt Notes</h2>
+                <p class="page-sub">Receiving records for every container and supplier delivery.</p>
+              </div>
+              <a href="#grn-create" class="btn btn-primary"><i data-icon="plus" class="w-4 h-4"></i>New GRN</a>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="tabs">
+                  <button class="tab active" onclick="filterStatus(this, 'grn-table', 'all')">All</button>
+                  <button class="tab" onclick="filterStatus(this, 'grn-table', 'progress')">In Progress</button>
+                  <button class="tab" onclick="filterStatus(this, 'grn-table', 'discrepancy')">Discrepancy</button>
+                  <button class="tab" onclick="filterStatus(this, 'grn-table', 'completed')">Completed</button>
+                </div>
+                <div class="relative">
+                  <i data-icon="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                  <input type="text" oninput="filterTable(this, 'grn-table')" placeholder="Search GRN, container, supplier" class="input !pl-9 sm:w-64">
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table id="grn-table" class="table">
+                  <thead><tr><th>GRN Number</th><th>Container</th><th>Supplier</th><th>Received</th><th>Warehouse</th><th>Progress</th><th>Status</th></tr></thead>
+                  <tbody>
+                    <tr data-status="progress">
+                      <td class="mono font-semibold">GRN-2026-089</td><td class="mono">MSKU1234567</td><td>Azam Consumer Goods Ltd</td><td class="tabular-nums">2026-10-02 11:30</td><td>DAR-General Store</td>
+                      <td><div class="flex items-center gap-2"><div class="progress w-24"><div class="bg-blue-600" style="width:64%"></div></div><span class="text-xs tabular-nums text-slate-500">320/500</span></div></td>
+                      <td><span class="badge badge-blue"><span class="dot"></span>In Progress</span></td>
+                    </tr>
+                    <tr data-status="discrepancy">
+                      <td class="mono font-semibold">GRN-2026-087</td><td class="mono">TGHU7712045</td><td>Azam Consumer Goods Ltd</td><td class="tabular-nums">2026-09-29 09:10</td><td>DAR-General Store</td>
+                      <td><div class="flex items-center gap-2"><div class="progress w-24"><div class="bg-red-500" style="width:97%"></div></div><span class="text-xs tabular-nums text-slate-500">388/400</span></div></td>
+                      <td><span class="badge badge-red"><span class="dot"></span>Discrepancy</span></td>
+                    </tr>
+                    <tr data-status="completed">
+                      <td class="mono font-semibold">GRN-2026-088</td><td class="mono">MRKU8829102</td><td>Vodacom Tanzania PLC</td><td class="tabular-nums">2026-10-01 15:45</td><td>DAR-Tech Vault</td>
+                      <td><div class="flex items-center gap-2"><div class="progress w-24"><div class="bg-emerald-600" style="width:100%"></div></div><span class="text-xs tabular-nums text-slate-500">12,800/12,800</span></div></td>
+                      <td><span class="badge badge-green"><span class="dot"></span>Completed</span></td>
+                    </tr>
+                    <tr data-status="completed">
+                      <td class="mono font-semibold">GRN-2026-086</td><td class="mono">MSCU2209117</td><td>Vodacom Tanzania PLC</td><td class="tabular-nums">2026-09-27 13:20</td><td>DAR-Tech Vault</td>
+                      <td><div class="flex items-center gap-2"><div class="progress w-24"><div class="bg-emerald-600" style="width:100%"></div></div><span class="text-xs tabular-nums text-slate-500">6,000/6,000</span></div></td>
+                      <td><span class="badge badge-green"><span class="dot"></span>Completed</span></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== GRN CREATE ==================== -->
+          <section id="screen-grn-create" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <a href="#grn" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-simba-600 mb-2"><i data-icon="arrow-left" class="w-3.5 h-3.5"></i>Back to GRNs</a>
+                <h2 class="page-title">New Goods Receipt</h2>
+                <p class="page-sub">Record what was physically received against what was expected.</p>
+              </div>
+            </div>
+
+            <form onsubmit="submitForm(event, 'GRN-2026-090 submitted successfully', '#grn')" class="space-y-6">
+              <div class="card">
+                <div class="card-header"><h3 class="card-title">Receipt Details</h3><span class="badge badge-slate">Draft</span></div>
+                <div class="card-body grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div><label class="label">GRN number</label><input type="text" readonly value="GRN-2026-090" class="input font-mono"></div>
+                  <div>
+                    <label class="label">Container reference *</label>
+                    <select class="input font-mono"><option>MSKU1234567</option><option>MRKU8829102</option></select>
+                  </div>
+                  <div>
+                    <label class="label">Supplier / vendor *</label>
+                    <select class="input"><option>Azam Consumer Goods Ltd</option><option>Vodacom Tanzania PLC</option></select>
+                  </div>
+                  <div>
+                    <label class="label">Receiving warehouse *</label>
+                    <select class="input"><option>DAR-General Store</option><option>DAR-Tech Vault</option><option>Cold Room</option></select>
+                  </div>
+                  <div><label class="label">Received at *</label><input type="datetime-local" required value="2026-10-03T10:00" class="input tabular-nums"></div>
+                  <div><label class="label">Delivery note reference</label><input type="text" placeholder="DN-77812" class="input font-mono"></div>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <div>
+                    <h3 class="card-title">Line Items</h3>
+                    <p class="text-xs text-slate-500 mt-0.5"><span id="grn-line-count">2</span> lines</p>
+                  </div>
+                  <button type="button" onclick="addRow('tpl-grn-row', 'grn-lines')" class="btn btn-secondary btn-sm"><i data-icon="plus" class="w-3.5 h-3.5"></i>Add Line</button>
+                </div>
+                <div class="card-body space-y-3">
+                  <div class="hidden md:grid grid-cols-12 gap-3 px-3 section-label">
+                    <span class="col-span-3">SKU Code</span><span class="col-span-2">Expected</span><span class="col-span-2">Received</span><span class="col-span-2">Batch No.</span><span class="col-span-2">Variance</span><span class="col-span-1"></span>
+                  </div>
+                  <div id="grn-lines" class="space-y-3">
+                    <div data-row class="grid grid-cols-2 md:grid-cols-12 gap-3 items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/50">
+                      <div class="col-span-2 md:col-span-3"><input type="text" value="SKU-AZ-001" class="input input-sm font-mono"></div>
+                      <div class="md:col-span-2"><input type="number" min="0" data-expected oninput="calcVariance(this)" value="500" class="input input-sm tabular-nums"></div>
+                      <div class="md:col-span-2"><input type="number" min="0" data-received oninput="calcVariance(this)" value="488" class="input input-sm tabular-nums"></div>
+                      <div class="md:col-span-2"><input type="text" value="BATCH-9021" class="input input-sm font-mono"></div>
+                      <div class="md:col-span-2"><span data-variance class="badge badge-slate">0</span></div>
+                      <div class="md:col-span-1 flex justify-end"><button type="button" onclick="removeRow(this)" class="icon-btn hover:!text-red-600"><i data-icon="trash" class="w-4 h-4"></i></button></div>
+                    </div>
+                    <div data-row class="grid grid-cols-2 md:grid-cols-12 gap-3 items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/50">
+                      <div class="col-span-2 md:col-span-3"><input type="text" value="SKU-AZ-SUG" class="input input-sm font-mono"></div>
+                      <div class="md:col-span-2"><input type="number" min="0" data-expected oninput="calcVariance(this)" value="300" class="input input-sm tabular-nums"></div>
+                      <div class="md:col-span-2"><input type="number" min="0" data-received oninput="calcVariance(this)" value="300" class="input input-sm tabular-nums"></div>
+                      <div class="md:col-span-2"><input type="text" value="BATCH-9022" class="input input-sm font-mono"></div>
+                      <div class="md:col-span-2"><span data-variance class="badge badge-slate">0</span></div>
+                      <div class="md:col-span-1 flex justify-end"><button type="button" onclick="removeRow(this)" class="icon-btn hover:!text-red-600"><i data-icon="trash" class="w-4 h-4"></i></button></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="grid grid-cols-3 border-t border-slate-200 dark:border-slate-800 divide-x divide-slate-200 dark:divide-slate-800 text-center">
+                  <div class="p-4"><p class="section-label">Expected</p><p id="grn-total-expected" class="mt-1 text-xl font-bold tabular-nums">0</p></div>
+                  <div class="p-4"><p class="section-label">Received</p><p id="grn-total-received" class="mt-1 text-xl font-bold tabular-nums">0</p></div>
+                  <div class="p-4"><p class="section-label">Variance</p><p id="grn-total-variance" class="mt-1 text-xl font-bold tabular-nums">0</p></div>
+                </div>
+              </div>
+
+              <div class="flex flex-col-reverse sm:flex-row justify-end gap-3">
+                <a href="#grn" class="btn btn-secondary">Cancel</a>
+                <button type="button" onclick="toast('GRN saved as draft', 'info')" class="btn btn-secondary">Save Draft</button>
+                <a href="#inspections" class="btn btn-secondary">Log Discrepancy</a>
+                <button type="submit" class="btn btn-primary">Submit GRN</button>
+              </div>
+            </form>
+          </section>
+
+          <!-- ==================== INSPECTIONS ==================== -->
+          <section id="screen-inspections" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Inspections & Discrepancies</h2>
+                <p class="page-sub">Report shortages, damages and wrong items found during receiving.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <form onsubmit="submitForm(event, 'Inspection report saved and sent for approval')" class="lg:col-span-2 card">
+                <div class="card-body space-y-6">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label class="label">GRN reference *</label>
+                      <select class="input font-mono"><option>GRN-2026-089</option><option>GRN-2026-090</option></select>
+                    </div>
+                    <div><label class="label">Container</label><input type="text" readonly value="MSKU1234567" class="input font-mono"></div>
+                    <div>
+                      <label class="label">Issue type *</label>
+                      <select class="input"><option>Shortage (missing qty)</option><option>Damaged packaging / goods</option><option>Wrong item supplied</option><option>Excess quantity</option></select>
+                    </div>
+                    <div><label class="label">Affected SKU *</label><input type="text" required placeholder="SKU-AZ-001" class="input font-mono"></div>
+                    <div><label class="label">Affected quantity *</label><input type="number" required min="1" placeholder="12" class="input tabular-nums"></div>
+                  </div>
+
+                  <div>
+                    <label class="label">Severity *</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <label class="relative flex"><input type="radio" name="severity" class="peer sr-only"><div class="radio-card"><p class="text-sm font-semibold">Low</p><p class="text-xs text-slate-500">Minor variance</p></div></label>
+                      <label class="relative flex"><input type="radio" name="severity" checked class="peer sr-only"><div class="radio-card"><p class="text-sm font-semibold">Medium</p><p class="text-xs text-slate-500">Disputed quantity</p></div></label>
+                      <label class="relative flex"><input type="radio" name="severity" class="peer sr-only"><div class="radio-card"><p class="text-sm font-semibold">High</p><p class="text-xs text-slate-500">Severe damage or rejection</p></div></label>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label class="label">Inspection remarks</label>
+                    <textarea rows="3" placeholder="Describe the discrepancy and how it was found..." class="input"></textarea>
+                  </div>
+
+                  <div>
+                    <label class="label">Photo evidence</label>
+                    <label class="dropzone">
+                      <i data-icon="upload" class="w-6 h-6 text-slate-400"></i>
+                      <p class="text-sm font-semibold">Click to upload photos</p>
+                      <p class="hint !mt-0">JPG, PNG or PDF up to 10MB each</p>
+                      <span data-file-label class="text-xs font-semibold text-simba-600"></span>
+                      <input type="file" multiple accept="image/*,.pdf" onchange="fileChosen(this)" class="hidden">
+                    </label>
+                  </div>
+                </div>
+                <div class="card-footer">
+                  <button type="reset" class="btn btn-secondary">Clear</button>
+                  <button type="submit" class="btn btn-primary">Save Inspection Report</button>
+                </div>
+              </form>
+
+              <div class="card self-start">
+                <div class="card-header"><h3 class="card-title">Recent Inspections</h3></div>
+                <ul>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">INS-2026-022</p><p class="text-xs text-slate-500">Shortage &middot; GRN-2026-089</p></div><span class="badge badge-amber">Pending</span></li>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">INS-2026-021</p><p class="text-xs text-slate-500">Damaged &middot; GRN-2026-087</p></div><span class="badge badge-green">Resolved</span></li>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">INS-2026-020</p><p class="text-xs text-slate-500">Wrong item &middot; GRN-2026-085</p></div><span class="badge badge-green">Resolved</span></li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== PUT-AWAY HANDHELD ==================== -->
+          <section id="screen-putaway-handheld" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Put-Away (RF Handheld)</h2>
+                <p class="page-sub">Scanner emulator for directed put-away tasks.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-5 gap-6">
+              <div class="xl:col-span-2 flex justify-center">
+                <div class="w-full max-w-[360px] bg-slate-900 rounded-[36px] p-3.5 shadow-2xl border-4 border-slate-800 text-white">
+                  <div class="w-24 h-1.5 bg-slate-700 rounded-full mx-auto mb-3"></div>
+                  <div class="bg-slate-950 rounded-3xl p-5 min-h-[520px] flex flex-col border border-slate-800">
+                    <div class="flex items-center justify-between text-[11px] text-slate-400 pb-3 border-b border-slate-800">
+                      <span class="font-mono">Task #PT-8821</span>
+                      <span class="flex items-center gap-1.5 text-emerald-400 font-semibold"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Active</span>
+                    </div>
+
+                    <div class="flex items-center gap-2 py-4">
+                      <div class="flex-1 h-1 rounded-full bg-simba-600"></div>
+                      <div class="flex-1 h-1 rounded-full bg-simba-600"></div>
+                      <div class="flex-1 h-1 rounded-full bg-slate-700"></div>
+                    </div>
+                    <p class="text-[11px] uppercase tracking-wider text-slate-500 -mt-1 mb-4">Step 3 of 3 &middot; Scan target bin</p>
+
+                    <div class="space-y-4 flex-1">
+                      <div>
+                        <label class="block text-[11px] uppercase tracking-wider text-slate-400 mb-1.5">Source LPN</label>
+                        <div class="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5">
+                          <span class="font-mono text-sm text-simba-300">LPN-992014</span>
+                          <i data-icon="check" class="w-4 h-4 text-emerald-400"></i>
+                        </div>
+                      </div>
+                      <div class="p-4 bg-slate-900 rounded-xl border border-slate-800 space-y-2 text-sm">
+                        <div class="flex justify-between"><span class="text-slate-400">SKU</span><span class="font-mono font-semibold">SKU-AZ-001</span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">Item</span><span>Flour 25kg</span></div>
+                        <div class="flex justify-between"><span class="text-slate-400">Quantity</span><span class="font-semibold tabular-nums">40 bags</span></div>
+                        <div class="flex justify-between pt-2 border-t border-slate-800"><span class="text-slate-400">Target bin</span><span class="font-mono font-bold text-simba-300">DAR-A-03-02-B</span></div>
+                      </div>
+                      <div>
+                        <label class="block text-[11px] uppercase tracking-wider text-slate-400 mb-1.5">Scan target bin</label>
+                        <input id="rf-bin" type="text" onkeydown="if(event.key==='Enter') confirmPutaway()" placeholder="Scan or type bin code" class="w-full bg-slate-900 border-2 border-simba-600 rounded-xl px-3 py-2.5 text-sm text-white font-mono uppercase focus:outline-none focus:ring-4 focus:ring-simba-600/30">
+                      </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 mt-6">
+                      <button onclick="toast('Task skipped', 'info')" class="py-3 rounded-xl bg-slate-800 text-slate-300 text-sm font-semibold hover:bg-slate-700">Skip</button>
+                      <button onclick="confirmPutaway()" class="col-span-2 py-3 rounded-xl bg-simba-600 hover:bg-simba-700 text-white text-sm font-semibold">Confirm Put-Away</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="xl:col-span-3 space-y-6">
+                <div class="card">
+                  <div class="card-header"><h3 class="card-title">Put-Away Queue</h3><span class="badge badge-blue">4 open</span></div>
+                  <div class="overflow-x-auto">
+                    <table class="table">
+                      <thead><tr><th>Task</th><th>LPN</th><th>SKU</th><th class="text-right">Qty</th><th>Target Bin</th><th>Status</th></tr></thead>
+                      <tbody>
+                        <tr><td class="mono font-semibold">PT-8821</td><td class="mono">LPN-992014</td><td class="mono">SKU-AZ-001</td><td class="text-right tabular-nums">40</td><td class="mono text-simba-600 font-semibold">DAR-A-03-02-B</td><td><span class="badge badge-blue"><span class="dot"></span>Active</span></td></tr>
+                        <tr><td class="mono font-semibold">PT-8822</td><td class="mono">LPN-992015</td><td class="mono">SKU-AZ-001</td><td class="text-right tabular-nums">40</td><td class="mono">DAR-A-03-02-C</td><td><span class="badge badge-slate"><span class="dot"></span>Queued</span></td></tr>
+                        <tr><td class="mono font-semibold">PT-8823</td><td class="mono">LPN-992016</td><td class="mono">SKU-AZ-SUG</td><td class="text-right tabular-nums">60</td><td class="mono">DAR-B-01-04-A</td><td><span class="badge badge-slate"><span class="dot"></span>Queued</span></td></tr>
+                        <tr><td class="mono font-semibold">PT-8824</td><td class="mono">LPN-992017</td><td class="mono">SKU-VOD-SIM</td><td class="text-right tabular-nums">2,000</td><td class="mono">DAR-V-02-01-A</td><td><span class="badge badge-slate"><span class="dot"></span>Queued</span></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <div class="alert-info">
+                  <i data-icon="info" class="w-5 h-5 shrink-0"></i>
+                  <p>Scan the target bin label. The system rejects any bin that does not match the directed location, which keeps stock positions accurate.</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== STOCK ==================== -->
+          <section id="screen-stock" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Stock on Hand & Traceability</h2>
+                <p class="page-sub">Live balances by SKU, location and virtual warehouse.</p>
+              </div>
+              <button onclick="toast('Stock ledger exported to CSV')" class="btn btn-secondary"><i data-icon="download" class="w-4 h-4"></i>Export</button>
+            </div>
+
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="card p-4"><p class="text-xs text-slate-500">Active SKUs</p><p class="mt-1 text-2xl font-bold tabular-nums">1,284</p></div>
+              <div class="card p-4"><p class="text-xs text-slate-500">Total Units</p><p class="mt-1 text-2xl font-bold tabular-nums">48,250</p></div>
+              <div class="card p-4"><p class="text-xs text-slate-500">Allocated</p><p class="mt-1 text-2xl font-bold tabular-nums text-amber-600">9,870</p></div>
+              <div class="card p-4"><p class="text-xs text-slate-500">Below Reorder Point</p><p class="mt-1 text-2xl font-bold tabular-nums text-red-600">7</p></div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="relative flex-1 sm:flex-none">
+                  <i data-icon="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                  <input id="stock-search" type="text" oninput="filterTable(this, 'stock-table')" placeholder="Search SKU, description, bin" class="input !pl-9 sm:w-72">
+                </div>
+                <select onchange="filterTable({ value: this.value === 'All warehouses' ? '' : this.value }, 'stock-table')" class="input !w-auto">
+                  <option>All warehouses</option><option>DAR-General Store</option><option>DAR-Tech Vault</option><option>Cold Room</option>
+                </select>
+              </div>
+              <div class="overflow-x-auto">
+                <table id="stock-table" class="table">
+                  <thead><tr><th>SKU</th><th>Description</th><th>Warehouse</th><th>Bin</th><th class="text-right">Total</th><th class="text-right">Allocated</th><th class="text-right">Available</th><th>Status</th></tr></thead>
+                  <tbody>
+                    <tr><td class="mono font-semibold">SKU-AZ-001</td><td><p>Azam Bakhresa Flour 25kg</p><p class="text-xs text-slate-500">Consumer Goods</p></td><td>DAR-General Store</td><td class="mono">DAR-A-03-02-B</td><td class="text-right tabular-nums font-semibold">4,500</td><td class="text-right tabular-nums text-amber-600">1,200</td><td class="text-right tabular-nums font-bold text-emerald-600">3,300</td><td><span class="badge badge-green">In Stock</span></td></tr>
+                    <tr><td class="mono font-semibold">SKU-AZ-SUG</td><td><p>Azam Sugar 1kg</p><p class="text-xs text-slate-500">Consumer Goods</p></td><td>DAR-General Store</td><td class="mono">DAR-B-01-04-A</td><td class="text-right tabular-nums font-semibold">2,160</td><td class="text-right tabular-nums text-amber-600">1,900</td><td class="text-right tabular-nums font-bold text-red-600">260</td><td><span class="badge badge-red">Low Stock</span></td></tr>
+                    <tr><td class="mono font-semibold">SKU-VOD-SIM</td><td><p>Vodacom 4G LTE SIM Starter Pack</p><p class="text-xs text-slate-500">Telecommunications</p></td><td>DAR-Tech Vault</td><td class="mono">DAR-V-02-01-A</td><td class="text-right tabular-nums font-semibold">12,800</td><td class="text-right tabular-nums text-amber-600">3,500</td><td class="text-right tabular-nums font-bold text-emerald-600">9,300</td><td><span class="badge badge-green">In Stock</span></td></tr>
+                    <tr><td class="mono font-semibold">SKU-VOD-RTR</td><td><p>Vodacom 4G Home Router</p><p class="text-xs text-slate-500">Telecommunications</p></td><td>DAR-Tech Vault</td><td class="mono">DAR-V-03-02-B</td><td class="text-right tabular-nums font-semibold">640</td><td class="text-right tabular-nums text-amber-600">120</td><td class="text-right tabular-nums font-bold text-emerald-600">520</td><td><span class="badge badge-green">In Stock</span></td></tr>
+                    <tr><td class="mono font-semibold">SKU-AZ-JCE</td><td><p>Azam Mango Juice 1L</p><p class="text-xs text-slate-500">Consumer Goods</p></td><td>Cold Room</td><td class="mono">DAR-C-01-01-A</td><td class="text-right tabular-nums font-semibold">1,800</td><td class="text-right tabular-nums text-amber-600">600</td><td class="text-right tabular-nums font-bold text-emerald-600">1,200</td><td><span class="badge badge-amber">Expiring Soon</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== INTERNAL MOVEMENTS ==================== -->
+          <section id="screen-movements" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Internal Movements</h2>
+                <p class="page-sub">Move stock between bins within the same warehouse.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <form onsubmit="submitForm(event, 'Movement order MOV-2026-142 generated')" class="lg:col-span-2 card">
+                <div class="card-body space-y-4">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label class="label">SKU code *</label><input type="text" required placeholder="SKU-AZ-001" class="input font-mono"></div>
+                    <div><label class="label">Quantity to move *</label><input type="number" required min="1" placeholder="50" class="input tabular-nums"></div>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-end">
+                    <div><label class="label">Source bin *</label><input type="text" required placeholder="DAR-A-01-01-A" class="input font-mono uppercase"></div>
+                    <div class="hidden md:flex items-center justify-center h-[38px] w-10 text-slate-400"><i data-icon="arrow-right" class="w-5 h-5"></i></div>
+                    <div><label class="label">Target bin *</label><input type="text" required placeholder="DAR-A-03-02-B" class="input font-mono uppercase"></div>
+                  </div>
+                  <div>
+                    <label class="label">Movement reason *</label>
+                    <select class="input"><option>Replenishment to pick face</option><option>Consolidation</option><option>Re-slotting</option><option>Damaged stock quarantine</option></select>
+                  </div>
+                  <div><label class="label">Notes</label><textarea rows="2" class="input" placeholder="Optional"></textarea></div>
+                </div>
+                <div class="card-footer">
+                  <button type="reset" class="btn btn-secondary">Clear</button>
+                  <button type="submit" class="btn btn-primary">Execute Movement</button>
+                </div>
+              </form>
+
+              <div class="card self-start">
+                <div class="card-header"><h3 class="card-title">Recent Movements</h3></div>
+                <ul>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">MOV-2026-141</p><p class="text-xs text-slate-500 mono">DAR-A-01-01-A to DAR-A-03-02-B</p></div><span class="text-sm font-semibold tabular-nums">150</span></li>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">MOV-2026-140</p><p class="text-xs text-slate-500 mono">DAR-B-02-01-C to DAR-B-01-04-A</p></div><span class="text-sm font-semibold tabular-nums">80</span></li>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">MOV-2026-139</p><p class="text-xs text-slate-500 mono">DAR-V-01-01-A to DAR-V-02-01-A</p></div><span class="text-sm font-semibold tabular-nums">1,000</span></li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== DEPARTMENT TRANSFERS ==================== -->
+          <section id="screen-transfers" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Department Transfers</h2>
+                <p class="page-sub">Move stock between virtual warehouses and regional hubs.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <form onsubmit="submitForm(event, 'Transfer TRF-2026-032 submitted for approval', '#approvals')" class="lg:col-span-2 card">
+                <div class="card-body space-y-4">
+                  <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-end">
+                    <div>
+                      <label class="label">Source department / VW *</label>
+                      <select class="input"><option>DAR-General Store</option><option>DAR-Tech Vault</option></select>
+                    </div>
+                    <div class="hidden md:flex items-center justify-center h-[38px] w-10 text-slate-400"><i data-icon="arrow-right" class="w-5 h-5"></i></div>
+                    <div>
+                      <label class="label">Target department / VW *</label>
+                      <select class="input"><option>Zanzibar Regional Hub</option><option>Arusha Distribution Center</option></select>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div><label class="label">SKU code *</label><input type="text" required placeholder="SKU-VOD-SIM" class="input font-mono"></div>
+                    <div><label class="label">Quantity *</label><input type="number" required min="1" placeholder="200" class="input tabular-nums"></div>
+                    <div><label class="label">Required by *</label><input type="date" required class="input tabular-nums"></div>
+                  </div>
+                  <div>
+                    <label class="label">Transport mode</label>
+                    <select class="input"><option>Road freight</option><option>Sea freight (ferry)</option><option>Air freight</option></select>
+                  </div>
+                  <div><label class="label">Transfer reason *</label><textarea rows="3" required placeholder="Reason for the transfer..." class="input"></textarea></div>
+                  <div class="alert-warn">
+                    <i data-icon="alert" class="w-5 h-5 shrink-0"></i>
+                    <p>Transfers above 100 units require supervisor approval before picking starts.</p>
+                  </div>
+                </div>
+                <div class="card-footer">
+                  <button type="reset" class="btn btn-secondary">Clear</button>
+                  <button type="submit" class="btn btn-primary">Submit Transfer Request</button>
+                </div>
+              </form>
+
+              <div class="card self-start">
+                <div class="card-header"><h3 class="card-title">Open Transfers</h3></div>
+                <ul>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">TRF-2026-031</p><p class="text-xs text-slate-500">Tech Vault to Zanzibar</p></div><span class="badge badge-amber">Awaiting</span></li>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">TRF-2026-030</p><p class="text-xs text-slate-500">General Store to Arusha</p></div><span class="badge badge-blue">In Transit</span></li>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">TRF-2026-029</p><p class="text-xs text-slate-500">Tech Vault to Arusha</p></div><span class="badge badge-green">Received</span></li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== STOCK ADJUSTMENTS ==================== -->
+          <section id="screen-adjustments" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Stock Adjustments</h2>
+                <p class="page-sub">Correct system balances after counts, damages or found stock.</p>
+              </div>
+            </div>
+
+            <form onsubmit="submitForm(event, 'Adjustment submitted for approval', '#approvals')" class="card max-w-4xl">
+              <div class="card-body space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div><label class="label">SKU code *</label><input type="text" required value="SKU-AZ-001" class="input font-mono"></div>
+                  <div><label class="label">Location bin *</label><input type="text" required value="DAR-A-03-02-B" class="input font-mono uppercase"></div>
+                  <div>
+                    <label class="label">Reason code *</label>
+                    <select class="input">
+                      <option>CYCLE_COUNT_VARIANCE</option>
+                      <option>DAMAGED_IN_STORAGE</option>
+                      <option>FOUND_STOCK</option>
+                      <option>EXPIRED_WRITE_OFF</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div data-row class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60">
+                  <div><label class="label">System quantity</label><input type="number" readonly data-expected value="500" class="input tabular-nums"></div>
+                  <div><label class="label">Physical count *</label><input type="number" required min="0" data-received oninput="calcVariance(this)" value="450" class="input tabular-nums"></div>
+                  <div>
+                    <label class="label">Variance</label>
+                    <div class="h-[38px] flex items-center"><span data-variance class="badge badge-slate !text-sm !px-3 !py-1">0</span></div>
+                  </div>
+                </div>
+
+                <div><label class="label">Justification *</label><textarea rows="3" required placeholder="Explain why the adjustment is needed..." class="input"></textarea></div>
+                <div class="alert-info">
+                  <i data-icon="info" class="w-5 h-5 shrink-0"></i>
+                  <p>Adjustments do not change stock until approved. Approved adjustments are written to the audit log with your user ID.</p>
+                </div>
+              </div>
+              <div class="card-footer">
+                <button type="reset" class="btn btn-secondary">Clear</button>
+                <button type="submit" class="btn btn-primary">Request Approval</button>
+              </div>
+            </form>
+          </section>
+
+          <!-- ==================== CYCLE COUNTS ==================== -->
+          <section id="screen-counts" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Cycle Count</h2>
+                <p class="page-sub">Session <span class="mono font-semibold text-slate-700 dark:text-slate-200">CC-2026-041</span> &middot; Zone A &middot; Assigned to Onesmo Mlelwa</p>
+              </div>
+              <div class="flex gap-2">
+                <button onclick="toast('Count session saved', 'info')" class="btn btn-secondary">Save Progress</button>
+                <button onclick="toast('Count CC-2026-041 submitted for review')" class="btn btn-primary">Submit Count</button>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="overflow-x-auto">
+                <table class="table">
+                  <thead><tr><th>Bin</th><th>SKU</th><th>Description</th><th class="text-right">System Qty</th><th>Counted Qty</th><th>Variance</th></tr></thead>
+                  <tbody>
+                    <tr data-row><td class="mono font-semibold">DAR-A-01-01-A</td><td class="mono">SKU-AZ-001</td><td>Azam Bakhresa Flour 25kg</td><td data-expected data-value="500" class="text-right tabular-nums">500</td><td><input type="number" data-received oninput="calcVariance(this)" value="500" class="input input-sm w-28 tabular-nums"></td><td><span data-variance class="badge badge-slate">0</span></td></tr>
+                    <tr data-row><td class="mono font-semibold">DAR-A-01-02-A</td><td class="mono">SKU-AZ-001</td><td>Azam Bakhresa Flour 25kg</td><td data-expected data-value="320" class="text-right tabular-nums">320</td><td><input type="number" data-received oninput="calcVariance(this)" value="318" class="input input-sm w-28 tabular-nums"></td><td><span data-variance class="badge badge-slate">0</span></td></tr>
+                    <tr data-row><td class="mono font-semibold">DAR-A-02-01-B</td><td class="mono">SKU-AZ-SUG</td><td>Azam Sugar 1kg</td><td data-expected data-value="960" class="text-right tabular-nums">960</td><td><input type="number" data-received oninput="calcVariance(this)" value="960" class="input input-sm w-28 tabular-nums"></td><td><span data-variance class="badge badge-slate">0</span></td></tr>
+                    <tr data-row><td class="mono font-semibold">DAR-A-03-02-B</td><td class="mono">SKU-AZ-001</td><td>Azam Bakhresa Flour 25kg</td><td data-expected data-value="500" class="text-right tabular-nums">500</td><td><input type="number" data-received oninput="calcVariance(this)" value="450" class="input input-sm w-28 tabular-nums"></td><td><span data-variance class="badge badge-slate">0</span></td></tr>
+                    <tr data-row><td class="mono font-semibold">DAR-A-03-03-A</td><td class="mono">SKU-AZ-JCE</td><td>Azam Mango Juice 1L</td><td data-expected data-value="240" class="text-right tabular-nums">240</td><td><input type="number" data-received oninput="calcVariance(this)" placeholder="Count" class="input input-sm w-28 tabular-nums"></td><td><span data-variance class="badge badge-slate">0</span></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== ORDERS ==================== -->
+          <section id="screen-orders" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">New Customer Order</h2>
+                <p class="page-sub">Create an order or material request and queue it for allocation.</p>
+              </div>
+            </div>
+
+            <form onsubmit="submitForm(event, 'Order ORD-2026-102 created and queued for allocation', '#dispatch')" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div class="lg:col-span-2 space-y-6">
+                <div class="card">
+                  <div class="card-header"><h3 class="card-title">Order Details</h3></div>
+                  <div class="card-body grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label class="label">Order reference</label><input type="text" readonly value="ORD-2026-102" class="input font-mono"></div>
+                    <div>
+                      <label class="label">Client / customer *</label>
+                      <select class="input"><option>Azam Consumer Goods Ltd</option><option>Vodacom Tanzania PLC</option></select>
+                    </div>
+                    <div><label class="label">Required delivery date *</label><input type="date" required class="input tabular-nums"></div>
+                    <div>
+                      <label class="label">Source warehouse *</label>
+                      <select class="input"><option>DAR-General Store</option><option>DAR-Tech Vault</option><option>Cold Room</option></select>
+                    </div>
+                    <div class="md:col-span-2"><label class="label">Delivery address *</label><input type="text" required placeholder="Mikocheni Industrial Area, Dar es Salaam" class="input"></div>
+                    <div><label class="label">Contact person</label><input type="text" placeholder="Rashid Ally" class="input"></div>
+                    <div><label class="label">Contact phone</label><input type="tel" placeholder="+255 712 000 000" class="input tabular-nums"></div>
+                  </div>
+                </div>
+
+                <div class="card">
+                  <div class="card-header">
+                    <h3 class="card-title">Order Lines</h3>
+                    <button type="button" onclick="addRow('tpl-order-row', 'order-lines')" class="btn btn-secondary btn-sm"><i data-icon="plus" class="w-3.5 h-3.5"></i>Add Line</button>
+                  </div>
+                  <div class="card-body space-y-3">
+                    <div class="hidden md:grid grid-cols-12 gap-3 px-3 section-label">
+                      <span class="col-span-3">SKU Code</span><span class="col-span-5">Description</span><span class="col-span-3">Quantity</span><span class="col-span-1"></span>
+                    </div>
+                    <div id="order-lines" class="space-y-3">
+                      <div data-row class="grid grid-cols-2 md:grid-cols-12 gap-3 items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/50">
+                        <div class="md:col-span-3"><input type="text" value="SKU-AZ-001" class="input input-sm font-mono"></div>
+                        <div class="md:col-span-5"><input type="text" value="Azam Bakhresa Flour 25kg" class="input input-sm"></div>
+                        <div class="md:col-span-3"><input type="number" min="1" data-qty oninput="updateTotals()" value="120" class="input input-sm tabular-nums"></div>
+                        <div class="md:col-span-1 flex justify-end"><button type="button" onclick="removeRow(this)" class="icon-btn hover:!text-red-600"><i data-icon="trash" class="w-4 h-4"></i></button></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card self-start lg:sticky lg:top-0">
+                <div class="card-header"><h3 class="card-title">Order Summary</h3></div>
+                <div class="card-body space-y-3 text-sm">
+                  <div class="flex justify-between"><span class="text-slate-500">Lines</span><span id="order-line-count" class="font-semibold tabular-nums">1</span></div>
+                  <div class="flex justify-between"><span class="text-slate-500">Total quantity</span><span id="order-total-qty" class="font-semibold tabular-nums">120</span></div>
+                  <div class="pt-3 border-t border-slate-100 dark:border-slate-800">
+                    <label class="label">Priority</label>
+                    <select class="input"><option>Standard</option><option>Express</option><option>Critical</option></select>
+                  </div>
+                  <label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300 pt-1">
+                    <input type="checkbox" checked class="rounded border-slate-300 text-simba-600 focus:ring-simba-600">
+                    Auto-allocate using FEFO
+                  </label>
+                </div>
+                <div class="card-footer !justify-stretch flex-col">
+                  <button type="submit" class="btn btn-primary w-full">Save & Allocate Order</button>
+                  <button type="button" onclick="toast('Order saved as draft', 'info')" class="btn btn-secondary w-full">Save Draft</button>
+                </div>
+              </div>
+            </form>
+          </section>
+
+          <!-- ==================== DISPATCH ==================== -->
+          <section id="screen-dispatch" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Dispatch & Gate Release</h2>
+                <p class="page-sub">Verify the load, capture vehicle details and issue the gate pass.</p>
+              </div>
+            </div>
+
+            <form onsubmit="submitForm(event, 'Gate pass GP-2026-089 issued, vehicle released', '#pod')" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div class="lg:col-span-2 card">
+                <div class="card-body space-y-6">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label class="label">Order reference *</label>
+                      <select class="input font-mono"><option>ORD-2026-101</option><option>ORD-2026-102</option></select>
+                    </div>
+                    <div><label class="label">Gate pass number</label><input type="text" readonly value="GP-2026-089" class="input font-mono"></div>
+                    <div><label class="label">Departure time *</label><input type="datetime-local" required value="2026-10-03T14:30" class="input tabular-nums"></div>
+                  </div>
+                  <div class="space-y-4 pt-6 border-t border-slate-100 dark:border-slate-800">
+                    <p class="section-label">Vehicle & Driver</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div><label class="label">Vehicle plate *</label><input type="text" required placeholder="T 452 ABC" class="input font-mono uppercase"></div>
+                      <div><label class="label">Trailer number</label><input type="text" placeholder="T 118 DEF" class="input font-mono uppercase"></div>
+                      <div><label class="label">Seal number *</label><input type="text" required placeholder="SL-55021" class="input font-mono"></div>
+                      <div><label class="label">Driver name *</label><input type="text" required placeholder="Juma Kassim" class="input"></div>
+                      <div><label class="label">Driver phone *</label><input type="tel" required placeholder="+255 712 000 000" class="input tabular-nums"></div>
+                      <div><label class="label">Licence number</label><input type="text" placeholder="DL-4410923" class="input font-mono"></div>
+                    </div>
+                  </div>
+                  <div class="space-y-3 pt-6 border-t border-slate-100 dark:border-slate-800">
+                    <p class="section-label">Release Checklist</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"><input type="checkbox" required class="rounded border-slate-300 text-simba-600 focus:ring-simba-600">Load verified against picklist</label>
+                      <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"><input type="checkbox" required class="rounded border-slate-300 text-simba-600 focus:ring-simba-600">Vehicle condition inspected</label>
+                      <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"><input type="checkbox" required class="rounded border-slate-300 text-simba-600 focus:ring-simba-600">Seal applied and recorded</label>
+                      <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50"><input type="checkbox" required class="rounded border-slate-300 text-simba-600 focus:ring-simba-600">Delivery documents handed to driver</label>
+                    </div>
+                  </div>
+                </div>
+                <div class="card-footer">
+                  <a href="#orders" class="btn btn-secondary">Cancel</a>
+                  <button type="submit" class="btn btn-primary">Issue Gate Pass & Release</button>
+                </div>
+              </div>
+
+              <div class="self-start space-y-4">
+                <div class="card overflow-hidden">
+                  <div class="bg-simba-600 text-white px-5 py-4">
+                    <p class="text-[11px] uppercase tracking-wider text-simba-100">Gate Pass</p>
+                    <p class="text-xl font-bold font-mono">GP-2026-089</p>
+                  </div>
+                  <div class="card-body space-y-3 text-sm">
+                    <div class="flex justify-between"><span class="text-slate-500">Order</span><span class="mono font-semibold">ORD-2026-101</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Client</span><span>Azam Ltd</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Packages</span><span class="tabular-nums font-semibold">120 bags</span></div>
+                    <div class="flex justify-between"><span class="text-slate-500">Gross weight</span><span class="tabular-nums">3,000 kg</span></div>
+                    <div class="pt-3 border-t border-dashed border-slate-300 dark:border-slate-700 font-mono text-center text-xs tracking-[0.3em] text-slate-500">|||| | ||| || |||| | ||</div>
+                  </div>
+                </div>
+                <a href="#print-document" class="btn btn-secondary w-full"><i data-icon="printer" class="w-4 h-4"></i>Print Gate Pass</a>
+              </div>
+            </form>
+          </section>
+
+          <!-- ==================== PROOF OF DELIVERY ==================== -->
+          <section id="screen-pod" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Proof of Delivery</h2>
+                <p class="page-sub">Confirm delivery and attach the signed delivery note.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <form onsubmit="submitForm(event, 'Delivery confirmed and POD uploaded')" class="lg:col-span-2 card">
+                <div class="card-body space-y-6">
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label class="label">Gate pass reference *</label>
+                      <select class="input font-mono"><option>GP-2026-088</option><option>GP-2026-087</option></select>
+                    </div>
+                    <div><label class="label">Delivered at *</label><input type="datetime-local" required class="input tabular-nums"></div>
+                    <div><label class="label">Recipient full name *</label><input type="text" required placeholder="Rashid Ally" class="input"></div>
+                    <div><label class="label">Recipient phone / ID</label><input type="text" placeholder="+255 754 000 000" class="input tabular-nums"></div>
+                  </div>
+                  <div>
+                    <label class="label">Delivery condition *</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <label class="relative flex"><input type="radio" name="pod-condition" checked class="peer sr-only"><div class="radio-card"><p class="text-sm font-semibold">Delivered in full</p><p class="text-xs text-slate-500">All items, good condition</p></div></label>
+                      <label class="relative flex"><input type="radio" name="pod-condition" class="peer sr-only"><div class="radio-card"><p class="text-sm font-semibold">Partial delivery</p><p class="text-xs text-slate-500">Some items not accepted</p></div></label>
+                      <label class="relative flex"><input type="radio" name="pod-condition" class="peer sr-only"><div class="radio-card"><p class="text-sm font-semibold">Damaged on arrival</p><p class="text-xs text-slate-500">Claim required</p></div></label>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="label">Signed POD document *</label>
+                    <label class="dropzone">
+                      <i data-icon="upload" class="w-6 h-6 text-slate-400"></i>
+                      <p class="text-sm font-semibold">Click to upload the signed delivery note</p>
+                      <p class="hint !mt-0">Photo or scan, JPG, PNG or PDF</p>
+                      <span data-file-label class="text-xs font-semibold text-simba-600"></span>
+                      <input type="file" required accept="image/*,.pdf" onchange="fileChosen(this)" class="sr-only">
+                    </label>
+                  </div>
+                  <div><label class="label">Remarks</label><textarea rows="2" class="input" placeholder="Optional"></textarea></div>
+                </div>
+                <div class="card-footer">
+                  <button type="reset" class="btn btn-secondary">Clear</button>
+                  <button type="submit" class="btn btn-primary">Upload & Confirm Delivery</button>
+                </div>
+              </form>
+
+              <div class="card self-start">
+                <div class="card-header"><h3 class="card-title">Awaiting POD</h3><span class="badge badge-amber">3</span></div>
+                <ul>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">GP-2026-088</p><p class="text-xs text-slate-500">Azam Ltd &middot; Mikocheni</p></div><span class="text-xs text-slate-500">Today</span></li>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">GP-2026-087</p><p class="text-xs text-slate-500">Vodacom &middot; Mlimani City</p></div><span class="text-xs text-slate-500">Yesterday</span></li>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">GP-2026-085</p><p class="text-xs text-slate-500">Azam Ltd &middot; Kibaha</p></div><span class="text-xs text-red-600 font-semibold">2 days</span></li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== REPORTS ==================== -->
+          <section id="screen-reports" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Reports Library</h2>
+                <p class="page-sub">Operational and audit reports for the selected period.</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <input type="date" value="2026-09-01" class="input !w-auto tabular-nums">
+                <input type="date" value="2026-10-03" class="input !w-auto tabular-nums">
+                <select class="input !w-auto"><option>All warehouses</option><option>DAR-General Store</option><option>DAR-Tech Vault</option></select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div class="card p-5 flex flex-col">
+                <div class="kpi-icon bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400"><i data-icon="archive" class="w-5 h-5"></i></div>
+                <h3 class="mt-4 font-bold">Stock Valuation</h3>
+                <p class="mt-1 text-sm text-slate-500 flex-1">Monetary value of inventory grouped by warehouse and client.</p>
+                <p class="mt-4 text-xs text-slate-400">Last run 2 hours ago</p>
+                <div class="mt-3 flex gap-2"><button onclick="toast('Generating Stock Valuation report', 'info')" class="btn btn-primary btn-sm flex-1">Run Report</button><button onclick="toast('Exported to CSV')" class="btn btn-secondary btn-sm"><i data-icon="download" class="w-3.5 h-3.5"></i>CSV</button></div>
+              </div>
+              <div class="card p-5 flex flex-col">
+                <div class="kpi-icon bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400"><i data-icon="truck" class="w-5 h-5"></i></div>
+                <h3 class="mt-4 font-bold">Dispatch Accuracy KPI</h3>
+                <p class="mt-1 text-sm text-slate-500 flex-1">Weekly on-time and in-full delivery performance.</p>
+                <p class="mt-4 text-xs text-slate-400">Last run yesterday</p>
+                <div class="mt-3 flex gap-2"><button onclick="toast('Generating Dispatch Accuracy report', 'info')" class="btn btn-primary btn-sm flex-1">Run Report</button><button onclick="toast('Exported to CSV')" class="btn btn-secondary btn-sm"><i data-icon="download" class="w-3.5 h-3.5"></i>CSV</button></div>
+              </div>
+              <div class="card p-5 flex flex-col">
+                <div class="kpi-icon bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400"><i data-icon="count" class="w-5 h-5"></i></div>
+                <h3 class="mt-4 font-bold">Cycle Count Variances</h3>
+                <p class="mt-1 text-sm text-slate-500 flex-1">Audit report of discrepancies between system and physical counts.</p>
+                <p class="mt-4 text-xs text-slate-400">Last run 3 days ago</p>
+                <div class="mt-3 flex gap-2"><button onclick="toast('Generating Cycle Count Variance report', 'info')" class="btn btn-primary btn-sm flex-1">Run Report</button><button onclick="toast('Exported to CSV')" class="btn btn-secondary btn-sm"><i data-icon="download" class="w-3.5 h-3.5"></i>CSV</button></div>
+              </div>
+              <div class="card p-5 flex flex-col">
+                <div class="kpi-icon bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400"><i data-icon="clipboard" class="w-5 h-5"></i></div>
+                <h3 class="mt-4 font-bold">Receiving Summary</h3>
+                <p class="mt-1 text-sm text-slate-500 flex-1">GRNs received, variances and turnaround time per supplier.</p>
+                <p class="mt-4 text-xs text-slate-400">Never run</p>
+                <div class="mt-3 flex gap-2"><button onclick="toast('Generating Receiving Summary', 'info')" class="btn btn-primary btn-sm flex-1">Run Report</button><button onclick="toast('Exported to CSV')" class="btn btn-secondary btn-sm"><i data-icon="download" class="w-3.5 h-3.5"></i>CSV</button></div>
+              </div>
+              <div class="card p-5 flex flex-col">
+                <div class="kpi-icon bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400"><i data-icon="cube" class="w-5 h-5"></i></div>
+                <h3 class="mt-4 font-bold">Container Dwell Time</h3>
+                <p class="mt-1 text-sm text-slate-500 flex-1">Days from arrival to release, flagged against free-time limits.</p>
+                <p class="mt-4 text-xs text-slate-400">Last run last week</p>
+                <div class="mt-3 flex gap-2"><button onclick="toast('Generating Dwell Time report', 'info')" class="btn btn-primary btn-sm flex-1">Run Report</button><button onclick="toast('Exported to CSV')" class="btn btn-secondary btn-sm"><i data-icon="download" class="w-3.5 h-3.5"></i>CSV</button></div>
+              </div>
+              <div class="card p-5 flex flex-col">
+                <div class="kpi-icon bg-slate-100 text-slate-600 dark:bg-slate-500/10 dark:text-slate-300"><i data-icon="arrows" class="w-5 h-5"></i></div>
+                <h3 class="mt-4 font-bold">Stock Movement History</h3>
+                <p class="mt-1 text-sm text-slate-500 flex-1">Full trace of every receipt, move, transfer and dispatch per SKU.</p>
+                <p class="mt-4 text-xs text-slate-400">Last run 5 days ago</p>
+                <div class="mt-3 flex gap-2"><button onclick="toast('Generating Movement History', 'info')" class="btn btn-primary btn-sm flex-1">Run Report</button><button onclick="toast('Exported to CSV')" class="btn btn-secondary btn-sm"><i data-icon="download" class="w-3.5 h-3.5"></i>CSV</button></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== PRINTABLE DOCUMENT ==================== -->
+          <section id="screen-print-document" class="screen-content hidden space-y-6">
+            <div class="page-header no-print">
+              <div>
+                <h2 class="page-title">Printable Documents</h2>
+                <p class="page-sub">A4 preview. Only the document is printed.</p>
+              </div>
+              <div class="flex gap-2">
+                <select class="input !w-auto"><option>Goods Receipt Note</option><option>Gate Pass</option><option>Picking List</option></select>
+                <button onclick="window.print()" class="btn btn-primary"><i data-icon="printer" class="w-4 h-4"></i>Print</button>
+              </div>
+            </div>
+
+            <div class="printable-area bg-white text-slate-900 max-w-3xl mx-auto p-10 rounded-xl shadow-lg border border-slate-200 space-y-8">
+              <div class="flex justify-between items-start gap-6 pb-6 border-b-2 border-slate-900">
+                <div class="flex gap-3">
+                  <div class="w-12 h-12 rounded-lg bg-simba-600 text-white flex items-center justify-center font-bold">SC</div>
+                  <div>
+                    <h1 class="text-lg font-bold text-simba-700">SIMBA COURIER & LOGISTICS LTD</h1>
+                    <p class="text-xs text-slate-500">Plot 71 Siwa Road, Mikocheni, Dar es Salaam</p>
+                    <p class="text-xs text-slate-500">info@simbacourier.co.tz &middot; simbacourier.co.tz</p>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <h2 class="text-lg font-bold uppercase">Goods Receipt Note</h2>
+                  <p class="font-mono font-bold text-simba-700">GRN-2026-089</p>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                <div><p class="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Supplier</p><p class="font-semibold mt-1">Azam Consumer Goods Ltd</p></div>
+                <div><p class="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Container</p><p class="font-mono font-semibold mt-1">MSKU1234567</p></div>
+                <div><p class="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Received</p><p class="font-semibold mt-1 tabular-nums">2026-10-02 11:30</p></div>
+                <div><p class="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Warehouse</p><p class="font-semibold mt-1">DAR-General Store</p></div>
+              </div>
+
+              <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr class="border-b-2 border-slate-900 font-bold uppercase text-[10px] tracking-wider">
+                    <th class="py-2">SKU</th><th class="py-2">Description</th><th class="py-2">Batch</th><th class="py-2 text-right">Expected</th><th class="py-2 text-right">Received</th><th class="py-2 text-right">Variance</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200">
+                  <tr><td class="py-3 font-mono">SKU-AZ-001</td><td class="py-3">Azam Bakhresa Flour 25kg</td><td class="py-3 font-mono">BATCH-9021</td><td class="py-3 text-right tabular-nums">500</td><td class="py-3 text-right tabular-nums font-bold">488</td><td class="py-3 text-right tabular-nums text-red-600">-12</td></tr>
+                  <tr><td class="py-3 font-mono">SKU-AZ-SUG</td><td class="py-3">Azam Sugar 1kg</td><td class="py-3 font-mono">BATCH-9022</td><td class="py-3 text-right tabular-nums">300</td><td class="py-3 text-right tabular-nums font-bold">300</td><td class="py-3 text-right tabular-nums">0</td></tr>
+                </tbody>
+                <tfoot>
+                  <tr class="border-t-2 border-slate-900 font-bold"><td colspan="3" class="py-3">Total</td><td class="py-3 text-right tabular-nums">800</td><td class="py-3 text-right tabular-nums">788</td><td class="py-3 text-right tabular-nums text-red-600">-12</td></tr>
+                </tfoot>
+              </table>
+
+              <div class="text-xs"><p class="font-semibold mb-1">Remarks</p><p class="text-slate-600">Shortage of 12 bags recorded under INS-2026-022, pending supplier confirmation.</p></div>
+
+              <div class="grid grid-cols-3 gap-8 pt-10 text-xs">
+                <div><div class="border-t border-slate-400 pt-2"><p class="font-semibold">Received by</p><p class="text-slate-500">Onesmo Mlelwa</p></div></div>
+                <div><div class="border-t border-slate-400 pt-2"><p class="font-semibold">Checked by</p><p class="text-slate-500">Supervisor</p></div></div>
+                <div><div class="border-t border-slate-400 pt-2"><p class="font-semibold">Supplier representative</p><p class="text-slate-500">Name & signature</p></div></div>
+              </div>
+
+              <p class="text-[10px] text-slate-400 text-center pt-4 border-t border-slate-200">System generated by Simba WMS on 2026-10-03. This document is valid without a stamp.</p>
+            </div>
+          </section>
+
+          <!-- ==================== MASTER DATA SKUS ==================== -->
+          <section id="screen-master-items" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Item Master (SKU)</h2>
+                <p class="page-sub">Define items, units and storage rules used across the WMS.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <form onsubmit="submitForm(event, 'SKU master record saved')" class="lg:col-span-2 card">
+                <div class="card-body space-y-8">
+                  <div class="space-y-4">
+                    <p class="section-label">Identification</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div><label class="label">SKU code *</label><input type="text" required placeholder="SKU-AZ-002" class="input font-mono uppercase"></div>
+                      <div><label class="label">Barcode / EAN</label><input type="text" placeholder="6201234567890" class="input font-mono"></div>
+                      <div><label class="label">Client / owner *</label><select class="input"><option>Azam Consumer Goods Ltd</option><option>Vodacom Tanzania PLC</option></select></div>
+                      <div class="md:col-span-3"><label class="label">Item name *</label><input type="text" required placeholder="Azam Sugar 1kg" class="input"></div>
+                    </div>
+                  </div>
+                  <div class="space-y-4 pt-6 border-t border-slate-100 dark:border-slate-800">
+                    <p class="section-label">Classification</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div><label class="label">Category *</label><select class="input"><option>Consumer Goods & Food</option><option>Telecommunications</option><option>Courier Parcels</option></select></div>
+                      <div><label class="label">Base unit of measure *</label><select class="input"><option>Piece</option><option>Bag</option><option>Carton</option><option>Kilogram</option></select></div>
+                      <div><label class="label">Units per pallet</label><input type="number" min="1" placeholder="40" class="input tabular-nums"></div>
+                    </div>
+                  </div>
+                  <div class="space-y-4 pt-6 border-t border-slate-100 dark:border-slate-800">
+                    <p class="section-label">Storage Rules</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div><label class="label">Picking strategy *</label><select class="input"><option>FEFO (first expiry, first out)</option><option>FIFO (first in, first out)</option><option>LIFO</option></select></div>
+                      <div><label class="label">Track expiry date</label><select class="input"><option>Yes</option><option>No</option></select></div>
+                      <div><label class="label">Storage condition</label><select class="input"><option>Ambient</option><option>Chilled (2 to 8 C)</option><option>Secure vault</option></select></div>
+                      <div><label class="label">Minimum stock</label><input type="number" min="0" placeholder="200" class="input tabular-nums"></div>
+                      <div><label class="label">Reorder point</label><input type="number" min="0" placeholder="500" class="input tabular-nums"></div>
+                      <div><label class="label">Maximum stock</label><input type="number" min="0" placeholder="5000" class="input tabular-nums"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="card-footer">
+                  <button type="reset" class="btn btn-secondary">Clear</button>
+                  <button type="submit" class="btn btn-primary">Save SKU</button>
+                </div>
+              </form>
+
+              <div class="card self-start">
+                <div class="card-header"><h3 class="card-title">Recently Added</h3></div>
+                <ul>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">SKU-AZ-JCE</p><p class="text-xs text-slate-500">Azam Mango Juice 1L</p></div><span class="badge badge-blue">Chilled</span></li>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">SKU-VOD-RTR</p><p class="text-xs text-slate-500">Vodacom 4G Home Router</p></div><span class="badge badge-violet">Vault</span></li>
+                  <li class="list-row"><div><p class="text-sm font-semibold mono">SKU-AZ-SUG</p><p class="text-xs text-slate-500">Azam Sugar 1kg</p></div><span class="badge badge-slate">Ambient</span></li>
+                </ul>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== USERS & ROLES ==================== -->
+          <section id="screen-admin-users" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Users & Roles</h2>
+                <p class="page-sub">Manage staff accounts, roles and warehouse access.</p>
+              </div>
+              <button onclick="openModal('user-modal')" class="btn btn-primary"><i data-icon="plus" class="w-4 h-4"></i>New User</button>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="relative">
+                  <i data-icon="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
+                  <input type="text" oninput="filterTable(this, 'users-table')" placeholder="Search name, email, role" class="input !pl-9 sm:w-72">
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table id="users-table" class="table">
+                  <thead><tr><th>User</th><th>Role</th><th>Warehouse Scope</th><th>Last Active</th><th>Status</th><th></th></tr></thead>
+                  <tbody>
+                    <tr>
+                      <td><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-full bg-simba-600 text-white text-xs font-bold flex items-center justify-center">DH</div><div><p class="font-semibold">David Haule</p><p class="text-xs text-slate-500">admin@simbacourier.co.tz</p></div></div></td>
+                      <td><span class="badge badge-simba">System Admin</span></td><td>All warehouses</td><td class="text-slate-500">Online now</td>
+                      <td><span class="badge badge-green"><span class="dot"></span>Active</span></td><td class="text-right"><button class="btn btn-ghost btn-sm">Edit</button></td>
+                    </tr>
+                    <tr>
+                      <td><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">OM</div><div><p class="font-semibold">Onesmo Mlelwa</p><p class="text-xs text-slate-500">onesmo.m@simbacourier.co.tz</p></div></div></td>
+                      <td><span class="badge badge-blue">Storekeeper</span></td><td>DAR-General Store</td><td class="text-slate-500">5 minutes ago</td>
+                      <td><span class="badge badge-green"><span class="dot"></span>Active</span></td><td class="text-right"><button class="btn btn-ghost btn-sm">Edit</button></td>
+                    </tr>
+                    <tr>
+                      <td><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-full bg-violet-600 text-white text-xs font-bold flex items-center justify-center">NJ</div><div><p class="font-semibold">Neema Joseph</p><p class="text-xs text-slate-500">neema.j@simbacourier.co.tz</p></div></div></td>
+                      <td><span class="badge badge-violet">Inventory Supervisor</span></td><td>DAR-General Store, Tech Vault</td><td class="text-slate-500">1 hour ago</td>
+                      <td><span class="badge badge-green"><span class="dot"></span>Active</span></td><td class="text-right"><button class="btn btn-ghost btn-sm">Edit</button></td>
+                    </tr>
+                    <tr>
+                      <td><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">JK</div><div><p class="font-semibold">Juma Kassim</p><p class="text-xs text-slate-500">juma.k@simbacourier.co.tz</p></div></div></td>
+                      <td><span class="badge badge-green">Dispatch Officer</span></td><td>DAR-General Store</td><td class="text-slate-500">Today, 08:15</td>
+                      <td><span class="badge badge-green"><span class="dot"></span>Active</span></td><td class="text-right"><button class="btn btn-ghost btn-sm">Edit</button></td>
+                    </tr>
+                    <tr>
+                      <td><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-full bg-slate-500 text-white text-xs font-bold flex items-center justify-center">RS</div><div><p class="font-semibold">Rehema Said</p><p class="text-xs text-slate-500">rehema.s@azam.co.tz</p></div></div></td>
+                      <td><span class="badge badge-slate">Client Viewer</span></td><td>Azam stock only</td><td class="text-slate-500">Never</td>
+                      <td><span class="badge badge-amber"><span class="dot"></span>Invited</span></td><td class="text-right"><button onclick="toast('Invitation resent', 'info')" class="btn btn-ghost btn-sm">Resend</button></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== PROFILE ==================== -->
+          <section id="screen-profile" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">My Profile</h2>
+                <p class="page-sub">Personal details, security and preferences.</p>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div class="card self-start">
+                <div class="card-body text-center">
+                  <div class="w-20 h-20 mx-auto rounded-full bg-simba-600 text-white text-2xl font-bold flex items-center justify-center">DH</div>
+                  <h3 class="mt-4 text-lg font-bold">David Haule</h3>
+                  <p class="text-sm text-slate-500">admin@simbacourier.co.tz</p>
+                  <span class="badge badge-simba mt-3">System Admin</span>
+                </div>
+                <div class="border-t border-slate-100 dark:border-slate-800 px-5 py-4 space-y-3 text-sm">
+                  <div class="flex justify-between"><span class="text-slate-500">Home hub</span><span class="font-medium">DAR-01</span></div>
+                  <div class="flex justify-between"><span class="text-slate-500">Warehouse scope</span><span class="font-medium">All</span></div>
+                  <div class="flex justify-between"><span class="text-slate-500">Member since</span><span class="font-medium">January 2025</span></div>
+                </div>
+              </div>
+
+              <div class="lg:col-span-2 space-y-6">
+                <form onsubmit="submitForm(event, 'Profile updated')" class="card">
+                  <div class="card-header"><h3 class="card-title">Personal Information</h3></div>
+                  <div class="card-body grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div><label class="label">Full name</label><input type="text" value="David Haule" class="input"></div>
+                    <div><label class="label">Email</label><input type="email" value="admin@simbacourier.co.tz" class="input"></div>
+                    <div><label class="label">Phone</label><input type="tel" value="+255 700 000 000" class="input tabular-nums"></div>
+                    <div><label class="label">Language</label><select class="input"><option>English</option><option>Kiswahili</option></select></div>
+                  </div>
+                  <div class="card-footer"><button type="submit" class="btn btn-primary">Save Changes</button></div>
+                </form>
+
+                <form onsubmit="submitForm(event, 'Password changed')" class="card">
+                  <div class="card-header"><h3 class="card-title">Change Password</h3></div>
+                  <div class="card-body grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div><label class="label">Current password</label><input type="password" required class="input"></div>
+                    <div><label class="label">New password</label><input type="password" required minlength="8" class="input"></div>
+                    <div><label class="label">Confirm new password</label><input type="password" required minlength="8" class="input"></div>
+                  </div>
+                  <div class="card-footer"><button type="submit" class="btn btn-primary">Update Password</button></div>
+                </form>
+
+                <div class="card">
+                  <div class="card-header"><h3 class="card-title">Preferences</h3></div>
+                  <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                    <div class="flex items-center justify-between px-5 py-4">
+                      <div><p class="text-sm font-semibold">Dark mode</p><p class="text-xs text-slate-500">Use a dark theme across the WMS.</p></div>
+                      <button onclick="toggleDarkMode()" class="relative w-11 h-6 rounded-full bg-slate-200 dark:bg-simba-600 transition">
+                        <span class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform dark:translate-x-5"></span>
+                      </button>
+                    </div>
+                    <div class="flex items-center justify-between px-5 py-4">
+                      <div><p class="text-sm font-semibold">Approval notifications</p><p class="text-xs text-slate-500">Email me when a request needs my decision.</p></div>
+                      <input type="checkbox" checked class="w-5 h-5 rounded border-slate-300 text-simba-600 focus:ring-simba-600">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ==================== SCREEN DIRECTORY ==================== -->
+          <section id="screen-index" class="screen-content hidden space-y-6">
+            <div class="page-header">
+              <div>
+                <h2 class="page-title">Screen Directory</h2>
+                <p class="page-sub">Every screen in the WMS, grouped by workflow.</p>
+              </div>
+            </div>
+            <div id="index-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"></div>
+          </section>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ==================== NEW USER MODAL ==================== -->
+  <div id="user-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div onclick="closeModal('user-modal')" class="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"></div>
+    <form onsubmit="submitForm(event, 'User invited successfully'); closeModal('user-modal')" class="relative card w-full max-w-lg">
+      <div class="card-header">
+        <h3 class="card-title">Invite New User</h3>
+        <button type="button" onclick="closeModal('user-modal')" class="icon-btn"><i data-icon="x" class="w-5 h-5"></i></button>
+      </div>
+      <div class="card-body grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2"><label class="label">Full name *</label><input type="text" required class="input"></div>
+        <div class="md:col-span-2"><label class="label">Email *</label><input type="email" required class="input"></div>
+        <div>
+          <label class="label">Role *</label>
+          <select class="input"><option>Storekeeper</option><option>Inventory Supervisor</option><option>Dispatch Officer</option><option>Client Viewer</option><option>System Admin</option></select>
+        </div>
+        <div>
+          <label class="label">Warehouse scope *</label>
+          <select class="input"><option>DAR-General Store</option><option>DAR-Tech Vault</option><option>All warehouses</option></select>
+        </div>
+      </div>
+      <div class="card-footer">
+        <button type="button" onclick="closeModal('user-modal')" class="btn btn-secondary">Cancel</button>
+        <button type="submit" class="btn btn-primary">Send Invitation</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ==================== TEMPLATES ==================== -->
+  <template id="tpl-grn-row">
+    <div data-row class="grid grid-cols-2 md:grid-cols-12 gap-3 items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/50">
+      <div class="col-span-2 md:col-span-3"><input type="text" placeholder="SKU code" class="input input-sm font-mono"></div>
+      <div class="md:col-span-2"><input type="number" min="0" data-expected oninput="calcVariance(this)" placeholder="Expected" class="input input-sm tabular-nums"></div>
+      <div class="md:col-span-2"><input type="number" min="0" data-received oninput="calcVariance(this)" placeholder="Received" class="input input-sm tabular-nums"></div>
+      <div class="md:col-span-2"><input type="text" placeholder="Batch no." class="input input-sm font-mono"></div>
+      <div class="md:col-span-2"><span data-variance class="badge badge-slate">0</span></div>
+      <div class="md:col-span-1 flex justify-end"><button type="button" onclick="removeRow(this)" class="icon-btn hover:!text-red-600"><i data-icon="trash" class="w-4 h-4"></i></button></div>
+    </div>
+  </template>
+
+  <template id="tpl-order-row">
+    <div data-row class="grid grid-cols-2 md:grid-cols-12 gap-3 items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/50">
+      <div class="md:col-span-3"><input type="text" placeholder="SKU code" class="input input-sm font-mono"></div>
+      <div class="md:col-span-5"><input type="text" placeholder="Description" class="input input-sm"></div>
+      <div class="md:col-span-3"><input type="number" min="1" data-qty oninput="updateTotals()" placeholder="Qty" class="input input-sm tabular-nums"></div>
+      <div class="md:col-span-1 flex justify-end"><button type="button" onclick="removeRow(this)" class="icon-btn hover:!text-red-600"><i data-icon="trash" class="w-4 h-4"></i></button></div>
+    </div>
+  </template>
+
+  <div id="toast-root" class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 no-print"></div>
+
+  <!-- ==================== SCRIPT ==================== -->
+  <script>
+    const ICONS = {
+      home: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+      inbox: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+      cube: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4',
+      clipboard: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4',
+      search: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+      device: 'M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z',
+      arrows: 'M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4',
+      building: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4',
+      archive: 'M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4',
+      sliders: 'M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4',
+      count: 'M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z',
+      cart: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z',
+      truck: 'M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0',
+      doc: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z',
+      chart: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+      printer: 'M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z',
+      tag: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z',
+      users: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z',
+      user: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+      grid: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z',
+      plus: 'M12 4v16m8-8H4',
+      check: 'M5 13l4 4L19 7',
+      x: 'M6 18L18 6M6 6l12 12',
+      menu: 'M4 6h16M4 12h16M4 18h16',
+      moon: 'M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z',
+      sun: 'M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z',
+      bell: 'M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9',
+      logout: 'M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1',
+      upload: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12',
+      download: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4',
+      trash: 'M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16',
+      'arrow-left': 'M10 19l-7-7m0 0l7-7m-7 7h18',
+      'arrow-right': 'M14 5l7 7m0 0l-7 7m7-7H3',
+      'chevron-down': 'M19 9l-7 7-7-7',
+      alert: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+      info: 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
+    };
+
+    const NAV = [
+      { group: 'Overview', items: [
+        { hash: 'dashboard', label: 'Dashboard', icon: 'home' },
+        { hash: 'approvals', label: 'Approvals Inbox', icon: 'inbox', badge: 4 }
+      ]},
+      { group: 'Inbound', items: [
+        { hash: 'containers', label: 'Containers & Yard', icon: 'cube' },
+        { hash: 'grn', label: 'Receiving (GRN)', icon: 'clipboard' },
+        { hash: 'inspections', label: 'Inspections', icon: 'search' }
+      ]},
+      { group: 'Warehouse Operations', items: [
+        { hash: 'putaway-handheld', label: 'Put-Away (RF)', icon: 'device' },
+        { hash: 'movements', label: 'Internal Movements', icon: 'arrows' },
+        { hash: 'transfers', label: 'Department Transfers', icon: 'building' }
+      ]},
+      { group: 'Inventory Control', items: [
+        { hash: 'stock', label: 'Stock on Hand', icon: 'archive' },
+        { hash: 'adjustments', label: 'Stock Adjustments', icon: 'sliders' },
+        { hash: 'counts', label: 'Cycle Counts', icon: 'count' }
+      ]},
+      { group: 'Outbound', items: [
+        { hash: 'orders', label: 'Orders', icon: 'cart' },
+        { hash: 'dispatch', label: 'Dispatch & Gate', icon: 'truck' },
+        { hash: 'pod', label: 'Proof of Delivery', icon: 'doc' }
+      ]},
+      { group: 'Reports & Documents', items: [
+        { hash: 'reports', label: 'Reports Library', icon: 'chart' },
+        { hash: 'print-document', label: 'Printable Documents', icon: 'printer' }
+      ]},
+      { group: 'Administration', items: [
+        { hash: 'master-items', label: 'Master Data (SKUs)', icon: 'tag' },
+        { hash: 'admin-users', label: 'Users & Roles', icon: 'users' },
+        { hash: 'index', label: 'Screen Directory', icon: 'grid' }
+      ]}
+    ];
+
+    const PAGES = {};
+    NAV.forEach(g => g.items.forEach(i => { PAGES[i.hash] = { ...i, group: g.group }; }));
+    Object.assign(PAGES, {
+      'containers-create': { label: 'New Container', group: 'Inbound', parent: 'containers' },
+      'grn-create': { label: 'New Goods Receipt', group: 'Inbound', parent: 'grn' },
+      profile: { label: 'My Profile', group: 'Account' }
+    });
+
+    const $ = selector => document.querySelector(selector);
+
+    function svg(name, cls = 'w-4 h-4') {
+      return `<svg class="${cls}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${ICONS[name] || ''}"/></svg>`;
+    }
+
+    function hydrateIcons(root = document) {
+      root.querySelectorAll('i[data-icon]').forEach(el => {
+        el.outerHTML = svg(el.dataset.icon, el.getAttribute('class') || 'w-4 h-4');
+      });
+    }
+
+    function renderSidebar() {
+      $('#sidebar-nav').innerHTML = NAV.map(g => `
+        <div>
+          <p class="px-3 mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">${g.group}</p>
+          <div class="space-y-0.5">
+            ${g.items.map(i => `
+              <a href="#${i.hash}" data-nav="${i.hash}" class="sidebar-link">
+                ${svg(i.icon, 'w-[18px] h-[18px] shrink-0')}
+                <span class="flex-1 truncate">${i.label}</span>
+                ${i.badge ? `<span data-badge class="min-w-[20px] px-1.5 py-0.5 rounded-full bg-simba-500/20 text-simba-200 text-[10px] font-bold text-center">${i.badge}</span>` : ''}
+              </a>`).join('')}
+          </div>
+        </div>`).join('');
+    }
+
+    function renderIndex() {
+      $('#index-grid').innerHTML = NAV.map(g => `
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">${g.group}</h3><span class="text-xs text-slate-500">${g.items.length} screens</span></div>
+          <div class="p-2">
+            ${g.items.map(i => `
+              <a href="#${i.hash}" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm hover:bg-slate-50 dark:hover:bg-slate-800/60 transition">
+                <span class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400">${svg(i.icon)}</span>
+                <span class="flex-1 font-medium">${i.label}</span>
+                ${svg('arrow-right', 'w-4 h-4 text-slate-400')}
+              </a>`).join('')}
+          </div>
+        </div>`).join('');
+    }
+
+    function router() {
+      const hash = location.hash.slice(1) || 'dashboard';
+      const loggedIn = localStorage.getItem('simba_logged_in') === 'true';
+      const login = $('#screen-login');
+      const shell = $('#app-shell');
+
+      if (!loggedIn) {
+        shell.classList.add('hidden');
+        login.classList.remove('hidden');
+        if (hash !== 'login') history.replaceState(null, '', '#login');
+        return;
+      }
+
+      if (hash === 'login') {
+        location.hash = '#dashboard';
+        return;
+      }
+
+      login.classList.add('hidden');
+      shell.classList.remove('hidden');
+
+      const page = document.getElementById('screen-' + hash) ? hash : 'dashboard';
+      document.querySelectorAll('.screen-content').forEach(s => s.classList.toggle('hidden', s.id !== 'screen-' + page));
+
+      const meta = PAGES[page] || PAGES.dashboard;
+      const activeNav = meta.parent || page;
+      document.querySelectorAll('[data-nav]').forEach(a => a.classList.toggle('active', a.dataset.nav === activeNav));
+
+      $('#page-title').textContent = meta.label;
+      $('#breadcrumb-group').textContent = meta.group;
+      document.title = `${meta.label} | Simba WMS`;
+      $('#main').scrollTop = 0;
+      closeSidebar();
+    }
+
+    function handleLogin(e) {
+      e.preventDefault();
+      localStorage.setItem('simba_logged_in', 'true');
+      location.hash = '#dashboard';
+      router();
+      toast('Welcome back, David');
+    }
+
+    function logout() {
+      localStorage.removeItem('simba_logged_in');
+      location.hash = '#login';
+      router();
+    }
+
+    function toggleDarkMode() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('simba_theme', isDark ? 'dark' : 'light');
+    }
+
+    function openSidebar() {
+      $('#sidebar').classList.remove('-translate-x-full');
+      $('#sidebar-overlay').classList.remove('hidden');
+    }
+
+    function closeSidebar() {
+      $('#sidebar').classList.add('-translate-x-full');
+      $('#sidebar-overlay').classList.add('hidden');
+    }
+
+    function closeMenus() {
+      document.querySelectorAll('[data-menu]').forEach(m => m.classList.add('hidden'));
+    }
+
+    function toggleDropdown(e, id) {
+      e.stopPropagation();
+      const menu = document.getElementById(id);
+      const shouldOpen = menu.classList.contains('hidden');
+      closeMenus();
+      if (shouldOpen) menu.classList.remove('hidden');
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.remove('hidden');
+    }
+
+    function closeModal(id) {
+      const modal = document.getElementById(id);
+      modal.classList.add('hidden');
+      modal.querySelector('form')?.reset();
+    }
+
+    function toast(message, type = 'success') {
+      const styles = { success: 'bg-emerald-600', error: 'bg-red-600', info: 'bg-slate-800 dark:bg-slate-700' };
+      const el = document.createElement('div');
+      el.className = `flex items-center gap-3 min-w-[260px] max-w-sm px-4 py-3 rounded-lg shadow-lg text-sm font-medium text-white ${styles[type]} translate-y-2 opacity-0 transition duration-300`;
+      el.innerHTML = svg(type === 'error' ? 'x' : type === 'info' ? 'info' : 'check', 'w-4 h-4 shrink-0') + `<span>${message}</span>`;
+      $('#toast-root').appendChild(el);
+      setTimeout(() => el.classList.remove('translate-y-2', 'opacity-0'), 10);
+      setTimeout(() => {
+        el.classList.add('opacity-0');
+        setTimeout(() => el.remove(), 300);
+      }, 3200);
+    }
+
+    function submitForm(e, message, redirect) {
+      e.preventDefault();
+      toast(message);
+      if (redirect) location.hash = redirect;
+    }
+
+    function addRow(templateId, containerId) {
+      const container = document.getElementById(containerId);
+      container.appendChild(document.getElementById(templateId).content.cloneNode(true));
+      hydrateIcons(container);
+      updateTotals();
+    }
+
+    function removeRow(btn) {
+      btn.closest('[data-row]').remove();
+      updateTotals();
+    }
+
+    function num(el) {
+      if (!el) return 0;
+      const raw = el.value !== undefined ? el.value : el.dataset.value;
+      return Number(raw) || 0;
+    }
+
+    function calcVariance(el) {
+      const row = el.closest('[data-row]');
+      const received = row.querySelector('[data-received]');
+      const variance = num(received) - num(row.querySelector('[data-expected]'));
+      const badge = row.querySelector('[data-variance]');
+      const tone = received.value === '' ? 'badge-slate' : variance === 0 ? 'badge-green' : variance < 0 ? 'badge-red' : 'badge-amber';
+      badge.textContent = received.value === '' ? 'Pending' : (variance > 0 ? '+' : '') + variance.toLocaleString();
+      badge.className = badge.className.replace(/badge-(slate|green|red|amber)/g, '').trim() + ' ' + tone;
+      updateTotals();
+    }
+
+    function updateTotals() {
+      const grn = $('#grn-lines');
+      if (grn) {
+        const rows = grn.querySelectorAll('[data-row]');
+        let expected = 0, received = 0;
+        rows.forEach(r => {
+          expected += num(r.querySelector('[data-expected]'));
+          received += num(r.querySelector('[data-received]'));
+        });
+        const variance = received - expected;
+        $('#grn-line-count').textContent = rows.length;
+        $('#grn-total-expected').textContent = expected.toLocaleString();
+        $('#grn-total-received').textContent = received.toLocaleString();
+        const v = $('#grn-total-variance');
+        v.textContent = (variance > 0 ? '+' : '') + variance.toLocaleString();
+        v.className = 'mt-1 text-xl font-bold tabular-nums ' + (variance < 0 ? 'text-red-600' : variance > 0 ? 'text-amber-600' : 'text-emerald-600');
+      }
+
+      const orders = $('#order-lines');
+      if (orders) {
+        const rows = orders.querySelectorAll('[data-row]');
+        let qty = 0;
+        rows.forEach(r => { qty += num(r.querySelector('[data-qty]')); });
+        $('#order-line-count').textContent = rows.length;
+        $('#order-total-qty').textContent = qty.toLocaleString();
+      }
+    }
+
+    function filterTable(input, tableId) {
+      const query = input.value.toLowerCase().trim();
+      document.querySelectorAll(`#${tableId} tbody tr`).forEach(tr => {
+        tr.classList.toggle('hidden', !tr.textContent.toLowerCase().includes(query));
+      });
+    }
+
+    function filterStatus(btn, tableId, status) {
+      btn.parentElement.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t === btn));
+      document.querySelectorAll(`#${tableId} tbody tr`).forEach(tr => {
+        tr.classList.toggle('hidden', status !== 'all' && tr.dataset.status !== status);
+      });
+    }
+
+    function globalSearch(e) {
+      if (e.key !== 'Enter') return;
+      location.hash = '#stock';
+      const input = $('#stock-search');
+      input.value = e.target.value;
+      filterTable(input, 'stock-table');
+    }
+
+    function confirmPutaway() {
+      const input = $('#rf-bin');
+      const bin = input.value.trim().toUpperCase();
+      if (!bin) return toast('Scan the destination bin first', 'error');
+      if (bin !== 'DAR-A-03-02-B') return toast(`Bin mismatch. Expected DAR-A-03-02-B, got ${bin}`, 'error');
+      toast('Put-away confirmed for LPN-992014');
+      input.value = '';
+    }
+
+    function decide(btn, action) {
+      const row = btn.closest('tr');
+      const ref = row.querySelector('[data-ref]').textContent;
+      row.remove();
+      toast(`${ref} ${action}`, action === 'rejected' ? 'error' : 'success');
+
+      const remaining = document.querySelectorAll('#approvals-table tbody tr').length;
+      $('#approvals-count').textContent = remaining;
+      const badge = document.querySelector('[data-nav="approvals"] [data-badge]');
+      if (badge) {
+        badge.textContent = remaining;
+        badge.classList.toggle('hidden', remaining === 0);
+      }
+      if (remaining === 0) {
+        document.querySelector('#approvals-table tbody').innerHTML =
+          '<tr><td colspan="6" class="!py-12 text-center text-slate-500">All caught up. No pending approvals.</td></tr>';
+      }
+    }
+
+    function fileChosen(input) {
+      const label = input.parentElement.querySelector('[data-file-label]');
+      const count = input.files.length;
+      label.textContent = count === 0 ? '' : count === 1 ? input.files[0].name : `${count} files selected`;
+    }
+
+    document.addEventListener('click', closeMenus);
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      closeMenus();
+      closeSidebar();
+      document.querySelectorAll('#user-modal:not(.hidden)').forEach(m => closeModal(m.id));
+    });
+    window.addEventListener('hashchange', router);
+    window.addEventListener('DOMContentLoaded', () => {
+      renderSidebar();
+      renderIndex();
+      hydrateIcons();
+      document.querySelectorAll('[data-row] [data-received]').forEach(calcVariance);
+      updateTotals();
+      router();
+    });
+  </script>
+</body>
+</html>
