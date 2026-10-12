@@ -54,36 +54,18 @@ class ProfileUpdateTest extends TestCase
         $this->assertNotNull($user->refresh()->email_verified_at);
     }
 
-    public function test_user_can_delete_their_account(): void
+    public function test_user_cannot_delete_their_own_account(): void
     {
+        // Self-service account deletion is disabled. Users are managed by
+        // System Admins; records must be retained for the audit trail.
         $user = User::factory()->create();
 
         $this->actingAs($user);
 
-        $response = Volt::test('settings.delete-user-form')
-            ->set('password', 'password')
-            ->call('deleteUser');
+        $this->get('/settings/profile')
+            ->assertOk()
+            ->assertDontSee(__('Delete Account'));
 
-        $response
-            ->assertHasNoErrors()
-            ->assertRedirect('/');
-
-        $this->assertNull($user->fresh());
-        $this->assertFalse(auth()->check());
-    }
-
-    public function test_correct_password_must_be_provided_to_delete_account(): void
-    {
-        $user = User::factory()->create();
-
-        $this->actingAs($user);
-
-        $response = Volt::test('settings.delete-user-form')
-            ->set('password', 'wrong-password')
-            ->call('deleteUser');
-
-        $response->assertHasErrors(['password']);
-
-        $this->assertNotNull($user->fresh());
+        $this->assertFalse(view()->exists('livewire.settings.delete-user-form'));
     }
 }

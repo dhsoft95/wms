@@ -3,18 +3,25 @@
 <button
     type="{{ $type }}"
     {{ $attributes->except(['type', 'loadingText'])->merge(['class' =>
-        'relative w-full h-14 rounded-xl font-semibold text-sm text-white transition-all duration-200
-         bg-gradient-to-r from-simba-700 to-simba-600
-         shadow-[0_4px_20px_0_rgb(162_38_49_/_0.4),inset_0_1px_0_0_rgb(255_255_255_/_0.2)]
-         hover:shadow-[0_6px_28px_0_rgb(162_38_49_/_0.55),inset_0_1px_0_0_rgb(255_255_255_/_0.25)]
+        'group relative w-full h-14 rounded-2xl font-semibold text-sm tracking-wide text-white
+         inline-flex items-center justify-center whitespace-nowrap
+         transition-all duration-200
+         bg-gradient-to-b from-simba-500 via-simba-600 to-simba-700
+         border border-simba-400/25
+         shadow-[inset_0_1px_0_0_rgb(255_255_255_/_0.22),inset_0_-1px_0_0_rgb(0_0_0_/_0.18),0_4px_20px_0_rgb(162_38_49_/_0.45)]
+         hover:brightness-110
+         hover:shadow-[inset_0_1px_0_0_rgb(255_255_255_/_0.28),inset_0_-1px_0_0_rgb(0_0_0_/_0.22),0_8px_32px_0_rgb(162_38_49_/_0.60)]
          hover:-translate-y-0.5
-         active:translate-y-0 active:shadow-none
-         disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none
-         focus:outline-none focus:ring-2 focus:ring-simba-600/50
+         active:translate-y-0 active:brightness-95 active:shadow-none
+         disabled:opacity-55 disabled:cursor-not-allowed disabled:transform-none disabled:brightness-100
+         focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-simba-500/60
          motion-reduce:transition-none motion-reduce:hover:transform-none'
     ]) }}
 >
-    <span class="flex items-center justify-center gap-2">
+    {{-- Subtle inner sheen overlay --}}
+    <span class="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-white/10 to-transparent" aria-hidden="true"></span>
+
+    <span class="relative inline-flex items-center justify-center gap-2 whitespace-nowrap">
         <svg
             @if($target) wire:loading wire:target="{{ $target }}" @else wire:loading @endif
             class="animate-spin w-4 h-4 shrink-0"

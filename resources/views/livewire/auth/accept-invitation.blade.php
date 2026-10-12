@@ -15,8 +15,8 @@
     @else
         @if ($invitedUser)
             <div class="glass-input rounded-xl px-4 py-3 space-y-0.5">
-                <p class="text-sm font-semibold text-slate-900">{{ $invitedUser->name }}</p>
-                <p class="text-xs text-slate-500">{{ $invitedUser->email }}</p>
+                <p class="text-sm font-semibold text-zinc-900 dark:text-white">{{ $invitedUser->name }}</p>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ $invitedUser->email }}</p>
             </div>
         @endif
 

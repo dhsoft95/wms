@@ -10,8 +10,11 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RolePermissionSeeder::class,
+            FoundationDefaultsSeeder::class,
             DepartmentSeeder::class,
             AdminUserSeeder::class,
+            FoundationDemoSeeder::class,
+            StockDemoSeeder::class,
         ]);
 
         // Ensure the developer account is active and has system-admin role

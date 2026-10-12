@@ -16,7 +16,7 @@ class ScannerOnly
     {
         $user = $request->user();
 
-        if ($user && $user->hasRole('scanner-operator') && ! $request->routeIs('scan.*', 'logout')) {
+        if ($user && $user->hasRole('scanner-operator') && ! $request->routeIs('scan.*', 'logout', 'home')) {
             abort(403, 'Scanner operators may only access the scanning interface.');
         }
 

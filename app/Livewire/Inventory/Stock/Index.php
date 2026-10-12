@@ -2,44 +2,137 @@
 
 namespace App\Livewire\Inventory\Stock;
 
-use Illuminate\Contracts\View\View;
+use App\Models\Inventory\SerialNumber;
+use App\Models\Inventory\StockBalance;
+use App\Models\ItemCategory;
+use App\Models\Location;
+use App\Models\VirtualWarehouse;
+use App\Services\Inventory\StockQueryService;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class Index extends Component
 {
-    public string $search = '';
-    public string $warehouseFilter = '';
+    use WithPagination;
 
-    // placeholder data
-    protected array $allRows = [
-        ['sku' => 'SKU-AZ-001',  'desc' => 'Azam Bakhresa Flour 25kg',     'cat' => 'Consumer Goods', 'warehouse' => 'DAR-General Store', 'bin' => 'DAR-A-03-02-B', 'total' => 4500,  'allocated' => 1200, 'available' => 3300, 'badge' => 'badge-green', 'label' => 'In Stock'],
-        ['sku' => 'SKU-AZ-SUG',  'desc' => 'Azam Sugar 1kg',               'cat' => 'Consumer Goods', 'warehouse' => 'DAR-General Store', 'bin' => 'DAR-B-01-04-A', 'total' => 2160,  'allocated' => 1900, 'available' => 260,  'badge' => 'badge-red',   'label' => 'Low Stock'],
-        ['sku' => 'SKU-VOD-SIM', 'desc' => 'Vodacom 4G LTE SIM Starter Pack','cat' => 'Telecommunications','warehouse' => 'DAR-Tech Vault','bin' => 'DAR-V-02-01-A', 'total' => 12800, 'allocated' => 3500, 'available' => 9300, 'badge' => 'badge-green', 'label' => 'In Stock'],
-        ['sku' => 'SKU-VOD-RTR', 'desc' => 'Vodacom 4G Home Router',        'cat' => 'Telecommunications','warehouse' => 'DAR-Tech Vault','bin' => 'DAR-V-03-02-B', 'total' => 640,   'allocated' => 120,  'available' => 520,  'badge' => 'badge-green', 'label' => 'In Stock'],
-        ['sku' => 'SKU-AZ-JCE',  'desc' => 'Azam Mango Juice 1L',          'cat' => 'Consumer Goods', 'warehouse' => 'Cold Room',         'bin' => 'DAR-C-01-01-A', 'total' => 1800,  'allocated' => 600,  'available' => 1200, 'badge' => 'badge-amber', 'label' => 'Expiring Soon'],
+    public string $search = '';
+    public string $filterCategory = '';
+    public string $filterItem = '';
+    public string $filterLocation = '';
+    public string $filterVw = '';
+    public string $filterStatus = '';
+    public string $filterExpiring = '';  // days: '', '7', '14', '30'
+    public bool $groupByItem = false;
+
+    protected $queryString = [
+        'filterItem'     => ['except' => ''],
+        'filterLocation' => ['except' => ''],
+        'filterVw'       => ['except' => ''],
     ];
 
-    public function filteredRows(): array
+    public ?int $viewingSerialsId = null; // StockBalance id
+
+    public function viewSerials(int $balanceId): void
     {
-        return array_values(array_filter($this->allRows, function ($r) {
-            $matchesWarehouse = $this->warehouseFilter === '' || $r['warehouse'] === $this->warehouseFilter;
-            $matchesSearch = $this->search === '' || str_contains(strtolower($r['sku'] . $r['desc'] . $r['bin']), strtolower($this->search));
-            return $matchesWarehouse && $matchesSearch;
-        }));
+        $this->viewingSerialsId = $balanceId;
     }
 
-    public function export(): void
+    public function closeSerials(): void
     {
-        $this->dispatch('toast', message: 'Stock ledger exported to CSV', type: 'success');
+        $this->viewingSerialsId = null;
     }
 
-    public function render(): View
+    #[Computed]
+    public function viewingSerialsBalance(): ?array
     {
-        return view('livewire.inventory.stock.index', [
-            'rows' => $this->filteredRows(),
-        ])->layout('components.layouts.app', [
-            'title'           => 'Stock on Hand',
-            'breadcrumbGroup' => 'Inventory Control',
-        ]);
+        if (! $this->viewingSerialsId) {
+            return null;
+        }
+
+        $balance = StockBalance::with('item')->find($this->viewingSerialsId);
+        if (! $balance) {
+            return null;
+        }
+
+        $serials = SerialNumber::where('item_id', $balance->item_id)
+            ->where('location_id', $balance->location_id)
+            ->where('virtual_warehouse_id', $balance->virtual_warehouse_id)
+            ->where('stock_status', $balance->stock_status)
+            ->where(fn ($q) => $balance->batch_id === null
+                ? $q->whereNull('batch_id')
+                : $q->where('batch_id', $balance->batch_id))
+            ->where(fn ($q) => $balance->lpn_id === null
+                ? $q->whereNull('lpn_id')
+                : $q->where('lpn_id', $balance->lpn_id))
+            ->orderBy('serial_no')
+            ->get();
+
+        return ['balance' => $balance, 'serials' => $serials];
+    }
+
+    public function updatingSearch(): void { $this->resetPage(); }
+    public function updatingFilterCategory(): void { $this->resetPage(); }
+    public function updatingFilterItem(): void { $this->resetPage(); }
+    public function updatingFilterLocation(): void { $this->resetPage(); }
+    public function updatingFilterVw(): void { $this->resetPage(); }
+    public function updatingFilterStatus(): void { $this->resetPage(); }
+    public function updatingFilterExpiring(): void { $this->resetPage(); }
+
+    #[Computed]
+    public function balances()
+    {
+        return app(StockQueryService::class)->stockOnHand(
+            itemId: $this->filterItem ? (int) $this->filterItem : null,
+            locationId: $this->filterLocation ? (int) $this->filterLocation : null,
+            virtualWarehouseId: $this->filterVw ? (int) $this->filterVw : null,
+            stockStatus: $this->filterStatus ?: null,
+            expiringWithinDays: $this->filterExpiring ? (int) $this->filterExpiring : null,
+            groupByItem: $this->groupByItem,
+            user: auth()->user(),
+            perPage: 25,
+            search: $this->search ?: null,
+            categoryId: $this->filterCategory ? (int) $this->filterCategory : null,
+        );
+    }
+
+    #[Computed]
+    public function categories()
+    {
+        return ItemCategory::active()->orderBy('name')->get();
+    }
+
+    #[Computed]
+    public function locations()
+    {
+        return Location::active()->orderBy('code')->limit(200)->get();
+    }
+
+    #[Computed]
+    public function virtualWarehouses()
+    {
+        $user = auth()->user();
+
+        return VirtualWarehouse::active()
+            ->when(! $user->canAccessAllVirtualWarehouses(), fn ($q) =>
+                $q->whereHas('users', fn ($uq) => $uq->where('users.id', $user->id))
+            )
+            ->orderBy('name')
+            ->get();
+    }
+
+    #[Computed]
+    public function stats(): array
+    {
+        return app(StockQueryService::class)->stockStats(auth()->user());
+    }
+
+    public function render()
+    {
+        return view('livewire.inventory.stock.index')
+            ->layout('components.layouts.app', [
+                'title'           => 'Stock on Hand',
+                'breadcrumbGroup' => 'Inventory Control',
+            ]);
     }
 }

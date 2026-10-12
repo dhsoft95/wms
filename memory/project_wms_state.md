@@ -4,27 +4,31 @@ description: Current completion state of the WMS project — what's done, what's
 type: project
 ---
 
-Full UI shell complete; 22 Livewire pages, 12 Form Objects, routes, CSS design system. Back-end (models/DB) not started.
+Full UI shell complete with glassmorphism app shell; 22 Livewire pages, 12 Form Objects, routes, CSS design system. Back-end (models/DB) not started.
 
-Auth glassmorphism redesign (2026-10-07) complete — all auth pages use full glassmorphism layout with warehouse photo background.
+Auth + app-shell glassmorphism complete (2026-10-08). All pages use the same glass design system.
 
 **Why:** Ongoing build-out of a full WMS product on Laravel 11 + Livewire 3 + Flux + Tailwind v4.
 
-**How to apply:** Back-end work is the next phase. Auth pages and the app shell are both done and can be deployed.
+**How to apply:** Back-end work is the next phase. Both auth pages and the main app shell are styled and ready.
 
 ## What is done
 
+- App shell glassmorphism (Phase 3, 2026-10-08):
+  - Background layer: WebP warehouse image (136KB), pre-blurred, fixed behind all content
+  - CSS tiers: `glass-nav/glass-nav-dark`, `glass-solid/glass-solid-dark`, `glass-input-dark` added to `app.css`
+  - All component classes updated: `.card` → glass, `.sidebar-link.active` → glass-brand, `.tabs` → glass-input track, `.btn-primary` → gradient glow, `.table` → glass borders, toasts → glass with colored border
+  - `.card:has(table)` auto-upgrades to glass-solid (no template changes needed per page)
+  - `config/wms.php`: `app_background` key added, `logo` defaults to `images/logo/logo.png`
+  - Dark mode persistence fixed: `livewire:navigated` listener re-applies class from localStorage
+  - Real logo shown in sidebar brand block when `public/images/logo/logo.png` exists
+  - Scanner layout (`/scan/*`) unchanged — solid surfaces for handheld outdoor use
 - App shell (sidebar, header, dark mode, toasts)
 - 22 Livewire page components with placeholder data
 - 12 Form Objects (save() stubs with TODO persist)
-- Custom design system: `resources/css/app.css` (`@theme` + `@layer components` + `@utility` glass classes)
-- Auth pages — glassmorphism redesign (Phase 2):
-  - `config/wms.php` branding block expanded: name, subtitle, initials, auth_background, headline, headline_accent, tagline, features (icon/title/text objects), footer_pillars
-  - CSS: `--color-brand` aliases, `@utility glass/glass-dark/glass-brand/glass-input`, `@supports` fallback
-  - `components/layouts/auth.blade.php`: full single-file glassmorphism layout — warehouse bg, brand overlays, decorative shapes, left brand panel (feature grid, pillars), right glass card
-  - 10 new `components/auth/*` components: input, password, button, checkbox, divider, secure-note, link, alert, method-toggle, feature-tile
-  - All 7 auth views rewritten to use new components (register unchanged — self-reg disabled)
-  - `auth-header.blade.php` updated with brand accent bar
+- Custom design system: `resources/css/app.css`
+- Auth pages — glassmorphism redesign (Phase 2, 2026-10-07):
+  - Full glass layout, branding config, 10 auth components, all 7 auth views rewritten
 
 ## What is next (back-end)
 

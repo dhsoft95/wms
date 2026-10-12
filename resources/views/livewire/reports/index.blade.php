@@ -34,7 +34,7 @@
             <div class="card">
                 <div class="card-body">
                     <div class="flex items-start justify-between gap-3">
-                        <div class="kpi-icon bg-simba-50 dark:bg-simba-950/40 text-simba-600">
+                        <div class="kpi-icon glass-brand text-white">
                             <x-ui.icon name="{{ $report['icon'] }}" class="w-5 h-5" />
                         </div>
                         <span class="badge badge-slate text-xs">{{ $report['tag'] }}</span>

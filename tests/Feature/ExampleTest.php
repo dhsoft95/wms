@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -9,10 +11,29 @@ class ExampleTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_returns_a_successful_response(): void
+    protected function setUp(): void
     {
-        $response = $this->get('/');
+        parent::setUp();
+        $this->seed(RolePermissionSeeder::class);
+    }
 
-        $response->assertStatus(200);
+    public function test_guest_get_root_redirects_to_login(): void
+    {
+        $this->get('/')->assertRedirectToRoute('login');
+    }
+
+    public function test_authenticated_user_get_root_redirects_to_dashboard(): void
+    {
+        $user = User::factory()->create(['status' => 'active']);
+
+        $this->actingAs($user)->get('/')->assertRedirectToRoute('dashboard');
+    }
+
+    public function test_scanner_operator_get_root_redirects_to_scan_portal(): void
+    {
+        $scanner = User::factory()->create(['status' => 'active']);
+        $scanner->assignRole('scanner-operator');
+
+        $this->actingAs($scanner)->get('/')->assertRedirectToRoute('scan.home');
     }
 }

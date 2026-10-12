@@ -6,8 +6,8 @@
 
     @if (! $challengeUser)
         <x-auth.alert status="{{ __('Your session has expired.') }}" type="warning" />
-        <p class="text-sm text-slate-500 text-center">
-            <a href="{{ route('login') }}" class="font-semibold text-simba-600 hover:text-simba-700 transition-colors" wire:navigate>{{ __('Sign in again') }}</a>
+        <p class="text-sm text-zinc-500 dark:text-zinc-400 text-center">
+            <a href="{{ route('login') }}" class="font-semibold text-simba-600 dark:text-simba-300 hover:text-simba-700 dark:hover:text-simba-200 hover:underline transition-colors" wire:navigate>{{ __('Sign in again') }}</a>
         </p>
     @else
         {{-- Method toggle --}}
@@ -17,8 +17,8 @@
                 wire:click="$set('usingRecovery', false)"
                 @class([
                     'flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150',
-                    'glass shadow-sm text-slate-900' => ! $usingRecovery,
-                    'text-slate-500 hover:text-slate-700' => $usingRecovery,
+                    'glass dark:bg-white/10 shadow-sm text-zinc-900 dark:text-white' => ! $usingRecovery,
+                    'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200' => $usingRecovery,
                 ])
             >
                 {{ $challengeUser->two_factor_method === 'app' ? __('Authenticator') : __('Email code') }}
@@ -28,8 +28,8 @@
                 wire:click="$set('usingRecovery', true)"
                 @class([
                     'flex-1 rounded-lg px-3 py-2 text-xs font-semibold transition-all duration-150',
-                    'glass shadow-sm text-slate-900' => $usingRecovery,
-                    'text-slate-500 hover:text-slate-700' => ! $usingRecovery,
+                    'glass dark:bg-white/10 shadow-sm text-zinc-900 dark:text-white' => $usingRecovery,
+                    'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200' => ! $usingRecovery,
                 ])
             >
                 {{ __('Recovery code') }}
@@ -81,7 +81,7 @@
                     wire:click="resendCode"
                     wire:loading.attr="disabled"
                     wire:target="resendCode"
-                    class="text-sm font-semibold text-simba-600 hover:text-simba-700 transition-colors"
+                    class="text-sm font-semibold text-simba-600 dark:text-simba-300 hover:text-simba-700 dark:hover:text-simba-200 hover:underline transition-colors"
                 >
                     {{ __('Resend code') }}
                 </button>

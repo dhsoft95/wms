@@ -24,18 +24,21 @@ class AcceptInvitation extends Component
 
     public bool $tokenValid = false;
 
-    public function mount(User $user, string $token): void
+    public function mount(User $user, string $token = ''): void
     {
+        // $token is injected by Livewire test helpers; in the browser it arrives
+        // as a query-string param (?token=…) on the signed invitation URL.
+        $resolved = $token ?: (string) request()->query('token', '');
+
         $this->userId = $user->id;
-        $this->token  = $token;
+        $this->token  = $resolved;
 
         if (! $user->isInvited()) {
-            // Link already used
             $this->tokenValid = false;
             return;
         }
 
-        $this->tokenValid = $user->hasValidInvitationToken($token);
+        $this->tokenValid = $user->hasValidInvitationToken($resolved);
     }
 
     public function save(): void
@@ -64,17 +67,19 @@ class AcceptInvitation extends Component
 
         Auth::login($user);
 
+        // navigate: false — crossing from auth layout to app/scan layout requires a full
+        // page load so that the app layout's <html x-data="..."> is mounted fresh by Alpine.
         if ($user->require_two_factor) {
-            $this->redirect(route('profile.index', ['tab' => '2fa']), navigate: true);
+            $this->redirect(route('profile.index', ['tab' => '2fa']), navigate: false);
             return;
         }
 
         if ($user->hasRole('scanner-operator')) {
-            $this->redirect(route('scan.home'), navigate: true);
+            $this->redirect(route('scan.home'), navigate: false);
             return;
         }
 
-        $this->redirect(route('dashboard'), navigate: true);
+        $this->redirect(route('dashboard'), navigate: false);
     }
 
     public function render(): View

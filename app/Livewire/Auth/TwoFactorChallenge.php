@@ -120,12 +120,14 @@ class TwoFactorChallenge extends Component
         Auth::login($user, Session::get('2fa.remember', false));
         Session::regenerate();
 
+        // navigate: false — crossing from auth layout to app/scan layout requires a full
+        // page load so that the app layout's <html x-data="..."> is mounted fresh by Alpine.
         if ($user->hasRole('scanner-operator')) {
-            $this->redirect(route('scan.home'), navigate: true);
+            $this->redirect(route('scan.home'), navigate: false);
             return;
         }
 
-        $this->redirect(route('dashboard'), navigate: true);
+        $this->redirect(route('dashboard'), navigate: false);
     }
 
     public function resendCode(): void

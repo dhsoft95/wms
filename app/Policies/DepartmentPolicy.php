@@ -27,7 +27,7 @@ class DepartmentPolicy
         if (! $actor->hasPermissionTo('departments.manage')) {
             return false;
         }
-        // Cannot delete a department with assigned users — deactivate instead
-        return $department->users()->whereNull('deleted_at')->count() === 0;
+        return $department->users()->whereNull('deleted_at')->count() === 0
+            && $department->virtualWarehouses()->whereNull('deleted_at')->count() === 0;
     }
 }

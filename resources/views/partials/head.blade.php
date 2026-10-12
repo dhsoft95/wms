@@ -25,6 +25,11 @@
             }
         }
     }
-    // Default to light; respect an explicit previous user choice
+    // Apply on initial load
     window.Flux.applyAppearance(window.localStorage.getItem('wms_theme') || 'light')
+    // Re-apply after every wire:navigate so the class survives SPA navigation
+    document.addEventListener('livewire:navigated', function () {
+        var isDark = window.localStorage.getItem('wms_theme') === 'dark';
+        document.documentElement.classList.toggle('dark', isDark);
+    })
 </script>

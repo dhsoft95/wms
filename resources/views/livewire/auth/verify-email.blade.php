@@ -58,7 +58,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
         <button
             wire:click="logout"
             type="button"
-            class="text-sm text-slate-500 hover:text-slate-700 text-center transition-colors"
+            class="text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 text-center transition-colors"
         >
             {{ __('Log out') }}
         </button>

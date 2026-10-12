@@ -4,6 +4,8 @@ namespace App\Livewire\Admin\Users;
 
 use App\Models\Department;
 use App\Models\User;
+use App\Models\VirtualWarehouse;
+use App\Notifications\UserInvitationNotification;
 use Illuminate\Contracts\View\View;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Livewire\Attributes\Computed;
@@ -16,7 +18,7 @@ class Index extends Component
 
     public string $search = '';
     public string $filterRole = '';
-    public string $filterDepartment = '';
+    public string $filterVw = '';
     public string $filterStatus = '';
     public ?int $confirmingDelete = null;
     public ?int $confirmingReset2FA = null;
@@ -31,7 +33,7 @@ class Index extends Component
         $this->resetPage();
     }
 
-    public function updatingFilterDepartment(): void
+    public function updatingFilterVw(): void
     {
         $this->resetPage();
     }
@@ -44,7 +46,7 @@ class Index extends Component
     #[Computed]
     public function users(): LengthAwarePaginator
     {
-        return User::with(['roles', 'department'])
+        return User::with(['roles', 'department', 'virtualWarehouses'])
             ->when($this->search, function ($query) {
                 $query->where(function ($q) {
                     $q->where('name', 'like', '%' . $this->search . '%')
@@ -54,14 +56,20 @@ class Index extends Component
             ->when($this->filterRole, function ($query) {
                 $query->whereHas('roles', fn ($q) => $q->where('name', $this->filterRole));
             })
-            ->when($this->filterDepartment, function ($query) {
-                $query->where('department_id', $this->filterDepartment);
+            ->when($this->filterVw, function ($query) {
+                $query->whereHas('virtualWarehouses', fn ($q) => $q->where('virtual_warehouses.id', $this->filterVw));
             })
             ->when($this->filterStatus, function ($query) {
                 $query->where('status', $this->filterStatus);
             })
             ->latest()
             ->paginate(15);
+    }
+
+    #[Computed]
+    public function virtualWarehouses(): \Illuminate\Database\Eloquent\Collection
+    {
+        return VirtualWarehouse::active()->orderBy('name')->get();
     }
 
     #[Computed]
@@ -95,8 +103,8 @@ class Index extends Component
         $user = User::findOrFail($id);
         $this->authorize('update', $user);
 
-        $user->update(['invitation_sent_at' => now()]);
-        // Notification dispatched here — e.g. $user->notify(new \App\Notifications\UserInvitationNotification($user));
+        $plainToken = $user->generateInvitationToken();
+        $user->notify(new UserInvitationNotification($plainToken));
         $this->dispatch('toast', message: 'Invitation resent to ' . $user->email . '.', type: 'success');
     }
 

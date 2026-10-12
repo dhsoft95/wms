@@ -15,10 +15,10 @@ $pipeline = [
 ];
 
 $utilization = [
-    ['label' => 'DAR-General Store', 'pct' => 78, 'color' => 'bg-simba-600',  'warn' => false],
-    ['label' => 'DAR-Tech Vault',    'pct' => 54, 'color' => 'bg-blue-600',   'warn' => false],
-    ['label' => 'Cold Room',         'pct' => 91, 'color' => 'bg-amber-500',  'warn' => true],
-    ['label' => 'Yard Slots',        'pct' => 60, 'color' => 'bg-slate-500',  'warn' => false, 'label2' => '12 / 20'],
+    ['label' => 'DAR-General Store', 'pct' => 78, 'warn' => false],
+    ['label' => 'DAR-Tech Vault',    'pct' => 54, 'warn' => false],
+    ['label' => 'Cold Room',         'pct' => 91, 'warn' => true],
+    ['label' => 'Yard Slots',        'pct' => 60, 'warn' => false, 'neutral' => true, 'label2' => '12 / 20'],
 ];
 
 $activity = [
@@ -52,7 +52,7 @@ $approvals = [
     </div>
 
     {{-- KPI cards --}}
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
         @foreach ($kpis as $kpi)
             <div class="card p-5">
                 <div class="flex items-start justify-between">
@@ -60,7 +60,7 @@ $approvals = [
                         <p class="text-xs font-medium text-slate-500">{{ $kpi['label'] }}</p>
                         <p class="mt-2 text-3xl font-bold tabular-nums">{{ $kpi['value'] }}</p>
                     </div>
-                    <div class="kpi-icon {{ $kpi['iconBg'] }}">
+                    <div class="kpi-icon">
                         <x-ui.icon :name="$kpi['icon']" class="w-5 h-5" />
                     </div>
                 </div>
@@ -94,9 +94,9 @@ $approvals = [
                                 <td class="tabular-nums">{{ $row['eta'] }}</td>
                                 <td>
                                     @if ($row['slot'])
-                                        <span class="mono font-semibold text-simba-600">{{ $row['slot'] }}</span>
+                                        <span class="font-mono text-xs px-2 py-0.5 rounded-md bg-zinc-900/5 dark:bg-white/10 text-slate-700 dark:text-slate-200">{{ $row['slot'] }}</span>
                                     @else
-                                        <span class="text-slate-400">Not assigned</span>
+                                        <span class="text-slate-400 italic text-sm">Not assigned</span>
                                     @endif
                                 </td>
                                 <td><span class="badge {{ $row['badge'] }}"><span class="dot"></span>{{ $row['status'] }}</span></td>
@@ -119,7 +119,7 @@ $approvals = [
                                 {{ $u['label2'] ?? $u['pct'] . '%' }}
                             </span>
                         </div>
-                        <div class="progress"><div class="{{ $u['color'] }}" style="width:{{ $u['pct'] }}%"></div></div>
+                        <x-ui.progress :value="$u['pct']" :neutral="$u['neutral'] ?? false" />
                         @if ($u['warn'])
                             <p class="hint">Approaching capacity, plan re-slotting.</p>
                         @endif
@@ -133,7 +133,7 @@ $approvals = [
         {{-- Recent activity --}}
         <div class="card lg:col-span-2">
             <div class="card-header"><h3 class="card-title">Recent Activity</h3></div>
-            <ul class="divide-y divide-slate-100 dark:divide-slate-800">
+            <ul class="divide-y" style="--tw-divide-color: rgb(255 255 255 / 0.4)">
                 @foreach ($activity as $item)
                     <li class="flex gap-4 px-5 py-4">
                         <div class="kpi-icon !w-8 !h-8 {{ $item['iconBg'] }}">
@@ -165,7 +165,7 @@ $approvals = [
                     </li>
                 @endforeach
             </ul>
-            <div class="p-4 border-t border-slate-100 dark:border-slate-800">
+            <div class="p-4" style="border-top: 1px solid rgb(255 255 255 / 0.4);">
                 <a href="{{ route('approvals.index') }}" wire:navigate class="btn btn-secondary w-full">Open Approvals Inbox</a>
             </div>
         </div>

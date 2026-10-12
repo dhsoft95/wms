@@ -5,7 +5,9 @@ namespace App\Models;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -64,6 +66,66 @@ class User extends Authenticatable implements MustVerifyEmail
     public function emailOtpCodes(): HasMany
     {
         return $this->hasMany(EmailOtpCode::class);
+    }
+
+    public function virtualWarehouses(): BelongsToMany
+    {
+        return $this->belongsToMany(VirtualWarehouse::class, 'user_virtual_warehouse')
+            ->withTimestamps();
+    }
+
+    // ─── VW access ───────────────────────────────────────────────────────────
+
+    /**
+     * Roles listed in config('wms.vw_unrestricted_roles') bypass VW scoping.
+     * Only 'department-user' is restricted by default.
+     */
+    public function canAccessAllVirtualWarehouses(): bool
+    {
+        $unrestricted = config('wms.vw_unrestricted_roles', [
+            'system-admin', 'warehouse-manager', 'viewer-auditor',
+            'storekeeper', 'scanner-operator',
+        ]);
+
+        foreach ($unrestricted as $role) {
+            if ($this->hasRole($role)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Returns the VW ids this user may query.
+     * Empty array means unrestricted (caller must not add a WHERE IN filter).
+     * Cached for the lifetime of the current request via the array cache store.
+     */
+    public function accessibleVirtualWarehouseIds(): array
+    {
+        return Cache::store('array')->remember("vw_ids_{$this->id}", 3600, function () {
+            if ($this->canAccessAllVirtualWarehouses()) {
+                return [];
+            }
+
+            $assigned = $this->virtualWarehouses()->active()->pluck('virtual_warehouses.id')->all();
+
+            // Honour the VW switcher selection (narrows, never widens)
+            $sessionVwId = session('wms_active_vw_id');
+            if ($sessionVwId && in_array((int) $sessionVwId, $assigned, strict: true)) {
+                return [(int) $sessionVwId];
+            }
+
+            return $assigned;
+        });
+    }
+
+    /**
+     * Clear the per-request VW cache — call after the VW switcher changes.
+     */
+    public function clearVwCache(): void
+    {
+        Cache::store('array')->forget("vw_ids_{$this->id}");
     }
 
     // ─── Status helpers ───────────────────────────────────────────────────────

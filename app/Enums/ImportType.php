@@ -1,0 +1,61 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Enums;
+
+enum ImportType: string
+{
+    case DepartmentsVws  = 'departments_vws';
+    case Partners        = 'partners';
+    case ItemCategories  = 'item_categories';
+    case Items           = 'items';
+    case Locations       = 'locations';
+    case OpeningStock    = 'opening_stock';
+
+    public function label(): string
+    {
+        return match($this) {
+            self::DepartmentsVws => 'Departments & Virtual Warehouses',
+            self::Partners       => 'Partners',
+            self::ItemCategories => 'Item Categories',
+            self::Items          => 'Items',
+            self::Locations      => 'Locations',
+            self::OpeningStock   => 'Opening Stock',
+        };
+    }
+
+    public function icon(): string
+    {
+        return match($this) {
+            self::DepartmentsVws => 'building',
+            self::Partners       => 'users',
+            self::ItemCategories => 'tag',
+            self::Items          => 'cube',
+            self::Locations      => 'map-pin',
+            self::OpeningStock   => 'archive',
+        };
+    }
+
+    public function description(): string
+    {
+        return match($this) {
+            self::DepartmentsVws => 'Create departments and the virtual warehouses that belong to them.',
+            self::Partners       => 'Import customers, suppliers, and other business partners.',
+            self::ItemCategories => 'Set up the category tree before importing items.',
+            self::Items          => 'Import the item master — SKUs, UoMs, batch and serial flags.',
+            self::Locations      => 'Define warehouse aisles, bays, and bin locations.',
+            self::OpeningStock   => 'Post opening balances to initialise stock on hand.',
+        };
+    }
+
+    public function requiresOpeningBalancePermission(): bool
+    {
+        return $this === self::OpeningStock;
+    }
+
+    public function restrictedToSystemAdmin(): bool
+    {
+        return in_array($this, [self::DepartmentsVws, self::OpeningStock], true);
+    }
+}

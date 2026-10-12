@@ -4,6 +4,7 @@ namespace App\Livewire\Outbound\Orders;
 
 use App\Livewire\Forms\OrderForm;
 use Illuminate\Contracts\View\View;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 class Create extends Component
@@ -30,12 +31,14 @@ class Create extends Component
         $this->lines = array_values($this->lines);
     }
 
-    public function getTotalQtyProperty(): int
+    #[Computed]
+    public function totalQty(): int
     {
         return (int) array_sum(array_column($this->lines, 'quantity'));
     }
 
-    public function getLineCountProperty(): int
+    #[Computed]
+    public function lineCount(): int
     {
         return count($this->lines);
     }
@@ -56,10 +59,12 @@ class Create extends Component
 
     public function render(): View
     {
-        return view('livewire.outbound.orders.create')
-            ->layout('components.layouts.app', [
-                'title'           => 'New Customer Order',
-                'breadcrumbGroup' => 'Outbound',
-            ]);
+        return view('livewire.outbound.orders.create', [
+            'lineCount' => $this->lineCount,
+            'totalQty'  => $this->totalQty,
+        ])->layout('components.layouts.app', [
+            'title'           => 'New Customer Order',
+            'breadcrumbGroup' => 'Outbound',
+        ]);
     }
 }

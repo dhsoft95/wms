@@ -4,6 +4,8 @@ namespace App\Livewire\Admin\Users;
 
 use App\Models\Department;
 use App\Models\User;
+use App\Models\VirtualWarehouse;
+use App\Notifications\UserInvitationNotification;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -18,6 +20,8 @@ class Create extends Component
     public string $phone = '';
     public string $role = '';
     public string $departmentId = '';
+    /** @var array<int> */
+    public array $virtualWarehouseIds = [];
     public bool $requireTwoFactor = false;
 
     #[Computed]
@@ -27,9 +31,21 @@ class Create extends Component
     }
 
     #[Computed]
+    public function availableVirtualWarehouses(): \Illuminate\Database\Eloquent\Collection
+    {
+        return VirtualWarehouse::active()->orderBy('name')->get();
+    }
+
+    #[Computed]
     public function showDepartment(): bool
     {
         return $this->role === 'department-user';
+    }
+
+    #[Computed]
+    public function showVirtualWarehouses(): bool
+    {
+        return in_array($this->role, ['department-user', 'storekeeper'], strict: true);
     }
 
     protected function rules(): array
@@ -46,8 +62,10 @@ class Create extends Component
                 'scanner-operator',
                 'viewer-auditor',
             ])],
-            'departmentId'    => ['required_if:role,department-user', 'nullable', 'exists:departments,id'],
-            'requireTwoFactor' => ['boolean'],
+            'departmentId'         => ['required_if:role,department-user', 'nullable', 'exists:departments,id'],
+            'virtualWarehouseIds'  => ['array'],
+            'virtualWarehouseIds.*'=> ['integer', 'exists:virtual_warehouses,id'],
+            'requireTwoFactor'     => ['boolean'],
         ];
     }
 
@@ -60,8 +78,9 @@ class Create extends Component
             'email.unique'          => 'This email address is already registered.',
             'role.required'         => 'Please assign a role to this user.',
             'role.in'               => 'Please select a valid role.',
-            'departmentId.required_if' => 'A department is required for Department User role.',
-            'departmentId.exists'   => 'The selected department does not exist.',
+            'departmentId.required_if'  => 'A department is required for Department User role.',
+            'departmentId.exists'       => 'The selected department does not exist.',
+            'virtualWarehouseIds.*.exists' => 'One or more selected virtual warehouses do not exist.',
         ];
     }
 
@@ -85,8 +104,12 @@ class Create extends Component
 
         $user->assignRole($data['role']);
 
-        // Send invitation notification
-        // $user->notify(new \App\Notifications\UserInvitationNotification($user));
+        if (! empty($data['virtualWarehouseIds'])) {
+            $user->virtualWarehouses()->sync($data['virtualWarehouseIds']);
+        }
+
+        $plainToken = $user->generateInvitationToken();
+        $user->notify(new UserInvitationNotification($plainToken));
 
         $this->dispatch('toast', message: 'Invitation sent to ' . $user->email . '.', type: 'success');
 

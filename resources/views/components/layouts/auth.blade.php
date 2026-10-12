@@ -32,12 +32,10 @@
     {{-- Right darkening wash (full-bleed) --}}
     <div class="fixed inset-0 -z-10 bg-gradient-to-l from-black/20 via-transparent to-transparent pointer-events-none" aria-hidden="true"></div>
 
-    {{-- Decorative diagonal glass shapes — hidden on mobile to prevent overflow --}}
-    <div class="hidden sm:block fixed bottom-0 left-0 -z-10 w-80 h-80 rounded-tr-[80px] bg-simba-950/40 backdrop-blur-sm pointer-events-none"
+    {{-- Decorative diagonal shapes — very subtle, no blur so they don't read as artifacts --}}
+    <div class="hidden sm:block fixed bottom-0 left-0 -z-10 w-80 h-80 rounded-tr-[80px] bg-simba-950/10 pointer-events-none"
          aria-hidden="true" style="transform: rotate(-15deg) translate(-40px, 40px);"></div>
-    <div class="hidden sm:block fixed top-0 right-16 -z-10 w-52 h-52 rounded-bl-[60px] bg-white/5 backdrop-blur-sm pointer-events-none"
-         aria-hidden="true" style="transform: rotate(20deg) translate(20px, -25px);"></div>
-    <div class="hidden sm:block fixed bottom-16 right-0 -z-10 w-72 h-44 rounded-tl-[50px] bg-simba-800/25 backdrop-blur-sm pointer-events-none"
+    <div class="hidden sm:block fixed bottom-16 right-0 -z-10 w-72 h-44 rounded-tl-[50px] bg-simba-900/8 pointer-events-none overflow-hidden"
          aria-hidden="true" style="transform: rotate(-10deg) translate(25px, 20px);"></div>
 
     {{-- Content container — caps at 1440px, grid switches to single-column below lg --}}

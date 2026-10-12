@@ -3,28 +3,31 @@
     $fieldName  = $attributes->get('wire:model') ?: $attributes->get('name', '');
     $hasError   = $fieldName && $errors->has($fieldName);
     $inputId    = $attributes->get('id', ($fieldName ?: 'pw') . '_' . Str::random(4));
-    $inputClass = 'glass-input rounded-xl h-14 w-full pl-12 pr-12 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-simba-600/40 transition'
+    $inputClass = 'glass-input rounded-xl h-14 w-full pl-12 pr-12 text-sm'
+        . ' text-zinc-900 dark:text-white'
+        . ' placeholder:text-zinc-400 dark:placeholder:text-zinc-500'
+        . ' focus:outline-none focus:ring-2 focus:ring-simba-600/40 focus:border-simba-600 transition'
         . ($hasError ? ' ring-2 ring-red-400/50 !border-red-400/50' : '');
 @endphp
 <div class="space-y-1.5" x-data="{ show: false }">
     @if ($label)
-        <label class="block text-xs font-semibold text-slate-700" for="{{ $inputId }}">{{ $label }}</label>
+        <label class="block text-xs font-semibold text-zinc-800 dark:text-zinc-100" for="{{ $inputId }}">{{ $label }}</label>
     @endif
     <div class="relative">
-        <div class="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" aria-hidden="true">
-            <svg class="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/>
-            </svg>
-        </div>
         <input
             id="{{ $inputId }}"
             :type="show ? 'text' : 'password'"
             {{ $attributes->except(['label', 'type'])->merge(['class' => $inputClass]) }}
         >
+        <div class="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-[color:var(--auth-icon)]" aria-hidden="true">
+            <svg class="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/>
+            </svg>
+        </div>
         <button
             type="button"
             @click="show = !show"
-            class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+            class="absolute right-3.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-100 transition-colors"
             :aria-label="show ? 'Hide password' : 'Show password'"
         >
             <svg x-show="!show" class="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
@@ -38,7 +41,7 @@
     </div>
     @if ($fieldName)
         @error($fieldName)
-            <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+            <p class="text-xs text-red-600 dark:text-red-400 mt-1">{{ $message }}</p>
         @enderror
     @endif
 </div>

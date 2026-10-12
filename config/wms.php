@@ -4,6 +4,17 @@ return [
     // Invitation link expiry in hours
     'invitation_expiry_hours' => env('WMS_INVITATION_EXPIRY_HOURS', 72),
 
+    // Roles that bypass virtual warehouse scoping and see all VWs.
+    // Only 'department-user' is restricted by default.
+    // Storekeepers and scanner operators need to execute tasks for every department.
+    'vw_unrestricted_roles' => [
+        'system-admin',
+        'warehouse-manager',
+        'viewer-auditor',
+        'storekeeper',
+        'scanner-operator',
+    ],
+
     // Email OTP expiry in minutes
     'otp_expiry_minutes' => env('WMS_OTP_EXPIRY_MINUTES', 10),
 
@@ -12,8 +23,9 @@ return [
         'name'            => env('WMS_BRAND_NAME', null), // null → falls back to config('app.name')
         'subtitle'        => env('WMS_BRAND_SUBTITLE', 'Warehouse Management System'),
         'initials'        => env('WMS_BRAND_INITIALS', 'SC'),
-        'logo'            => env('WMS_BRAND_LOGO'),
+        'logo'            => env('WMS_BRAND_LOGO', 'images/logo/logo.png'),
         'auth_background' => env('WMS_AUTH_BACKGROUND', 'images/auth/warehouse-bg.jpg'),
+        'app_background'  => env('WMS_APP_BACKGROUND',  'images/app/warehouse-bg.webp'),
         'headline'        => 'Warehouse operations,',
         'headline_accent' => 'from yard to doorstep.',
         'tagline'         => 'Smarter warehouse management for greater visibility, accuracy and efficiency, all in one powerful system.',

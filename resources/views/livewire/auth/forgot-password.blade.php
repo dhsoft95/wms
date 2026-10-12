@@ -49,7 +49,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
         </x-auth.button>
     </form>
 
-    <p class="text-center text-sm text-slate-500">
+    <p class="text-center text-sm text-zinc-500 dark:text-zinc-400">
         <x-auth.link href="{{ route('login') }}" wire:navigate>{{ __('Back to sign in') }}</x-auth.link>
     </p>
 </div>

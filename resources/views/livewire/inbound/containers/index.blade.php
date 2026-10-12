@@ -28,7 +28,7 @@
         <div class="overflow-x-auto">
             <table class="table">
                 <thead>
-                    <tr><th>Container</th><th>Seal No.</th><th>BL Reference</th><th>Vessel / Voyage</th><th>ETA</th><th>Yard Slot</th><th>Status</th><th></th></tr>
+                    <tr><th>Container</th><th>Seal No.</th><th>BL Reference</th><th>Vessel / Voyage</th><th>ETA</th><th>Yard Slot</th><th>Status</th><th class="text-right">Actions</th></tr>
                 </thead>
                 <tbody>
                     @forelse ($rows as $row)
@@ -43,20 +43,24 @@
                             <td class="tabular-nums">{{ $row['eta'] }}</td>
                             <td>
                                 @if ($row['slot'])
-                                    <span class="mono font-semibold text-simba-600">{{ $row['slot'] }}</span>
+                                    <span class="font-mono text-xs px-2 py-0.5 rounded-md bg-zinc-900/5 dark:bg-white/10 text-slate-700 dark:text-slate-200">{{ $row['slot'] }}</span>
                                 @else
-                                    <span class="text-slate-400">Not assigned</span>
+                                    <span class="text-slate-400 italic text-sm">Not assigned</span>
                                 @endif
                             </td>
                             <td><span class="badge {{ $row['badge'] }}"><span class="dot"></span>{{ $row['label'] }}</span></td>
                             <td class="text-right">
-                                @if (in_array($row['status'], ['unloading', 'arrived']))
-                                    <a href="{{ route('inbound.grn.create') }}" wire:navigate class="btn btn-ghost btn-sm">Receive</a>
-                                @elseif ($row['status'] === 'released')
-                                    <a href="{{ route('reports.print') }}" wire:navigate class="btn btn-ghost btn-sm">Documents</a>
-                                @else
-                                    <button wire:click="$dispatch('toast', {message: 'Yard slot assignment opened', type: 'info'})" class="btn btn-ghost btn-sm">Assign Slot</button>
-                                @endif
+                                <x-ui.row-actions :label="'Actions for container ' . $row['container']">
+                                    @if (in_array($row['status'], ['unloading', 'arrived']))
+                                        <x-ui.row-actions.item icon="inbox" label="Receive" :href="route('inbound.grn.create')" />
+                                    @endif
+                                    @if ($row['status'] === 'released')
+                                        <x-ui.row-actions.item icon="doc" label="Documents" :href="route('reports.print')" />
+                                    @endif
+                                    @if (!in_array($row['status'], ['unloading', 'arrived', 'released']))
+                                        <x-ui.row-actions.item icon="home" label="Assign Slot" tone="info" wire:click="$dispatch('toast', { message: 'Slot assignment coming in Module 3', type: 'info' })" />
+                                    @endif
+                                </x-ui.row-actions>
                             </td>
                         </tr>
                     @empty

@@ -21,6 +21,9 @@ class RolePermissionSeeder extends Seeder
         'movements.view',  'movements.create',  'movements.approve',
         'transfers.view',  'transfers.create',  'transfers.approve',
 
+        // Stock Ledger (Module 2)
+        'stock.view', 'stock.movements.view', 'stock.opening-balance', 'stock.reverse', 'stock.verify',
+
         // Inventory
         'inventory.view',  'inventory.create',  'inventory.update',  'inventory.delete',
         'adjustments.view','adjustments.create','adjustments.approve',
@@ -39,20 +42,35 @@ class RolePermissionSeeder extends Seeder
         'traceability.view',
         'audit-logs.view',
 
-        // SKU master
-        'skus.view',       'skus.create',       'skus.update',       'skus.delete',
+        // Items (SKU master — replaces old skus.*)
+        'items.view',      'items.create',      'items.update',      'items.delete',
+
+        // Partners
+        'partners.view',   'partners.create',   'partners.update',   'partners.delete',
+
+        // Locations & Warehouses
+        'locations.view',  'locations.create',  'locations.update',  'locations.delete',
+        'locations.block',
 
         // Admin
         'users.manage',
         'roles.manage',
         'settings.manage',
         'departments.manage',
+        'virtual-warehouses.view',
+        'virtual-warehouses.manage',
 
         // Scanner
         'scan.receive',
         'scan.putaway',
         'scan.pick',
         'scan.stock-lookup',
+
+        // Serials (Module 2B)
+        'serials.view',
+
+        // Data Import (Module 2B)
+        'imports.manage',
     ];
 
     // Role → permission mapping
@@ -75,20 +93,30 @@ class RolePermissionSeeder extends Seeder
             'approvals.view', 'approvals.approve',
             'reports.view', 'reports.export',
             'traceability.view',
-            'skus.view', 'skus.create', 'skus.update',
+            'items.view', 'items.create', 'items.update',
+            'partners.view', 'partners.create', 'partners.update',
+            'locations.view', 'locations.create', 'locations.update', 'locations.block',
+            'virtual-warehouses.view',
+            // Stock Ledger (Module 2)
+            'stock.view', 'stock.movements.view', 'stock.verify',
+            // Module 2B
+            'serials.view', 'imports.manage',
         ],
 
         'department-user' => [
-            // Filtered to own department_id via DepartmentScope at model level
-            'containers.view',
-            'receiving.view',
-            'movements.view', 'movements.create',
-            'transfers.view', 'transfers.create',
+            // Scoped to assigned virtual warehouses via BelongsToVirtualWarehouse global scope
             'inventory.view',
             'orders.view', 'orders.create', 'orders.update',
+            'items.view',
+            'virtual-warehouses.view',
+            // Stock Ledger (Module 2)
+            'stock.view', 'stock.movements.view',
+            // Module 2B
+            'serials.view',
         ],
 
         'storekeeper' => [
+            // Unrestricted by VW — executes receiving, putaway and picking for every department
             'containers.view',
             'receiving.view', 'receiving.create', 'receiving.update', 'receiving.execute',
             'inspections.view', 'inspections.create',
@@ -100,15 +128,26 @@ class RolePermissionSeeder extends Seeder
             'orders.view',
             'dispatch.view', 'dispatch.execute',
             'pod.view', 'pod.create',
-            'skus.view',
+            'items.view',
+            'partners.view',
+            'locations.view',
+            'virtual-warehouses.view',
+            // Stock Ledger (Module 2)
+            'stock.view', 'stock.movements.view',
+            // Module 2B
+            'serials.view',
         ],
 
         'scanner-operator' => [
+            // Unrestricted by VW — scans for every department
             'inventory.view',
             'scan.receive',
             'scan.putaway',
             'scan.pick',
             'scan.stock-lookup',
+            'items.view',
+            'locations.view',
+            'virtual-warehouses.view',
         ],
 
         'viewer-auditor' => [
@@ -128,7 +167,14 @@ class RolePermissionSeeder extends Seeder
             'reports.view', 'reports.export',
             'traceability.view',
             'audit-logs.view',
-            'skus.view',
+            'items.view',
+            'partners.view',
+            'locations.view',
+            'virtual-warehouses.view',
+            // Stock Ledger (Module 2)
+            'stock.view', 'stock.movements.view',
+            // Module 2B
+            'serials.view',
         ],
     ];
 

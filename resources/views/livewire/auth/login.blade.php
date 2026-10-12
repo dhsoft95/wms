@@ -77,11 +77,13 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
     private function redirectAfterLogin(User $user): void
     {
+        // navigate: false — crossing layout boundaries (auth → app/scan) requires a full
+        // page load so that the app layout's <html x-data="..."> is mounted fresh by Alpine.
         if ($user->hasRole('scanner-operator')) {
-            $this->redirect(route('scan.home'), navigate: true);
+            $this->redirect(route('scan.home'), navigate: false);
             return;
         }
-        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: true);
+        $this->redirectIntended(default: route('dashboard', absolute: false), navigate: false);
     }
 
     protected function ensureIsNotRateLimited(): void
@@ -137,9 +139,9 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         <div class="space-y-1.5">
             <div class="flex items-center justify-between">
-                <label class="block text-xs font-semibold text-slate-700">{{ __('Password') }}</label>
+                <label class="block text-xs font-semibold text-zinc-800 dark:text-zinc-100">{{ __('Password') }}</label>
                 @if (Route::has('password.request'))
-                    <a href="{{ route('password.request') }}" class="text-xs font-semibold text-simba-600 hover:text-simba-700 transition-colors" wire:navigate>{{ __('Forgot password?') }}</a>
+                    <a href="{{ route('password.request') }}" class="text-xs font-semibold text-simba-600 dark:text-simba-300 hover:text-simba-700 dark:hover:text-simba-200 hover:underline transition-colors" wire:navigate>{{ __('Forgot password?') }}</a>
                 @endif
             </div>
             <x-auth.password
@@ -156,13 +158,7 @@ new #[Layout('components.layouts.auth')] class extends Component {
 
         <x-auth.button wire:loading.attr="disabled" loading-text="{{ __('Signing in…') }}">
             {{ __('Sign in') }}
-            <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/>
-            </svg>
         </x-auth.button>
     </form>
 
-    <x-auth.divider />
-
-    <x-auth.secure-note />
 </div>

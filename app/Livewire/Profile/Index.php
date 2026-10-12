@@ -5,9 +5,9 @@ namespace App\Livewire\Profile;
 use App\Models\EmailOtpCode;
 use App\Notifications\EmailOtpNotification;
 use App\Notifications\PasswordChangedNotification;
+use App\Services\Auth\UserSessionManager;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Actions\DisableTwoFactorAuthentication;
@@ -93,24 +93,8 @@ class Index extends Component
     #[Computed]
     public function sessions(): array
     {
-        $currentId = session()->getId();
-
-        return DB::table('sessions')
-            ->where('user_id', auth()->id())
-            ->orderByDesc('last_activity')
-            ->get()
-            ->map(function ($session) use ($currentId) {
-                $agent = $session->user_agent ?? '';
-
-                return [
-                    'id'            => $session->id,
-                    'ip_address'    => $session->ip_address,
-                    'user_agent'    => $agent,
-                    'device'        => $this->parseDevice($agent),
-                    'last_activity' => \Carbon\Carbon::createFromTimestamp($session->last_activity),
-                    'is_current'    => $session->id === $currentId,
-                ];
-            })
+        return app(UserSessionManager::class)
+            ->forUser(auth()->id(), session()->getId())
             ->all();
     }
 
@@ -302,10 +286,8 @@ class Index extends Component
             session(['auth.password_confirmed_at' => time()]);
         }
 
-        DB::table('sessions')
-            ->where('user_id', auth()->id())
-            ->where('id', '!=', session()->getId())
-            ->delete();
+        app(UserSessionManager::class)
+            ->deleteOtherSessions(auth()->id(), session()->getId());
 
         $this->sessionPassword  = '';
         $this->confirmingLogout = false;
@@ -314,21 +296,6 @@ class Index extends Component
         unset($this->sessions);
 
         $this->dispatch('toast', message: 'All other sessions have been logged out.', type: 'success');
-    }
-
-    // ─── Helpers ─────────────────────────────────────────────────────────────
-
-    private function parseDevice(string $userAgent): string
-    {
-        if (str_contains($userAgent, 'Mobile') || str_contains($userAgent, 'Android')) {
-            return 'Mobile';
-        }
-
-        if (str_contains($userAgent, 'Tablet') || str_contains($userAgent, 'iPad')) {
-            return 'Tablet';
-        }
-
-        return 'Desktop';
     }
 
     // ─── Render ───────────────────────────────────────────────────────────────

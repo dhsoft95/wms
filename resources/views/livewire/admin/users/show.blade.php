@@ -1,238 +1,362 @@
 <div class="space-y-6">
-
     {{-- Page Header --}}
-    <div class="page-header">
-        <div class="flex items-center gap-4">
+    <div class="flex flex-col gap-5 pb-6 sm:flex-row sm:items-center sm:justify-between
+                border-b border-white/40 dark:border-white/[0.08]">
+
+        <div class="flex min-w-0 items-center gap-4">
             {{-- Avatar --}}
-            <div class="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
-                <span class="text-base font-bold text-slate-600 dark:text-slate-300 mono">{{ $user->initials() }}</span>
+            <div class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full
+                        bg-simba-50 dark:bg-simba-500/20
+                        text-simba-700 dark:text-simba-300
+                        ring-4 ring-white/70 dark:ring-white/[0.08] shadow-sm">
+                <span class="text-lg font-bold tracking-wide mono">{{ $user->initials() }}</span>
             </div>
-            <div>
-                <h2 class="page-title">{{ $user->name }}</h2>
-                <p class="page-sub mono">{{ $user->email }}</p>
+
+            <div class="min-w-0">
+                <h2 class="truncate text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+                    {{ $user->name }}
+                </h2>
+                <p class="mt-1 truncate text-sm text-slate-500 dark:text-slate-400 mono">
+                    {{ $user->email }}
+                </p>
+                <div class="mt-2">
+                    @if ($user->isActive())
+                        <span class="badge badge-green">
+                            <span class="dot"></span> Active
+                        </span>
+                    @elseif ($user->isInvited())
+                        <span class="badge badge-amber">
+                            <span class="dot"></span> Invited
+                        </span>
+                    @elseif ($user->isSuspended())
+                        <span class="badge badge-red">
+                            <span class="dot"></span> Suspended
+                        </span>
+                    @endif
+                </div>
             </div>
         </div>
 
-        {{-- Action Buttons --}}
-        <div class="flex items-center gap-2">
+        {{-- Header Actions --}}
+        <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+            <a href="{{ route('admin.users.index') }}" wire:navigate class="btn btn-secondary btn-sm">
+                <x-ui.icon name="arrows" class="h-4 w-4" /> Back
+            </a>
+
             @can('users.manage')
-                <a href="{{ route('admin.users.edit', $user) }}" wire:navigate class="btn btn-secondary btn-sm">
-                    <x-ui.icon name="cog" class="w-4 h-4" /> Edit
+                <a href="{{ route('admin.users.edit', $user) }}" wire:navigate class="btn btn-secondary">
+                    <x-ui.icon name="cog" class="h-4 w-4" /> Edit Profile
                 </a>
 
                 @if ($user->isActive())
-                    <button
-                        wire:click="suspend"
-                        wire:confirm="Suspend {{ $user->name }}? They will no longer be able to log in."
-                        class="btn btn-secondary btn-sm text-amber-600"
-                    >
-                        <x-ui.icon name="x" class="w-4 h-4" /> Suspend
+                    <button wire:click="suspend"
+                            wire:confirm="Suspend {{ $user->name }}? They will no longer be able to log in."
+                            class="btn btn-primary">
+                        <x-ui.icon name="x" class="h-4 w-4" /> Suspend Account
                     </button>
                 @elseif ($user->isSuspended())
-                    <button wire:click="activate" class="btn btn-secondary btn-sm text-green-600">
-                        <x-ui.icon name="check" class="w-4 h-4" /> Activate
+                    <button wire:click="activate" class="btn btn-success">
+                        <x-ui.icon name="check" class="h-4 w-4" /> Activate Account
                     </button>
                 @endif
 
                 @if ($user->isInvited())
-                    <button wire:click="resendInvitation" class="btn btn-secondary btn-sm">
-                        <x-ui.icon name="refresh" class="w-4 h-4" /> Resend Invitation
+                    <button wire:click="resendInvitation" class="btn btn-secondary">
+                        <x-ui.icon name="refresh" class="h-4 w-4" /> Resend Invitation
                     </button>
                 @endif
 
                 @if ($user->hasTwoFactorEnabled())
-                    <button
-                        wire:click="resetTwoFactor"
-                        wire:confirm="Reset 2FA for {{ $user->name }}? They will need to set it up again."
-                        class="btn btn-secondary btn-sm text-red-500"
-                    >
-                        <x-ui.icon name="shield" class="w-4 h-4" /> Reset 2FA
+                    <button wire:click="resetTwoFactor"
+                            wire:confirm="Reset 2FA for {{ $user->name }}? They will need to set it up again."
+                            class="btn btn-danger">
+                        <x-ui.icon name="shield" class="h-4 w-4" /> Reset 2FA
                     </button>
                 @endif
             @endcan
         </div>
     </div>
 
-    {{-- Two-column layout --}}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {{-- Left: Profile Card --}}
-        <div class="lg:col-span-2 space-y-6">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <x-ui.icon name="user" class="w-4 h-4" /> Profile
-                    </h3>
-                    {{-- Status badge --}}
+    {{-- Main Content: Two Columns --}}
+    <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+
+        {{-- LEFT COLUMN --}}
+        <div class="space-y-6 lg:col-span-2">
+
+            {{-- Profile Card --}}
+            <section class="card overflow-hidden">
+                <div class="card-header sm:px-7 py-5">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-11 w-11 items-center justify-center rounded-xl
+                                    bg-simba-50 dark:bg-simba-500/15
+                                    text-simba-600 dark:text-simba-400">
+                            <x-ui.icon name="user" class="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-white">Profile</h3>
+                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Personal information and account details</p>
+                        </div>
+                    </div>
+
                     @if ($user->isActive())
-                        <span class="badge badge-green ml-auto">Active</span>
+                        <span class="badge badge-green shrink-0">
+                            <span class="dot"></span> Active
+                        </span>
                     @elseif ($user->isInvited())
-                        <span class="badge badge-amber ml-auto">Invited</span>
+                        <span class="badge badge-amber shrink-0">Invited</span>
                     @elseif ($user->isSuspended())
-                        <span class="badge badge-red ml-auto">Suspended</span>
+                        <span class="badge badge-red shrink-0">Suspended</span>
                     @endif
                 </div>
 
-                <ul>
-                    <li class="list-row">
-                        <span class="section-label">Name</span>
-                        <span class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ $user->name }}</span>
-                    </li>
+                <dl class="divide-y divide-white/50 dark:divide-white/[0.06] px-5 sm:px-7">
 
-                    <li class="list-row">
-                        <span class="section-label">Email</span>
-                        <span class="text-sm mono text-slate-600 dark:text-slate-300">{{ $user->email }}</span>
-                        @if ($user->email_verified_at)
-                            <span class="badge badge-green ml-2 text-xs">Verified</span>
-                        @else
-                            <span class="badge badge-amber ml-2 text-xs">Unverified</span>
-                        @endif
-                    </li>
+                    <div class="grid grid-cols-1 gap-2 py-4 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
+                        <dt class="section-label">Name</dt>
+                        <dd class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ $user->name }}</dd>
+                    </div>
 
-                    <li class="list-row">
-                        <span class="section-label">Phone</span>
-                        <span class="text-sm text-slate-600 dark:text-slate-300">
-                            {{ $user->phone ?? '—' }}
-                        </span>
-                    </li>
+                    <div class="grid grid-cols-1 gap-2 py-4 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
+                        <dt class="section-label">Email Address</dt>
+                        <dd class="flex min-w-0 flex-wrap items-center justify-between gap-3">
+                            <span class="break-all text-sm text-slate-700 dark:text-slate-300 mono">{{ $user->email }}</span>
+                            @if ($user->email_verified_at)
+                                <span class="badge badge-green shrink-0">
+                                    <x-ui.icon name="check" class="h-3 w-3" /> Verified
+                                </span>
+                            @else
+                                <span class="badge badge-amber shrink-0">Unverified</span>
+                            @endif
+                        </dd>
+                    </div>
 
-                    <li class="list-row">
-                        <span class="section-label">Role</span>
-                        @if ($user->roleName())
-                            <span class="badge badge-slate">{{ $user->roleName() }}</span>
-                        @else
-                            <span class="text-slate-400 text-sm">No role assigned</span>
-                        @endif
-                    </li>
+                    <div class="grid grid-cols-1 gap-2 py-4 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
+                        <dt class="section-label">Phone</dt>
+                        <dd class="text-sm text-slate-700 dark:text-slate-300 mono">{{ $user->phone ?? '—' }}</dd>
+                    </div>
 
-                    <li class="list-row">
-                        <span class="section-label">Department</span>
-                        <span class="text-sm text-slate-600 dark:text-slate-300">
+                    <div class="grid grid-cols-1 gap-2 py-4 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
+                        <dt class="section-label">Role</dt>
+                        <dd>
+                            @if ($user->roleName())
+                                <span class="badge badge-slate">{{ $user->roleName() }}</span>
+                            @else
+                                <span class="text-sm text-slate-400 dark:text-slate-500">No role assigned</span>
+                            @endif
+                        </dd>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-2 py-4 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
+                        <dt class="section-label">Department</dt>
+                        <dd class="text-sm text-slate-700 dark:text-slate-300">
                             {{ $user->department?->name ?? '—' }}
                             @if ($user->department)
-                                <span class="text-slate-400 mono text-xs ml-1">({{ $user->department->code }})</span>
+                                <span class="ml-1 text-xs text-slate-400 dark:text-slate-500 mono">({{ $user->department->code }})</span>
                             @endif
-                        </span>
-                    </li>
-                </ul>
-            </div>
+                        </dd>
+                    </div>
+
+                </dl>
+            </section>
+
 
             {{-- Security Card --}}
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <x-ui.icon name="shield" class="w-4 h-4" /> Security
-                    </h3>
+            <section class="card overflow-hidden">
+                <div class="card-header sm:px-7 py-5">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-11 w-11 items-center justify-center rounded-xl
+                                    bg-simba-50 dark:bg-simba-500/15
+                                    text-simba-600 dark:text-simba-400">
+                            <x-ui.icon name="shield" class="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-white">Security</h3>
+                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Authentication and sign-in information</p>
+                        </div>
+                    </div>
                 </div>
-                <ul>
-                    <li class="list-row">
-                        <span class="section-label">Two-Factor Auth</span>
-                        <div class="flex items-center gap-2">
+
+                <dl class="divide-y divide-white/50 dark:divide-white/[0.06] px-5 sm:px-7">
+
+                    <div class="grid grid-cols-1 gap-2 py-4 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
+                        <dt class="section-label">Two-Factor Auth</dt>
+                        <dd class="flex flex-wrap items-center gap-2">
                             @if ($user->hasTwoFactorEnabled())
                                 <span class="badge badge-green">Enabled</span>
-                                <span class="text-xs text-slate-400 mono">
+                                <span class="text-xs text-slate-500 dark:text-slate-400">
                                     {{ $user->two_factor_method === 'app' ? 'Authenticator App' : 'Email OTP' }}
                                 </span>
                                 @if ($user->two_factor_confirmed_at)
-                                    <span class="text-xs text-slate-400">· confirmed {{ $user->two_factor_confirmed_at->diffForHumans() }}</span>
+                                    <span class="text-xs text-slate-400 dark:text-slate-500">
+                                        Confirmed {{ $user->two_factor_confirmed_at->diffForHumans() }}
+                                    </span>
                                 @endif
                             @else
                                 <span class="badge badge-slate">Disabled</span>
                             @endif
+                        </dd>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-2 py-4 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
+                        <dt class="section-label">2FA Required</dt>
+                        <dd class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                            {{ $user->require_two_factor ? 'Yes' : 'No' }}
+                        </dd>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-2 py-4 sm:grid-cols-[180px_minmax(0,1fr)] sm:items-center">
+                        <dt class="section-label">Last Login</dt>
+                        <dd>
+                            @if ($user->last_login_at)
+                                <p class="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                    {{ $user->last_login_at->diffForHumans() }}
+                                </p>
+                                @if ($user->last_login_ip)
+                                    <p class="mt-1 text-xs text-slate-400 dark:text-slate-500 mono">
+                                        IP: {{ $user->last_login_ip }}
+                                    </p>
+                                @endif
+                            @else
+                                <span class="text-sm text-slate-400 dark:text-slate-500">Never logged in</span>
+                            @endif
+                        </dd>
+                    </div>
+
+                </dl>
+            </section>
+
+        </div>
+
+
+        {{-- RIGHT COLUMN: Account Timeline --}}
+        <aside class="space-y-5">
+
+            <section class="card overflow-hidden">
+                <div class="card-header py-5">
+                    <div class="flex items-center gap-3">
+                        <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl
+                                    bg-simba-50 dark:bg-simba-500/15
+                                    text-simba-600 dark:text-simba-400">
+                            <x-ui.icon name="arrows" class="h-5 w-5" />
+                        </div>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900 dark:text-white">Account Timeline</h3>
+                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Important account events</p>
+                        </div>
+                    </div>
+                </div>
+
+                <ol class="divide-y divide-white/50 dark:divide-white/[0.06] px-5">
+
+                    {{-- Account Created --}}
+                    <li class="flex gap-3 py-5">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl
+                                    bg-white/50 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400">
+                            <x-ui.icon name="refresh" class="h-5 w-5" />
+                            <x-ui.icon name="user-round-plus" class="h-5 w-5" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="section-label">Account Created</p>
+                            <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+                                {{ $user->created_at->format('d M Y, H:i') }}
+                            </p>
+                            <p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                                {{ $user->created_at->diffForHumans() }}
+                            </p>
                         </div>
                     </li>
 
-                    <li class="list-row">
-                        <span class="section-label">2FA Required</span>
-                        <span class="text-sm text-slate-600 dark:text-slate-300">
-                            {{ $user->require_two_factor ? 'Yes' : 'No' }}
-                        </span>
-                    </li>
-
-                    <li class="list-row">
-                        <span class="section-label">Last Login</span>
-                        <div>
-                            @if ($user->last_login_at)
-                                <span class="text-sm text-slate-700 dark:text-slate-200">{{ $user->last_login_at->diffForHumans() }}</span>
-                                @if ($user->last_login_ip)
-                                    <span class="text-xs text-slate-400 mono ml-2">{{ $user->last_login_ip }}</span>
-                                @endif
+                    {{-- Invitation Sent --}}
+                    <li class="flex gap-3 py-5">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl
+                                    bg-white/50 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400">
+                            <x-ui.icon name="refresh" class="h-5 w-5" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="section-label">Invitation Sent</p>
+                            @if ($user->invitation_sent_at)
+                                <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+                                    {{ $user->invitation_sent_at->format('d M Y, H:i') }}
+                                </p>
+                                <p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                                    {{ $user->invitation_sent_at->diffForHumans() }}
+                                </p>
                             @else
-                                <span class="text-sm text-slate-400">Never logged in</span>
+                                <p class="mt-1 text-sm text-slate-400 dark:text-slate-500">Not sent</p>
                             @endif
                         </div>
                     </li>
-                </ul>
-            </div>
-        </div>
 
-        {{-- Right: Activity Panel --}}
-        <div class="space-y-6">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <x-ui.icon name="arrows" class="w-4 h-4" /> Account Timeline
-                    </h3>
-                </div>
-                <ul>
-                    <li class="list-row flex-col items-start gap-0.5">
-                        <span class="section-label">Account Created</span>
-                        <span class="text-sm text-slate-700 dark:text-slate-200">{{ $user->created_at->format('d M Y, H:i') }}</span>
-                        <span class="text-xs text-slate-400">{{ $user->created_at->diffForHumans() }}</span>
-                    </li>
-
-                    <li class="list-row flex-col items-start gap-0.5">
-                        <span class="section-label">Invitation Sent</span>
-                        @if ($user->invitation_sent_at)
-                            <span class="text-sm text-slate-700 dark:text-slate-200">{{ $user->invitation_sent_at->format('d M Y, H:i') }}</span>
-                            <span class="text-xs text-slate-400">{{ $user->invitation_sent_at->diffForHumans() }}</span>
-                        @else
-                            <span class="text-sm text-slate-400">Not sent</span>
-                        @endif
-                    </li>
-
-                    <li class="list-row flex-col items-start gap-0.5">
-                        <span class="section-label">Invited By</span>
-                        @if ($user->invitedBy)
-                            <div class="flex items-center gap-2 mt-0.5">
-                                <div class="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
-                                    <span class="text-xs font-semibold text-slate-500 mono">{{ $user->invitedBy->initials() }}</span>
+                    {{-- Invited By --}}
+                    <li class="flex gap-3 py-5">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl
+                                    bg-white/50 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400">
+                            <x-ui.icon name="user" class="h-5 w-5" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="section-label">Invited By</p>
+                            @if ($user->invitedBy)
+                                <div class="mt-2 flex items-center gap-2.5">
+                                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full
+                                                bg-simba-50 dark:bg-simba-500/20
+                                                text-xs font-bold text-simba-700 dark:text-simba-300">
+                                        {{ $user->invitedBy->initials() }}
+                                    </div>
+                                    <span class="break-words text-sm font-medium text-slate-800 dark:text-slate-200">
+                                        {{ $user->invitedBy->name }}
+                                    </span>
                                 </div>
-                                <span class="text-sm text-slate-700 dark:text-slate-200">{{ $user->invitedBy->name }}</span>
-                            </div>
-                        @else
-                            <span class="text-sm text-slate-400">—</span>
-                        @endif
+                            @else
+                                <p class="mt-1 text-sm text-slate-400 dark:text-slate-500">—</p>
+                            @endif
+                        </div>
                     </li>
 
-                    <li class="list-row flex-col items-start gap-0.5">
-                        <span class="section-label">Email Verified</span>
-                        @if ($user->email_verified_at)
-                            <span class="text-sm text-slate-700 dark:text-slate-200">{{ $user->email_verified_at->format('d M Y, H:i') }}</span>
-                            <span class="text-xs text-slate-400">{{ $user->email_verified_at->diffForHumans() }}</span>
-                        @else
-                            <span class="text-sm text-amber-600">Not verified</span>
-                        @endif
+                    {{-- Email Verified --}}
+                    <li class="flex gap-3 py-5">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl
+                                    bg-white/50 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400">
+                            <x-ui.icon name="check" class="h-5 w-5" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="section-label">Email Verified</p>
+                            @if ($user->email_verified_at)
+                                <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+                                    {{ $user->email_verified_at->format('d M Y, H:i') }}
+                                </p>
+                                <p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                                    {{ $user->email_verified_at->diffForHumans() }}
+                                </p>
+                            @else
+                                <p class="mt-1 text-sm font-medium text-amber-600 dark:text-amber-400">Not verified</p>
+                            @endif
+                        </div>
                     </li>
 
-                    <li class="list-row flex-col items-start gap-0.5">
-                        <span class="section-label">Last Login</span>
-                        @if ($user->last_login_at)
-                            <span class="text-sm text-slate-700 dark:text-slate-200">{{ $user->last_login_at->format('d M Y, H:i') }}</span>
-                            <span class="text-xs text-slate-400">{{ $user->last_login_at->diffForHumans() }}</span>
-                        @else
-                            <span class="text-sm text-slate-400">Never</span>
-                        @endif
+                    {{-- Last Login --}}
+                    <li class="flex gap-3 py-5">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl
+                                    bg-white/50 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400">
+                            <x-ui.icon name="user" class="h-5 w-5" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="section-label">Last Login</p>
+                            @if ($user->last_login_at)
+                                <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+                                    {{ $user->last_login_at->format('d M Y, H:i') }}
+                                </p>
+                                <p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                                    {{ $user->last_login_at->diffForHumans() }}
+                                </p>
+                            @else
+                                <p class="mt-1 text-sm text-slate-400 dark:text-slate-500">Never</p>
+                            @endif
+                        </div>
                     </li>
-                </ul>
-            </div>
-
-            {{-- Back link --}}
-            <a href="{{ route('admin.users.index') }}" wire:navigate class="btn btn-ghost btn-sm w-full justify-center">
-                <x-ui.icon name="arrows" class="w-4 h-4" /> Back to Users
-            </a>
-        </div>
-
+                </ol>
+            </section>
+        </aside>
     </div>
 
 </div>

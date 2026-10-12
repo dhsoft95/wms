@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\Users;
 
 use App\Models\Department;
 use App\Models\User;
+use App\Models\VirtualWarehouse;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -18,6 +19,8 @@ class Edit extends Component
     public string $phone = '';
     public string $role = '';
     public string $departmentId = '';
+    /** @var array<int> */
+    public array $virtualWarehouseIds = [];
     public bool $requireTwoFactor = false;
     public string $status = '';
 
@@ -25,15 +28,16 @@ class Edit extends Component
     {
         $this->authorize('update', $user);
 
-        $this->user = $user->load(['roles', 'department', 'invitedBy']);
+        $this->user = $user->load(['roles', 'department', 'invitedBy', 'virtualWarehouses']);
 
-        $this->name             = $user->name;
-        $this->email            = $user->email;
-        $this->phone            = $user->phone ?? '';
-        $this->role             = $user->roleName() ?? '';
-        $this->departmentId     = (string) ($user->department_id ?? '');
-        $this->requireTwoFactor = (bool) $user->require_two_factor;
-        $this->status           = $user->status;
+        $this->name                = $user->name;
+        $this->email               = $user->email;
+        $this->phone               = $user->phone ?? '';
+        $this->role                = $user->roleName() ?? '';
+        $this->departmentId        = (string) ($user->department_id ?? '');
+        $this->virtualWarehouseIds = $user->virtualWarehouses->pluck('id')->map(fn ($id) => (int) $id)->all();
+        $this->requireTwoFactor    = (bool) $user->require_two_factor;
+        $this->status              = $user->status;
     }
 
     #[Computed]
@@ -43,9 +47,21 @@ class Edit extends Component
     }
 
     #[Computed]
+    public function availableVirtualWarehouses(): \Illuminate\Database\Eloquent\Collection
+    {
+        return VirtualWarehouse::active()->orderBy('name')->get();
+    }
+
+    #[Computed]
     public function showDepartment(): bool
     {
         return $this->role === 'department-user';
+    }
+
+    #[Computed]
+    public function showVirtualWarehouses(): bool
+    {
+        return in_array($this->role, ['department-user', 'storekeeper'], strict: true);
     }
 
     protected function rules(): array
@@ -62,7 +78,9 @@ class Edit extends Component
                 'scanner-operator',
                 'viewer-auditor',
             ])],
-            'departmentId'     => ['required_if:role,department-user', 'nullable', 'exists:departments,id'],
+            'departmentId'          => ['required_if:role,department-user', 'nullable', 'exists:departments,id'],
+            'virtualWarehouseIds'   => ['array'],
+            'virtualWarehouseIds.*' => ['integer', 'exists:virtual_warehouses,id'],
             'requireTwoFactor' => ['boolean'],
             'status'           => ['required', Rule::in(['invited', 'active', 'suspended'])],
         ];
@@ -77,8 +95,9 @@ class Edit extends Component
             'email.unique'             => 'This email address is already registered.',
             'role.required'            => 'Please assign a role to this user.',
             'role.in'                  => 'Please select a valid role.',
-            'departmentId.required_if' => 'A department is required for Department User role.',
-            'departmentId.exists'      => 'The selected department does not exist.',
+            'departmentId.required_if'     => 'A department is required for Department User role.',
+            'departmentId.exists'          => 'The selected department does not exist.',
+            'virtualWarehouseIds.*.exists' => 'One or more selected virtual warehouses do not exist.',
             'status.required'          => 'A status is required.',
             'status.in'                => 'Please select a valid status.',
         ];
@@ -99,12 +118,13 @@ class Edit extends Component
             'department_id'      => $data['departmentId'] ?: null,
             'require_two_factor' => $data['requireTwoFactor'],
             'status'             => $data['status'],
-            // Reset email verification if address changed
             'email_verified_at'  => $emailChanged ? null : $this->user->email_verified_at,
         ]);
 
-        // Sync role via Spatie
         $this->user->syncRoles([$data['role']]);
+
+        $this->user->virtualWarehouses()->sync($data['virtualWarehouseIds'] ?? []);
+        $this->user->clearVwCache();
 
         // If email changed and the user was invited, re-send invitation
         if ($emailChanged && $this->user->isInvited()) {

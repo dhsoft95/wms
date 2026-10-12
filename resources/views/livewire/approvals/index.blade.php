@@ -42,10 +42,11 @@
                             <td class="tabular-nums">{{ $row['at'] }}</td>
                             <td class="text-right tabular-nums font-semibold {{ $row['impactColor'] }}">{{ $row['impact'] }}</td>
                             <td class="text-right">
-                                <div class="inline-flex gap-2">
-                                    <button wire:click="reject({{ $row['id'] }})" class="btn btn-danger btn-sm">Reject</button>
-                                    <button wire:click="approve({{ $row['id'] }})" class="btn btn-success btn-sm">Approve</button>
-                                </div>
+                                <x-ui.row-actions :label="'Actions for ' . $row['ref']">
+                                    <x-ui.row-actions.item icon="check" label="Approve" tone="success" wire:click="approve({{ $row['id'] }})" />
+                                    <x-ui.row-actions.divider />
+                                    <x-ui.row-actions.item icon="x" label="Reject" tone="danger" wire:click="reject({{ $row['id'] }})" />
+                                </x-ui.row-actions>
                             </td>
                         </tr>
                     @empty
