@@ -41,16 +41,34 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/containers',        \App\Livewire\Inbound\Containers\Index::class)->name('containers.index');
         Route::get('/containers/create', \App\Livewire\Inbound\Containers\Create::class)
             ->middleware('permission:containers.create')->name('containers.create');
+        Route::get('/containers/{container}',      \App\Livewire\Inbound\Containers\Show::class)->name('containers.show');
+        Route::get('/containers/{container}/edit', \App\Livewire\Inbound\Containers\Edit::class)
+            ->middleware('permission:containers.update')->name('containers.edit');
+        Route::get('/yard',  \App\Livewire\Inbound\Yard\Index::class)->name('yard.index');
+        Route::get('/dwell', \App\Livewire\Inbound\Dwell\Index::class)->name('dwell.index');
         Route::get('/grn',               \App\Livewire\Inbound\Grn\Index::class)
-            ->middleware('permission:receiving.view')->name('grn.index');
+            ->middleware('permission:grn.view')->name('grn.index');
         Route::get('/grn/create',        \App\Livewire\Inbound\Grn\Create::class)
-            ->middleware('permission:receiving.create')->name('grn.create');
+            ->middleware('permission:grn.create')->name('grn.create');
+        Route::get('/grn/{grn}',         \App\Livewire\Inbound\Grn\Show::class)
+            ->middleware('permission:grn.view')->name('grn.show');
+        Route::get('/grn/{grn}/receive', \App\Livewire\Inbound\Grn\Receive::class)
+            ->middleware('permission:grn.receive')->name('grn.receive');
+        Route::get('/putaway',           \App\Livewire\Warehouse\Putaway\Index::class)
+            ->middleware('permission:putaway.view')->name('putaway.index'); // inbound.putaway.index
         Route::get('/inspections',       \App\Livewire\Inbound\Inspections\Index::class)
             ->middleware('permission:inspections.view')->name('inspections.index');
     });
 
+    // Container document download (private, streams file)
+    Route::get('/containers/{container}/documents/{document}/download',
+        \App\Http\Controllers\ContainerDocumentController::class)
+        ->middleware('auth')
+        ->name('containers.documents.download');
+
     // Warehouse
     Route::prefix('warehouse')->name('warehouse.')->group(function () {
+        // putaway.index kept as alias for backward-compat
         Route::get('/putaway',   \App\Livewire\Warehouse\Putaway\Index::class)
             ->middleware('permission:putaway.view')->name('putaway.index');
         Route::get('/movements', \App\Livewire\Warehouse\Movements\Index::class)
@@ -58,6 +76,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/transfers', \App\Livewire\Warehouse\Transfers\Index::class)
             ->middleware('permission:transfers.view')->name('transfers.index');
     });
+
+    // LPN Print
+    Route::get('/lpn/{grn}/print', \App\Http\Controllers\LpnPrintController::class)
+        ->middleware('permission:lpn.print')
+        ->name('lpn.print');
 
     // Inventory
     Route::prefix('inventory')->name('inventory.')->middleware('permission:stock.view')->group(function () {
@@ -168,8 +191,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 \App\Enums\ImportType::Partners        => new \App\Imports\PartnerImport($dummy),
                 \App\Enums\ImportType::ItemCategories  => new \App\Imports\ItemCategoryImport($dummy),
                 \App\Enums\ImportType::Items           => new \App\Imports\ItemImport($dummy),
-                \App\Enums\ImportType::Locations       => new \App\Imports\LocationImport($dummy),
-                \App\Enums\ImportType::OpeningStock    => new \App\Imports\OpeningStockImport($dummy),
+                \App\Enums\ImportType::Locations               => new \App\Imports\LocationImport($dummy),
+                \App\Enums\ImportType::OpeningStock            => new \App\Imports\OpeningStockImport($dummy),
+                \App\Enums\ImportType::ContainerPackingList,
+                \App\Enums\ImportType::ActiveContainers        => throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException(),
             };
             return response()->streamDownload(function () use ($handler) {
                 $writer = new \OpenSpout\Writer\XLSX\Writer();

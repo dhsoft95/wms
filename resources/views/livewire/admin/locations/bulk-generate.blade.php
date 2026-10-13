@@ -255,7 +255,7 @@
                 </div>
 
                 <div class="overflow-x-auto max-h-96 overflow-y-auto">
-                    <table class="w-full text-left text-sm">
+                    <x-ui.table>
 
                         <thead class="text-[11px] font-semibold uppercase tracking-wider sticky top-0
                                       text-slate-500 dark:text-slate-400
@@ -290,7 +290,7 @@
                         @endforeach
                         </tbody>
 
-                    </table>
+                    </x-ui.table>
                 </div>
             </div>
 

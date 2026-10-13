@@ -53,7 +53,7 @@
             {{-- Lines table --}}
             <div class="pt-4 border-t border-slate-200 dark:border-slate-700">
                 <p class="section-label mb-3">Line Items</p>
-                <table class="table">
+                <x-ui.table>
                     <thead>
                         <tr>
                             <th>SKU Code</th>
@@ -78,7 +78,7 @@
                             </tr>
                         @endforeach
                     </tbody>
-                </table>
+                </x-ui.table>
             </div>
 
             {{-- Signature blocks --}}

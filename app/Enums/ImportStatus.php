@@ -31,10 +31,10 @@ enum ImportStatus: string
     {
         return match($this) {
             self::Uploaded         => 'slate',
-            self::Validating       => 'blue',
+            self::Validating       => 'brand',
             self::Validated        => 'green',
             self::FailedValidation => 'red',
-            self::Importing        => 'blue',
+            self::Importing        => 'brand',
             self::Completed        => 'green',
             self::Failed           => 'red',
         };

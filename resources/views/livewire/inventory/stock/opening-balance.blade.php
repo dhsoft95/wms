@@ -43,8 +43,7 @@
                     </h3>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="table min-w-[1200px]">
+                <x-ui.table class="min-w-[1200px]">
                         <thead>
                             <tr>
                                 <th class="px-4 py-3">#</th>
@@ -230,8 +229,7 @@
                             @endif
                         @endforeach
                         </tbody>
-                    </table>
-                </div>
+                </x-ui.table>
 
                 {{-- Add Line --}}
                 <div class="border-t border-white/40 dark:border-white/[0.08] px-4 py-3">
@@ -298,8 +296,7 @@
                     </h3>
                 </div>
 
-                <div class="overflow-x-auto">
-                    <table class="table min-w-[1000px]">
+                <x-ui.table class="min-w-[1000px]">
                         <thead>
                             <tr>
                                 <th class="px-4 py-3">#</th>
@@ -387,8 +384,7 @@
                                 <td colspan="2"></td>
                             </tr>
                         </tfoot>
-                    </table>
-                </div>
+                </x-ui.table>
             </div>
 
             {{-- Preview Actions --}}

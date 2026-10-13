@@ -21,8 +21,9 @@ class Index extends Component
     public string $uploadMode = 'create_only';
     public bool   $autoCategory = false;
 
-    public bool $uploadModalOpen = false;
-    public bool $guideModalOpen  = false;
+    public bool    $uploadModalOpen = false;
+    public bool    $guideModalOpen  = false;
+    public ?string $uploadError     = null;
 
     // History filters
     public ?string $filterType   = '';
@@ -33,8 +34,14 @@ class Index extends Component
         $this->authorize('imports.manage');
         $this->uploadType        = $type;
         $this->uploadFile        = null;
+        $this->uploadError       = null;
         $this->uploadMode        = 'create_only';
         $this->uploadModalOpen   = true;
+    }
+
+    public function updatedUploadFile(): void
+    {
+        $this->uploadError = null;
     }
 
     public function closeUpload(): void
@@ -42,6 +49,14 @@ class Index extends Component
         $this->uploadModalOpen = false;
         $this->uploadFile      = null;
         $this->autoCategory    = false;
+        $this->uploadError     = null;
+    }
+
+    public function handleUploadError(): void
+    {
+        $maxMb = round(ini_get('upload_max_filesize') ?: 2);
+        $this->uploadError = "File upload failed. Your server allows a maximum of {$maxMb} MB per file. Check your file size and try again.";
+        $this->uploadFile  = null;
     }
 
     public function openGuide(): void
@@ -56,45 +71,50 @@ class Index extends Component
 
     public function upload(): void
     {
+        \Log::debug('DataImport upload() called', ['uploadType' => $this->uploadType, 'hasFile' => !is_null($this->uploadFile)]);
         $this->authorize('imports.manage');
 
         $this->validate([
-            'uploadFile' => 'required|file|mimes:xlsx,csv,xls|max:20480',
+            'uploadFile' => 'required|file|extensions:xlsx,csv,xls|max:20480',
             'uploadMode' => 'required|in:create_only,create_or_update',
         ]);
 
-        $importType = ImportType::from($this->uploadType);
+        try {
+            $importType = ImportType::from($this->uploadType);
 
-        // Extra gate for opening stock
-        if ($importType === ImportType::OpeningStock) {
-            $this->authorize('stock.opening-balance');
+            // Extra gate for opening stock
+            if ($importType === ImportType::OpeningStock) {
+                $this->authorize('stock.opening-balance');
+            }
+
+            // System-admin-only types
+            if ($importType->restrictedToSystemAdmin() && ! auth()->user()->hasRole('system-admin')) {
+                abort(403);
+            }
+
+            $stored = $this->uploadFile->storeAs(
+                'imports',
+                now()->format('Ymd_His') . '_' . $importType->value . '.' . $this->uploadFile->getClientOriginalExtension(),
+                'local'
+            );
+
+            $import = DataImport::create([
+                'type'              => $importType,
+                'original_filename' => $this->uploadFile->getClientOriginalName(),
+                'stored_path'       => $stored,
+                'mode'              => ImportMode::from($this->uploadMode),
+                'uploaded_by'       => auth()->id(),
+                'status'            => 'uploaded',
+            ]);
+
+            ValidateImportJob::dispatch($import);
+
+            $this->closeUpload();
+            $this->dispatch('toast', message: 'File uploaded. Validation is running…', type: 'info');
+            $this->redirect(route('admin.imports.show', $import), navigate: true);
+        } catch (\Throwable $e) {
+            $this->uploadError = 'Upload failed: ' . $e->getMessage();
         }
-
-        // System-admin-only types
-        if ($importType->restrictedToSystemAdmin() && ! auth()->user()->hasRole('system-admin')) {
-            abort(403);
-        }
-
-        $stored = $this->uploadFile->storeAs(
-            'imports',
-            now()->format('Ymd_His') . '_' . $importType->value . '.' . $this->uploadFile->getClientOriginalExtension(),
-            'local'
-        );
-
-        $import = DataImport::create([
-            'type'              => $importType,
-            'original_filename' => $this->uploadFile->getClientOriginalName(),
-            'stored_path'       => $stored,
-            'mode'              => ImportMode::from($this->uploadMode),
-            'uploaded_by'       => auth()->id(),
-            'status'            => 'uploaded',
-        ]);
-
-        ValidateImportJob::dispatch($import);
-
-        $this->closeUpload();
-        $this->dispatch('toast', message: 'File uploaded. Validation is running…', type: 'info');
-        $this->redirect(route('admin.imports.show', $import), navigate: true);
     }
 
     #[Computed]

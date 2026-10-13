@@ -1,129 +1,264 @@
 <div class="space-y-6">
     <div class="page-header">
         <div>
-            <a href="{{ route('inbound.grn.index') }}" wire:navigate class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-simba-600 mb-2">
-                <x-ui.icon name="arrow-left" class="w-3.5 h-3.5" /> Back to GRNs
-            </a>
-            <h2 class="page-title">New Goods Receipt</h2>
-            <p class="page-sub">Record what was physically received against what was expected.</p>
+            <h2 class="page-title">New Goods Receipt (GRN)</h2>
+            <p class="page-sub">Create a manual GRN for a supplier delivery or customer return.</p>
         </div>
+        <a href="{{ route('inbound.grn.index') }}" wire:navigate class="btn btn-secondary">
+            <x-ui.icon name="x" class="w-4 h-4" /> Cancel
+        </a>
     </div>
 
     <form wire:submit="save" class="space-y-6">
-        {{-- Header --}}
-        <div class="card">
+
+        {{-- ── GRN Details ──────────────────────────────────────────────── --}}
+        <div class="card max-w-3xl">
             <div class="card-header">
-                <h3 class="card-title">Receipt Details</h3>
-                <span class="badge badge-slate">Draft</span>
+                <h3 class="card-title">
+                    <x-ui.icon name="clipboard" class="w-4 h-4" />
+                    GRN Details
+                </h3>
             </div>
-            <div class="card-body grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="card-body space-y-5">
+
+                {{-- Source --}}
                 <div>
-                    <label class="label">GRN number</label>
-                    <input type="text" readonly value="{{ $form->grnNumber }}" class="input font-mono">
+                    <label class="label">Source <span class="text-red-500">*</span></label>
+                    <div class="flex gap-4 flex-wrap">
+                        @foreach ($this->sources as $src)
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="radio" wire:model.live="source" value="{{ $src->value }}"
+                                       class="text-simba-600 focus:ring-simba-600" />
+                                <span class="text-sm font-medium text-slate-700 dark:text-slate-200">
+                                    {{ $src->label() }}
+                                </span>
+                            </label>
+                        @endforeach
+                    </div>
+                    @error('source') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
                 </div>
+
+                {{-- Warehouse --}}
                 <div>
-                    <label class="label">Container reference *</label>
-                    <select wire:model="form.containerId" class="input font-mono">
-                        <option value="">Select container</option>
-                        <option value="MSKU1234567">MSKU1234567</option>
-                        <option value="MRKU8829102">MRKU8829102</option>
+                    <label class="label" for="grn-warehouse">Warehouse <span class="text-red-500">*</span></label>
+                    <select wire:model.live="warehouseId" id="grn-warehouse"
+                            class="input @error('warehouseId') border-red-400 @enderror">
+                        <option value="">Select warehouse…</option>
+                        @foreach ($this->warehouses as $wh)
+                            <option value="{{ $wh->id }}">{{ $wh->name }}</option>
+                        @endforeach
                     </select>
-                    @error('form.containerId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('warehouseId') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
                 </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+
+                    {{-- Supplier (supplier source only) --}}
+                    @if ($source === 'supplier')
+                    <div>
+                        <label class="label" for="grn-supplier">Supplier</label>
+                        <select wire:model="supplierId" id="grn-supplier"
+                                class="input @error('supplierId') border-red-400 @enderror">
+                            <option value="">— No supplier —</option>
+                            @foreach ($this->suppliers as $sup)
+                                <option value="{{ $sup->id }}">{{ $sup->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('supplierId') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    </div>
+                    @endif
+
+                    {{-- Customer (return source only) --}}
+                    @if ($source === 'return')
+                    <div>
+                        <label class="label" for="grn-customer">Customer</label>
+                        <select wire:model="customerId" id="grn-customer"
+                                class="input @error('customerId') border-red-400 @enderror">
+                            <option value="">— No customer —</option>
+                            @foreach ($this->customers as $cust)
+                                <option value="{{ $cust->id }}">{{ $cust->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('customerId') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    </div>
+                    @endif
+
+                    {{-- Receiving Dock --}}
+                    <div>
+                        <label class="label" for="grn-dock">Receiving Dock</label>
+                        <select wire:model="dockId" id="grn-dock"
+                                class="input @error('dockId') border-red-400 @enderror">
+                            <option value="">— Use warehouse default —</option>
+                            @foreach ($this->dockLocations as $loc)
+                                <option value="{{ $loc->id }}">{{ $loc->code }}</option>
+                            @endforeach
+                        </select>
+                        @error('dockId') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    </div>
+
+                    {{-- Delivery Note Reference --}}
+                    <div>
+                        <label class="label" for="grn-dn-ref">
+                            Delivery Note Ref <span class="text-slate-400 font-normal">(optional)</span>
+                        </label>
+                        <input type="text" wire:model="deliveryNoteRef" id="grn-dn-ref"
+                               maxlength="100" placeholder="e.g. DN-2026-00123"
+                               class="input @error('deliveryNoteRef') border-red-400 @enderror" />
+                        @error('deliveryNoteRef') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    </div>
+
+                    {{-- Expected Date --}}
+                    <div>
+                        <label class="label" for="grn-expected-date">
+                            Expected Arrival Date <span class="text-slate-400 font-normal">(optional)</span>
+                        </label>
+                        <input type="date" wire:model="expectedDate" id="grn-expected-date"
+                               class="input @error('expectedDate') border-red-400 @enderror" />
+                        @error('expectedDate') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    </div>
+
+                </div>
+
+                {{-- Notes --}}
                 <div>
-                    <label class="label">Supplier / vendor *</label>
-                    <select wire:model="form.supplierId" class="input">
-                        <option value="">Select supplier</option>
-                        <option value="1">Azam Consumer Goods Ltd</option>
-                        <option value="2">Vodacom Tanzania PLC</option>
-                    </select>
-                    @error('form.supplierId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    <label class="label" for="grn-notes">
+                        Notes <span class="text-slate-400 font-normal">(optional)</span>
+                    </label>
+                    <textarea wire:model="notes" id="grn-notes" rows="3"
+                              class="input resize-none @error('notes') border-red-400 @enderror"></textarea>
+                    @error('notes') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
                 </div>
-                <div>
-                    <label class="label">Receiving warehouse *</label>
-                    <select wire:model="form.receivingWarehouse" class="input">
-                        <option value="">Select warehouse</option>
-                        <option>DAR-General Store</option><option>DAR-Tech Vault</option><option>Cold Room</option>
-                    </select>
-                    @error('form.receivingWarehouse') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="label">Received at *</label>
-                    <input wire:model="form.receivedAt" type="datetime-local" required class="input tabular-nums">
-                    @error('form.receivedAt') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="label">Delivery note reference</label>
-                    <input wire:model="form.deliveryNoteRef" type="text" placeholder="DN-77812" class="input font-mono">
-                </div>
+
             </div>
         </div>
 
-        {{-- Line items --}}
+        {{-- ── Expected Lines ───────────────────────────────────────────── --}}
         <div class="card">
             <div class="card-header">
-                <div>
-                    <h3 class="card-title">Line Items</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">{{ count($lines) }} lines</p>
-                </div>
+                <h3 class="card-title">
+                    <x-ui.icon name="list" class="w-4 h-4" />
+                    Expected Lines
+                    <span class="text-slate-400 text-xs font-normal">(optional — pre-populate to track variance)</span>
+                </h3>
                 <button type="button" wire:click="addLine" class="btn btn-secondary btn-sm">
-                    <x-ui.icon name="plus" class="w-3.5 h-3.5" /> Add Line
+                    <x-ui.icon name="plus" class="w-4 h-4" /> Add Line
                 </button>
             </div>
-            <div class="card-body space-y-3">
-                <div class="hidden md:grid grid-cols-12 gap-3 px-3 section-label">
-                    <span class="col-span-3">SKU Code</span><span class="col-span-2">Expected</span><span class="col-span-2">Received</span><span class="col-span-2">Batch No.</span><span class="col-span-2">Variance</span><span class="col-span-1"></span>
-                </div>
 
-                @foreach ($lines as $i => $line)
-                    @php
-                        $variance = ($line['received_qty'] ?? 0) - ($line['expected_qty'] ?? 0);
-                        $vBadge = $variance === 0 ? 'badge-green' : ($variance < 0 ? 'badge-red' : 'badge-amber');
-                    @endphp
-                    <div class="grid grid-cols-2 md:grid-cols-12 gap-3 items-center p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/50">
-                        <div class="col-span-2 md:col-span-3">
-                            <input wire:model="lines.{{ $i }}.sku_code" type="text" placeholder="SKU code" class="input input-sm font-mono">
-                        </div>
-                        <div class="md:col-span-2">
-                            <input wire:model.live="lines.{{ $i }}.expected_qty" type="number" min="0" placeholder="Expected" class="input input-sm tabular-nums">
-                        </div>
-                        <div class="md:col-span-2">
-                            <input wire:model.live="lines.{{ $i }}.received_qty" type="number" min="0" placeholder="Received" class="input input-sm tabular-nums">
-                        </div>
-                        <div class="md:col-span-2">
-                            <input wire:model="lines.{{ $i }}.batch_number" type="text" placeholder="Batch no." class="input input-sm font-mono">
-                        </div>
-                        <div class="md:col-span-2">
-                            <span class="badge {{ $vBadge }}">
-                                {{ $line['received_qty'] === '' ? 'Pending' : (($variance > 0 ? '+' : '') . $variance) }}
-                            </span>
-                        </div>
-                        <div class="md:col-span-1 flex justify-end">
-                            <button type="button" wire:click="removeLine({{ $i }})" class="icon-btn hover:!text-red-600">
-                                <x-ui.icon name="trash" class="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-                @endforeach
-            </div>
+            @if (count($lines) > 0)
+            <div class="overflow-x-auto">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th class="w-8">#</th>
+                            <th>Item <span class="text-red-500">*</span></th>
+                            <th class="w-28">Exp. Qty <span class="text-red-500">*</span></th>
+                            <th class="w-32">UoM <span class="text-red-500">*</span></th>
+                            <th class="w-44">Virtual Warehouse <span class="text-red-500">*</span></th>
+                            <th class="w-32">Batch No.</th>
+                            <th class="w-36">Expiry Date</th>
+                            <th class="w-10"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($lines as $i => $line)
+                        <tr wire:key="line-{{ $i }}">
+                            <td class="text-slate-400 text-sm">{{ $i + 1 }}</td>
 
-            <div class="grid grid-cols-3 border-t border-slate-200 dark:border-slate-800 divide-x divide-slate-200 dark:divide-slate-800 text-center">
-                <div class="p-4"><p class="section-label">Expected</p><p class="mt-1 text-xl font-bold tabular-nums">{{ number_format($expectedTotal) }}</p></div>
-                <div class="p-4"><p class="section-label">Received</p><p class="mt-1 text-xl font-bold tabular-nums">{{ number_format($receivedTotal) }}</p></div>
-                <div class="p-4">
-                    <p class="section-label">Variance</p>
-                    <p class="mt-1 text-xl font-bold tabular-nums {{ $varianceTotal < 0 ? 'text-red-600' : ($varianceTotal > 0 ? 'text-amber-600' : 'text-emerald-600') }}">
-                        {{ ($varianceTotal > 0 ? '+' : '') . number_format($varianceTotal) }}
-                    </p>
-                </div>
+                            {{-- Item --}}
+                            <td>
+                                <select wire:model="lines.{{ $i }}.item_id"
+                                        class="input input-sm @error("lines.{$i}.item_id") border-red-400 @enderror">
+                                    <option value="">Select item…</option>
+                                    @foreach ($this->items as $item)
+                                        <option value="{{ $item->id }}">{{ $item->sku }} — {{ $item->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error("lines.{$i}.item_id")
+                                    <p class="hint !text-red-600 dark:!text-red-400 mt-0.5">{{ $message }}</p>
+                                @enderror
+                            </td>
+
+                            {{-- Expected Qty --}}
+                            <td>
+                                <input type="number" wire:model="lines.{{ $i }}.expected_qty"
+                                       min="0.0001" step="any"
+                                       class="input input-sm @error("lines.{$i}.expected_qty") border-red-400 @enderror" />
+                                @error("lines.{$i}.expected_qty")
+                                    <p class="hint !text-red-600 dark:!text-red-400 mt-0.5">{{ $message }}</p>
+                                @enderror
+                            </td>
+
+                            {{-- UoM --}}
+                            <td>
+                                <select wire:model="lines.{{ $i }}.uom_id"
+                                        class="input input-sm @error("lines.{$i}.uom_id") border-red-400 @enderror">
+                                    <option value="">UoM…</option>
+                                    @foreach ($this->uoms as $uom)
+                                        <option value="{{ $uom->id }}">{{ $uom->code }}</option>
+                                    @endforeach
+                                </select>
+                                @error("lines.{$i}.uom_id")
+                                    <p class="hint !text-red-600 dark:!text-red-400 mt-0.5">{{ $message }}</p>
+                                @enderror
+                            </td>
+
+                            {{-- Virtual Warehouse --}}
+                            <td>
+                                <select wire:model="lines.{{ $i }}.virtual_warehouse_id"
+                                        class="input input-sm @error("lines.{$i}.virtual_warehouse_id") border-red-400 @enderror">
+                                    <option value="">VW…</option>
+                                    @foreach ($this->virtualWarehouses as $vw)
+                                        <option value="{{ $vw->id }}">{{ $vw->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error("lines.{$i}.virtual_warehouse_id")
+                                    <p class="hint !text-red-600 dark:!text-red-400 mt-0.5">{{ $message }}</p>
+                                @enderror
+                            </td>
+
+                            {{-- Batch No --}}
+                            <td>
+                                <input type="text" wire:model="lines.{{ $i }}.batch_no"
+                                       maxlength="100" placeholder="optional"
+                                       class="input input-sm @error("lines.{$i}.batch_no") border-red-400 @enderror" />
+                            </td>
+
+                            {{-- Expiry Date --}}
+                            <td>
+                                <input type="date" wire:model="lines.{{ $i }}.expiry_date"
+                                       class="input input-sm @error("lines.{$i}.expiry_date") border-red-400 @enderror" />
+                            </td>
+
+                            {{-- Remove --}}
+                            <td>
+                                <button type="button" wire:click="removeLine({{ $i }})"
+                                        class="text-red-400 hover:text-red-600 transition-colors">
+                                    <x-ui.icon name="trash-2" class="w-4 h-4" />
+                                </button>
+                            </td>
+                        </tr>
+                        @endforeach
+                    </tbody>
+                </table>
             </div>
+            @else
+            <div class="card-body">
+                <p class="text-sm text-slate-400 text-center py-6">
+                    No expected lines added. Click <strong>Add Line</strong> to pre-populate expected items,
+                    or leave empty to receive without a manifest.
+                </p>
+            </div>
+            @endif
         </div>
 
-        <div class="flex flex-col-reverse sm:flex-row justify-end gap-3">
+        {{-- ── Actions ──────────────────────────────────────────────────── --}}
+        <div class="flex justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
             <a href="{{ route('inbound.grn.index') }}" wire:navigate class="btn btn-secondary">Cancel</a>
-            <button type="button" wire:click="saveDraft" class="btn btn-secondary">Save Draft</button>
-            <a href="{{ route('inbound.inspections.index') }}" wire:navigate class="btn btn-secondary">Log Discrepancy</a>
-            <button type="submit" class="btn btn-primary">Submit GRN</button>
+            <button type="submit" class="btn btn-primary">
+                <x-ui.icon name="check" class="w-4 h-4" /> Create GRN
+            </button>
         </div>
+
     </form>
 </div>

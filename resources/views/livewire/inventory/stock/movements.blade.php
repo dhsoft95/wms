@@ -69,8 +69,8 @@
         </div>
 
         {{-- Table --}}
-        <div class="overflow-x-auto" wire:loading.class="opacity-50">
-            <table class="table min-w-[860px]">
+        <div wire:loading.class="opacity-50">
+            <x-ui.table class="min-w-[860px]">
                 <thead>
                     <tr>
                         <th class="px-4 py-3">Number</th>
@@ -209,7 +209,7 @@
                     @endfor
                 </tbody>
 
-            </table>
+            </x-ui.table>
         </div>
 
         {{-- Pagination --}}
@@ -292,7 +292,7 @@
 
                 {{-- Movements table --}}
                 <div class="flex-1 overflow-y-auto">
-                    <table class="w-full text-sm text-left">
+                    <x-ui.table class="text-sm">
                         <thead class="text-[11px] font-semibold uppercase tracking-wider
                                       text-slate-500 dark:text-slate-400
                                       bg-white/[0.45] dark:bg-white/[0.04]
@@ -369,7 +369,7 @@
                             </tr>
                         @endforelse
                         </tbody>
-                    </table>
+                    </x-ui.table>
                 </div>
 
                 {{-- Footer --}}

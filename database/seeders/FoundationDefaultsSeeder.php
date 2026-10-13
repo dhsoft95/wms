@@ -23,7 +23,6 @@ class FoundationDefaultsSeeder extends Seeder
             ['type' => 'TRF', 'prefix' => 'TRF', 'include_year' => true,  'padding' => 4, 'reset_yearly' => true],
             ['type' => 'CNT', 'prefix' => 'CNT', 'include_year' => true,  'padding' => 4, 'reset_yearly' => true],
             ['type' => 'LPN', 'prefix' => 'LPN', 'include_year' => false, 'padding' => 6, 'reset_yearly' => false],
-            ['type' => 'CTR', 'prefix' => 'CTR', 'include_year' => false, 'padding' => 6, 'reset_yearly' => false],
             ['type' => 'STK', 'prefix' => 'STK', 'include_year' => true,  'padding' => 4, 'reset_yearly' => true],
         ];
 
@@ -33,6 +32,12 @@ class FoundationDefaultsSeeder extends Seeder
                 array_merge($seq, ['next_number' => 1])
             );
         }
+
+        // CTR: format CTR-2026-0001 — year included, resets yearly
+        DocumentSequence::updateOrCreate(
+            ['type' => 'CTR'],
+            ['prefix' => 'CTR', 'include_year' => true, 'padding' => 4, 'reset_yearly' => true, 'next_number' => 1]
+        );
     }
 
     private function seedReasonCodes(): void

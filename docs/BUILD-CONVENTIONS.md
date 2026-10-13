@@ -45,6 +45,13 @@ Every module must follow these rules. Deviations require explicit justification.
 - Every model with business meaning has a policy.
 - Permissions follow `module.action` (e.g. `items.create`, `locations.block`).
 
+## UI colours — brand and semantic tokens only
+
+- The brand colour is `--color-brand` (`#a22631`, simba-600). Use `text-brand`, `bg-simba-*`, or `text-simba-*` for UI accents.
+- Semantic status colours are permitted: `green-*` = success, `amber-*` = warning, `red-*` = error, `zinc-*`/`slate-*` = neutral.
+- **Never use raw Tailwind accent classes**: `blue-*`, `indigo-*`, `sky-*`, `violet-*`, `purple-*`, `cyan-*`, `teal-*`.
+- Tables must use `<x-ui.table>`, never a raw `<table>` tag. Empty rows must use `<x-ui.empty-state>`.
+
 ## No debug code
 
 - No `dd()`, `dump()`, or `ray()` in `app/`.

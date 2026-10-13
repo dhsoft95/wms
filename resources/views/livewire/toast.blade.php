@@ -6,7 +6,7 @@
         _colors: {
             success: { border: '#059669', bar: '#059669', icon: 'text-emerald-600' },
             error:   { border: '#dc2626', bar: '#dc2626', icon: 'text-red-600'     },
-            info:    { border: '#3b82f6', bar: '#3b82f6', icon: 'text-blue-500'    },
+            info:    { border: '#a22631', bar: '#a22631', icon: 'text-simba-600'   },
         },
 
         _icons: {

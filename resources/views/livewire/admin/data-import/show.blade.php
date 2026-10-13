@@ -61,7 +61,7 @@
                 </div>
                 <div class="card p-4 text-center">
                     <p class="text-xs text-slate-500">Will Update</p>
-                    <p class="mt-1 text-xl font-bold tabular-nums text-blue-600">{{ number_format($s['will_update'] ?? 0) }}</p>
+                    <p class="mt-1 text-xl font-bold tabular-nums text-slate-600 dark:text-slate-400">{{ number_format($s['will_update'] ?? 0) }}</p>
                 </div>
                 <div class="card p-4 text-center">
                     <p class="text-xs text-slate-500">Errors</p>
@@ -116,7 +116,7 @@
 
     {{-- In-progress auto-refresh --}}
     @if (in_array($import->status->value, ['uploaded', 'validating', 'importing']))
-        <div wire:poll.3s class="card p-4 flex items-center gap-3 text-sm text-blue-600 dark:text-blue-400">
+        <div wire:poll.3s class="card p-4 flex items-center gap-3 text-sm text-brand dark:text-simba-400">
             <x-ui.icon name="refresh" class="w-4 h-4 animate-spin" />
             {{ $import->status->label() }} — refreshing automatically…
         </div>
@@ -131,8 +131,7 @@
                     <span class="ml-2 text-slate-400 font-normal text-xs">(first 50 shown — download report for all)</span>
                 </h3>
             </div>
-            <div class="overflow-x-auto">
-                <table class="table">
+            <x-ui.table>
                     <thead>
                         <tr>
                             <th class="px-4 py-3 w-20">Row</th>
@@ -149,8 +148,7 @@
                             </tr>
                         @endforeach
                     </tbody>
-                </table>
-            </div>
+            </x-ui.table>
         </div>
     @endif
 
@@ -165,8 +163,7 @@
                 </h3>
                 <span class="text-xs text-slate-500">{{ number_format($import->valid_rows) }} total valid</span>
             </div>
-            <div class="overflow-x-auto">
-                <table class="table text-xs">
+            <x-ui.table class="text-xs">
                     <thead>
                         <tr>
                             @foreach ($cols as $col)
@@ -185,8 +182,7 @@
                             </tr>
                         @endforeach
                     </tbody>
-                </table>
-            </div>
+            </x-ui.table>
         </div>
     @endif
 

@@ -2,38 +2,102 @@
 
 namespace App\Livewire\Inbound\Grn;
 
+use App\Enums\GrnSource;
+use App\Enums\GrnStatus;
+use App\Services\Inbound\GrnQueryService;
 use Illuminate\Contracts\View\View;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class Index extends Component
 {
-    public string $search = '';
+    use WithPagination;
+
+    public string $search       = '';
     public string $statusFilter = 'all';
+    public string $sourceFilter = '';
+    public string $dateFrom     = '';
+    public string $dateTo       = '';
 
-    // placeholder data
-    protected array $allRows = [
-        ['grn' => 'GRN-2026-089', 'container' => 'MSKU1234567', 'supplier' => 'Azam Consumer Goods Ltd',  'received' => '2026-10-02 11:30', 'warehouse' => 'DAR-General Store', 'progress' => 64, 'count' => '320/500',         'status' => 'progress',     'badge' => 'badge-blue',  'label' => 'In Progress'],
-        ['grn' => 'GRN-2026-087', 'container' => 'TGHU7712045', 'supplier' => 'Azam Consumer Goods Ltd',  'received' => '2026-09-29 09:10', 'warehouse' => 'DAR-General Store', 'progress' => 97, 'count' => '388/400',         'status' => 'discrepancy',  'badge' => 'badge-red',   'label' => 'Discrepancy', 'barColor' => 'bg-red-500'],
-        ['grn' => 'GRN-2026-088', 'container' => 'MRKU8829102', 'supplier' => 'Vodacom Tanzania PLC',     'received' => '2026-10-01 15:45', 'warehouse' => 'DAR-Tech Vault',    'progress' => 100,'count' => '12,800/12,800',   'status' => 'completed',    'badge' => 'badge-green', 'label' => 'Completed'],
-        ['grn' => 'GRN-2026-086', 'container' => 'MSCU2209117', 'supplier' => 'Vodacom Tanzania PLC',     'received' => '2026-09-27 13:20', 'warehouse' => 'DAR-Tech Vault',    'progress' => 100,'count' => '6,000/6,000',     'status' => 'completed',    'badge' => 'badge-green', 'label' => 'Completed'],
-    ];
+    // ─── Lifecycle ────────────────────────────────────────────────────────────
 
-    public function filteredRows(): array
+    public function updatedSearch(): void    { $this->resetPage(); }
+    public function updatedStatusFilter(): void { $this->resetPage(); }
+    public function updatedSourceFilter(): void { $this->resetPage(); }
+
+    // ─── Computed ─────────────────────────────────────────────────────────────
+
+    #[Computed]
+    public function grns(): \Illuminate\Pagination\LengthAwarePaginator
     {
-        return array_values(array_filter($this->allRows, function ($r) {
-            $matchesStatus = $this->statusFilter === 'all' || $r['status'] === $this->statusFilter;
-            $matchesSearch = $this->search === '' || str_contains(strtolower($r['grn'] . $r['container'] . $r['supplier']), strtolower($this->search));
-            return $matchesStatus && $matchesSearch;
-        }));
+        $query = app(GrnQueryService::class)
+            ->queryFor(auth()->user())
+            ->with(['warehouse', 'supplierPartner', 'container'])
+            ->withCount('lines');
+
+        if ($this->search !== '') {
+            $search = '%' . $this->search . '%';
+            $query->where(function ($q) use ($search) {
+                $q->where('number', 'like', $search)
+                  ->orWhereHas('supplierPartner', fn ($sq) => $sq->where('name', 'like', $search))
+                  ->orWhereHas('container', fn ($cq) => $cq->where('number', 'like', $search));
+            });
+        }
+
+        if ($this->statusFilter !== 'all') {
+            $query->where('status', $this->statusFilter);
+        }
+
+        if ($this->sourceFilter !== '') {
+            $query->where('source', $this->sourceFilter);
+        }
+
+        if ($this->dateFrom !== '') {
+            $query->whereDate('created_at', '>=', $this->dateFrom);
+        }
+
+        if ($this->dateTo !== '') {
+            $query->whereDate('created_at', '<=', $this->dateTo);
+        }
+
+        return $query->orderByDesc('created_at')->paginate(20);
     }
+
+    #[Computed]
+    public function statusCounts(): array
+    {
+        $base = app(GrnQueryService::class)->queryFor(auth()->user());
+
+        $counts = ['all' => (clone $base)->count()];
+
+        foreach (GrnStatus::cases() as $status) {
+            $counts[$status->value] = (clone $base)->where('status', $status->value)->count();
+        }
+
+        return $counts;
+    }
+
+    #[Computed]
+    public function sources(): array
+    {
+        return GrnSource::cases();
+    }
+
+    #[Computed]
+    public function statuses(): array
+    {
+        return GrnStatus::cases();
+    }
+
+    // ─── Render ───────────────────────────────────────────────────────────────
 
     public function render(): View
     {
-        return view('livewire.inbound.grn.index', [
-            'rows' => $this->filteredRows(),
-        ])->layout('components.layouts.app', [
-            'title'           => 'Goods Receipt Notes',
-            'breadcrumbGroup' => 'Inbound',
-        ]);
+        return view('livewire.inbound.grn.index')
+            ->layout('components.layouts.app', [
+                'title'           => 'Goods Receipt Notes',
+                'breadcrumbGroup' => 'Inbound',
+            ]);
     }
 }

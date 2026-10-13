@@ -101,8 +101,8 @@
         </div>
 
         {{-- Table --}}
-        <div class="overflow-x-auto" wire:loading.class="opacity-50">
-            <table class="table min-w-[1100px]">
+        <div wire:loading.class="opacity-50">
+            <x-ui.table class="min-w-[1100px]">
                 <thead>
                     <tr>
                         <th class="px-4 py-3">SKU</th>
@@ -270,7 +270,7 @@
                     @endfor
                 </tbody>
 
-            </table>
+            </x-ui.table>
         </div>
 
         {{-- Pagination --}}
@@ -319,7 +319,7 @@
                 </div>
 
                 <div class="overflow-y-auto flex-1">
-                    <table class="w-full text-sm">
+                    <x-ui.table class="text-sm">
                         <thead class="sticky top-0 bg-white/90 dark:bg-zinc-900/90 border-b border-white/40 dark:border-white/[0.08]">
                             <tr>
                                 <th class="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">#</th>
@@ -338,7 +338,7 @@
                                 </tr>
                             @endforeach
                         </tbody>
-                    </table>
+                    </x-ui.table>
                 </div>
 
                 <div class="px-6 py-4 border-t border-white/40 dark:border-white/[0.08] flex justify-end">

@@ -210,8 +210,7 @@
                 </div>
 
                 @if (count($uoms) > 0)
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[600px] text-sm">
+                <x-ui.table class="min-w-[600px]">
                         <thead class="text-[11px] font-semibold uppercase tracking-wider
                                       text-slate-500 dark:text-slate-400
                                       border-b border-white/50 dark:border-white/[0.07]">
@@ -263,8 +262,7 @@
                             </tr>
                         @endforeach
                         </tbody>
-                    </table>
-                </div>
+                </x-ui.table>
                 @endif
 
                 <div class="mt-4">
@@ -291,8 +289,7 @@
             <div class="px-5 py-4">
 
                 @if (count($barcodes) > 0)
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[600px] text-sm">
+                <x-ui.table class="min-w-[600px]">
                         <thead class="text-[11px] font-semibold uppercase tracking-wider
                                       text-slate-500 dark:text-slate-400
                                       border-b border-white/50 dark:border-white/[0.07]">
@@ -346,8 +343,7 @@
                             </tr>
                         @endforeach
                         </tbody>
-                    </table>
-                </div>
+                </x-ui.table>
                 @endif
 
                 <div class="mt-4">
@@ -417,6 +413,21 @@
                         <p class="hint mt-0.5">Each individual unit is tracked with a unique serial number.</p>
                     </div>
                 </label>
+
+                <div class="border-t border-slate-200 dark:border-slate-700 pt-5">
+                    <label class="label" for="preferredZoneId">Preferred Putaway Zone</label>
+                    <select wire:model="preferredZoneId" id="preferredZoneId"
+                            class="input @error('preferredZoneId') border-red-400 @enderror">
+                        <option value="">— No preference —</option>
+                        @foreach ($this->zones as $zone)
+                            <option value="{{ $zone->id }}">{{ $zone->code }}</option>
+                        @endforeach
+                    </select>
+                    <p class="hint mt-1">The putaway engine will try to place new stock in bins within this zone.</p>
+                    @error('preferredZoneId')
+                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
 
             </div>
         </div>

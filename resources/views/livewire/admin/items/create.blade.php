@@ -220,8 +220,7 @@
                 @endif
 
                 @if (count($uoms) > 0)
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[600px] text-sm">
+                <x-ui.table class="min-w-[600px]">
                         <thead class="text-[11px] font-semibold uppercase tracking-wider
                                       text-slate-500 dark:text-slate-400
                                       border-b border-white/50 dark:border-white/[0.07]">
@@ -274,8 +273,7 @@
                             </tr>
                         @endforeach
                         </tbody>
-                    </table>
-                </div>
+                </x-ui.table>
                 @endif
 
                 <div class="mt-4">
@@ -303,8 +301,7 @@
             <div class="px-5 py-4">
 
                 @if (count($barcodes) > 0)
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[600px] text-sm">
+                <x-ui.table class="min-w-[600px]">
                         <thead class="text-[11px] font-semibold uppercase tracking-wider
                                       text-slate-500 dark:text-slate-400
                                       border-b border-white/50 dark:border-white/[0.07]">
@@ -358,8 +355,7 @@
                             </tr>
                         @endforeach
                         </tbody>
-                    </table>
-                </div>
+                </x-ui.table>
                 @endif
 
                 <div class="mt-4">

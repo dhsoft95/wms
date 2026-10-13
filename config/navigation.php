@@ -33,10 +33,26 @@ return [
             'items' => [
                 [
                     'key'           => 'containers',
-                    'label'         => 'Containers & Yard',
+                    'label'         => 'Containers',
                     'icon'          => 'package',
                     'route'         => 'inbound.containers.index',
                     'active_routes' => ['inbound.containers.*'],
+                    'can'           => 'containers.view',
+                ],
+                [
+                    'key'           => 'yard',
+                    'label'         => 'Yard Map',
+                    'icon'          => 'map-pin',
+                    'route'         => 'inbound.yard.index',
+                    'active_routes' => ['inbound.yard.*'],
+                    'can'           => 'containers.view',
+                ],
+                [
+                    'key'           => 'dwell',
+                    'label'         => 'Dwell Time',
+                    'icon'          => 'clock',
+                    'route'         => 'inbound.dwell.index',
+                    'active_routes' => ['inbound.dwell.*'],
                     'can'           => 'containers.view',
                 ],
                 [
@@ -45,7 +61,15 @@ return [
                     'icon'          => 'clipboard',
                     'route'         => 'inbound.grn.index',
                     'active_routes' => ['inbound.grn.*'],
-                    'can'           => 'receiving.view',
+                    'can'           => 'grn.view',
+                ],
+                [
+                    'key'           => 'putaway',
+                    'label'         => 'Put-Away',
+                    'icon'          => 'archive',
+                    'route'         => 'inbound.putaway.index',
+                    'active_routes' => ['inbound.putaway.*', 'warehouse.putaway.*'],
+                    'can'           => 'putaway.view',
                 ],
                 [
                     'key'           => 'inspections',
@@ -60,16 +84,8 @@ return [
         [
             'key'   => 'warehouse',
             'label' => 'Warehouse Operations',
-            'can'   => 'putaway.view',
+            'can'   => 'movements.view',
             'items' => [
-                [
-                    'key'           => 'putaway',
-                    'label'         => 'Put-Away',
-                    'icon'          => 'archive',
-                    'route'         => 'warehouse.putaway.index',
-                    'active_routes' => ['warehouse.putaway.*'],
-                    'can'           => 'putaway.view',
-                ],
                 [
                     'key'           => 'movements',
                     'label'         => 'Internal Movements',

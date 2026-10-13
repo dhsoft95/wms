@@ -1,24 +1,34 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Inbound\Containers;
 
 use App\Livewire\Forms\ContainerForm;
-use Illuminate\Contracts\View\View;
 use Livewire\Component;
 
 class Create extends Component
 {
     public ContainerForm $form;
 
+    public function mount(): void
+    {
+        $this->authorize('create', \App\Models\Container::class);
+    }
+
     public function save(): void
     {
-        if ($this->form->save()) {
-            $this->dispatch('toast', message: 'Container registered successfully', type: 'success');
-            $this->redirect(route('inbound.containers.index'), navigate: true);
+        $this->authorize('create', \App\Models\Container::class);
+        try {
+            $container = $this->form->store(auth()->id());
+            $this->dispatch('toast', message: 'Container ' . $container->number . ' registered.', type: 'success');
+            $this->redirect(route('inbound.containers.show', $container), navigate: true);
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }
     }
 
-    public function render(): View
+    public function render()
     {
         return view('livewire.inbound.containers.create')
             ->layout('components.layouts.app', [

@@ -19,8 +19,7 @@
             </div>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="table">
+        <x-ui.table>
                 <thead>
                     <tr>
                         <th>Request</th><th>Details</th><th>Requested By</th><th>Submitted</th>
@@ -55,7 +54,6 @@
                         </tr>
                     @endforelse
                 </tbody>
-            </table>
-        </div>
+        </x-ui.table>
     </div>
 </div>

@@ -1,0 +1,16 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Events\Inbound;
+
+use App\Models\Container;
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
+
+final class ContainerUnloadingStarted
+{
+    use Dispatchable, SerializesModels;
+
+    public function __construct(public readonly Container $container) {}
+}

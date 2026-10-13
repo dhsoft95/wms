@@ -90,6 +90,49 @@
             </div>
         </div>
 
+        {{-- Receiving Defaults --}}
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">
+                    <x-ui.icon name="archive" class="w-4 h-4" />
+                    Receiving Defaults
+                </h3>
+            </div>
+            <div class="card-body space-y-5">
+
+                <div>
+                    <label class="label" for="wh-dock">Default Receiving Dock</label>
+                    <select wire:model="defaultDockLocationId" id="wh-dock"
+                            class="input @error('defaultDockLocationId') border-red-400 @enderror">
+                        <option value="">— None —</option>
+                        @foreach ($this->dockLocations as $loc)
+                            <option value="{{ $loc->id }}">{{ $loc->code }}</option>
+                        @endforeach
+                    </select>
+                    <p class="hint">Default dock location for GRNs created in this warehouse.</p>
+                    @error('defaultDockLocationId')
+                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label class="label" for="wh-quarantine">Default Quarantine Location</label>
+                    <select wire:model="defaultQuarantineLocationId" id="wh-quarantine"
+                            class="input @error('defaultQuarantineLocationId') border-red-400 @enderror">
+                        <option value="">— None —</option>
+                        @foreach ($this->quarantineLocations as $loc)
+                            <option value="{{ $loc->id }}">{{ $loc->code }}</option>
+                        @endforeach
+                    </select>
+                    <p class="hint">Damaged goods are posted to this location.</p>
+                    @error('defaultQuarantineLocationId')
+                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
+
+            </div>
+        </div>
+
         {{-- Footer Actions --}}
         <div class="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
             <a href="{{ route('admin.warehouses.index') }}" wire:navigate class="btn btn-secondary text-center">

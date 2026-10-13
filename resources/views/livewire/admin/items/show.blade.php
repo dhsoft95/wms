@@ -218,8 +218,7 @@
             </h3>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full min-w-[600px] text-left text-sm">
+        <x-ui.table class="min-w-[600px]">
                 <thead class="text-[11px] font-semibold uppercase tracking-wider
                               text-slate-500 dark:text-slate-400
                               bg-white/[0.45] dark:bg-white/[0.04]
@@ -275,8 +274,7 @@
                     </tr>
                 @endforelse
                 </tbody>
-            </table>
-        </div>
+        </x-ui.table>
     </div>
     @endif
 
@@ -290,8 +288,7 @@
             </h3>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full min-w-[500px] text-left text-sm">
+        <x-ui.table class="min-w-[500px]">
                 <thead class="text-[11px] font-semibold uppercase tracking-wider
                               text-slate-500 dark:text-slate-400
                               bg-white/[0.45] dark:bg-white/[0.04]
@@ -345,8 +342,7 @@
                     </tr>
                 @endforelse
                 </tbody>
-            </table>
-        </div>
+        </x-ui.table>
     </div>
     @endif
 
@@ -413,8 +409,7 @@
                 </a>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full min-w-[800px] text-left text-sm">
+            <x-ui.table class="min-w-[800px]">
                     <thead class="text-[11px] font-semibold uppercase tracking-wider
                                   text-slate-500 dark:text-slate-400
                                   bg-white/[0.45] dark:bg-white/[0.04]
@@ -484,8 +479,7 @@
                         </tr>
                     @endforelse
                     </tbody>
-                </table>
-            </div>
+            </x-ui.table>
         </div>
 
         {{-- Last 20 Movements --}}
@@ -496,8 +490,7 @@
                 </h3>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full min-w-[700px] text-left text-sm">
+            <x-ui.table class="min-w-[700px]">
                     <thead class="text-[11px] font-semibold uppercase tracking-wider
                                   text-slate-500 dark:text-slate-400
                                   bg-white/[0.45] dark:bg-white/[0.04]
@@ -554,8 +547,7 @@
                         </tr>
                     @endforelse
                     </tbody>
-                </table>
-            </div>
+            </x-ui.table>
         </div>
 
     </div>

@@ -1,40 +1,95 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Inbound\Containers;
 
-use Illuminate\Contracts\View\View;
+use App\Enums\ContainerStatus;
+use App\Models\Container;
+use App\Models\Setting;
+use App\Services\Inbound\ContainerQueryService;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class Index extends Component
 {
-    public string $search = '';
+    use WithPagination;
+
+    public string $search       = '';
     public string $statusFilter = 'all';
+    public string $filterLine   = '';
+    public string $filterDwell  = '';
 
-    // placeholder data
-    protected array $allRows = [
-        ['container' => 'MSKU1234567', 'seal' => 'TZ-998234', 'bl' => 'BL-DAR-2026-001', 'vessel' => 'COSCO Pride V.42',    'eta' => '2026-10-02', 'slot' => 'SLOT-A03', 'status' => 'unloading', 'badge' => 'badge-blue',  'label' => 'Unloading', 'type' => '40HC High Cube'],
-        ['container' => 'MRKU8829102', 'seal' => 'TZ-998235', 'bl' => 'BL-DAR-2026-002', 'vessel' => 'MSC Diana V.12',      'eta' => '2026-10-03', 'slot' => 'SLOT-B12', 'status' => 'arrived',   'badge' => 'badge-amber', 'label' => 'Arrived',   'type' => '20ft Standard'],
-        ['container' => 'CMAU5543219', 'seal' => 'TZ-998236', 'bl' => 'BL-DAR-2026-003', 'vessel' => 'CMA CGM Africa V.08', 'eta' => '2026-10-05', 'slot' => null,       'status' => 'expected',  'badge' => 'badge-slate', 'label' => 'Expected',  'type' => '40ft Reefer'],
-        ['container' => 'MSCU4410983', 'seal' => 'TZ-998237', 'bl' => 'BL-DAR-2026-004', 'vessel' => 'MSC Diana V.12',      'eta' => '2026-10-06', 'slot' => null,       'status' => 'expected',  'badge' => 'badge-slate', 'label' => 'Expected',  'type' => '20ft Standard'],
-        ['container' => 'TGHU7712045', 'seal' => 'TZ-998230', 'bl' => 'BL-DAR-2026-000', 'vessel' => 'Maersk Kowloon V.31', 'eta' => '2026-09-28', 'slot' => 'SLOT-A01', 'status' => 'released',  'badge' => 'badge-green', 'label' => 'Released',  'type' => '40ft Standard'],
-    ];
+    public function updatingSearch(): void { $this->resetPage(); }
+    public function updatingStatusFilter(): void { $this->resetPage(); }
+    public function updatingFilterLine(): void { $this->resetPage(); }
+    public function updatingFilterDwell(): void { $this->resetPage(); }
 
-    public function filteredRows(): array
+    private function queryService(): ContainerQueryService
     {
-        return array_values(array_filter($this->allRows, function ($r) {
-            $matchesStatus = $this->statusFilter === 'all' || $r['status'] === $this->statusFilter;
-            $matchesSearch = $this->search === '' || str_contains(strtolower($r['container'] . $r['bl'] . $r['vessel']), strtolower($this->search));
-            return $matchesStatus && $matchesSearch;
-        }));
+        return app(ContainerQueryService::class);
     }
 
-    public function render(): View
+    #[Computed]
+    public function statusCounts(): array
     {
-        return view('livewire.inbound.containers.index', [
-            'rows' => $this->filteredRows(),
-        ])->layout('components.layouts.app', [
-            'title'           => 'Containers & Yard',
-            'breadcrumbGroup' => 'Inbound',
-        ]);
+        $base   = $this->queryService()->queryFor(auth()->user());
+        $counts = ['all' => $base->count()];
+        foreach (ContainerStatus::cases() as $s) {
+            $counts[$s->value] = (clone $base)->where('status', $s->value)->count();
+        }
+        return $counts;
+    }
+
+    #[Computed]
+    public function containers()
+    {
+        $query = $this->queryService()->queryFor(auth()->user())
+            ->with(['yardLocation', 'shippingLinePartner', 'expectedLines'])
+            ->orderByDesc('id');
+
+        if ($this->statusFilter !== 'all') {
+            $query->where('status', $this->statusFilter);
+        }
+
+        if ($this->search !== '') {
+            $q = $this->search;
+            $query->where(function ($sq) use ($q) {
+                $sq->where('container_no', 'like', "%$q%")
+                   ->orWhere('number', 'like', "%$q%")
+                   ->orWhere('bl_no', 'like', "%$q%")
+                   ->orWhere('vessel', 'like', "%$q%");
+            });
+        }
+
+        if ($this->filterLine !== '') {
+            $query->where('shipping_line_partner_id', $this->filterLine);
+        }
+
+        if ($this->filterDwell !== '') {
+            $warnDays     = (int) Setting::get('container_dwell_warning_days', 7);
+            $criticalDays = (int) Setting::get('container_dwell_critical_days', 14);
+            $query->whereNotNull('arrived_at')
+                  ->whereIn('status', ['arrived', 'parked', 'unloading', 'unloaded']);
+
+            if ($this->filterDwell === 'warning') {
+                $query->whereRaw('DATEDIFF(COALESCE(released_at, NOW()), arrived_at) >= ?', [$warnDays])
+                      ->whereRaw('DATEDIFF(COALESCE(released_at, NOW()), arrived_at) < ?', [$criticalDays]);
+            } elseif ($this->filterDwell === 'critical') {
+                $query->whereRaw('DATEDIFF(COALESCE(released_at, NOW()), arrived_at) >= ?', [$criticalDays]);
+            }
+        }
+
+        return $query->paginate(25);
+    }
+
+    public function render()
+    {
+        return view('livewire.inbound.containers.index')
+            ->layout('components.layouts.app', [
+                'title'           => 'Containers',
+                'breadcrumbGroup' => 'Inbound',
+            ]);
     }
 }

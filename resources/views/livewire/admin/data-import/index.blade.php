@@ -23,19 +23,19 @@
                 </div>
                 <ol class="space-y-3 text-sm text-slate-700 dark:text-slate-300">
                     <li class="flex gap-3">
-                        <span class="flex-none w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center justify-center">1</span>
+                        <span class="flex-none w-6 h-6 rounded-full bg-simba-100 dark:bg-simba-900/50 text-simba-700 dark:text-simba-300 text-xs font-bold flex items-center justify-center">1</span>
                         <span><strong>Download a template</strong> using the arrow button on each card. The template includes column instructions on a second sheet.</span>
                     </li>
                     <li class="flex gap-3">
-                        <span class="flex-none w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center justify-center">2</span>
+                        <span class="flex-none w-6 h-6 rounded-full bg-simba-100 dark:bg-simba-900/50 text-simba-700 dark:text-simba-300 text-xs font-bold flex items-center justify-center">2</span>
                         <span><strong>Fill in your data</strong> and save as .xlsx or .csv (max 20 MB).</span>
                     </li>
                     <li class="flex gap-3">
-                        <span class="flex-none w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center justify-center">3</span>
+                        <span class="flex-none w-6 h-6 rounded-full bg-simba-100 dark:bg-simba-900/50 text-simba-700 dark:text-simba-300 text-xs font-bold flex items-center justify-center">3</span>
                         <span><strong>Upload the file</strong> — validation runs automatically in the background.</span>
                     </li>
                     <li class="flex gap-3">
-                        <span class="flex-none w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-xs font-bold flex items-center justify-center">4</span>
+                        <span class="flex-none w-6 h-6 rounded-full bg-simba-100 dark:bg-simba-900/50 text-simba-700 dark:text-simba-300 text-xs font-bold flex items-center justify-center">4</span>
                         <span><strong>Review the result</strong> — fix any errors and re-upload, or confirm to apply the data.</span>
                     </li>
                 </ol>
@@ -57,7 +57,7 @@
             <div class="card p-5 space-y-4 {{ $restricted ? 'opacity-50' : '' }}">
                 {{-- Card header --}}
                 <div class="flex items-start gap-3">
-                    <div class="flex-none flex items-center justify-center w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400">
+                    <div class="flex-none flex items-center justify-center w-9 h-9 rounded-xl bg-simba-50 dark:bg-simba-900/40 text-simba-600 dark:text-simba-400">
                         <x-ui.icon :name="$type->icon()" class="w-5 h-5" />
                     </div>
                     <div class="flex-1 min-w-0">
@@ -79,27 +79,45 @@
                     <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                         <span class="badge badge-{{ $lastImport->status->color() }} text-[10px]">{{ $lastImport->status->label() }}</span>
                         <span>{{ $lastImport->created_at?->diffForHumans() }}</span>
-                        <a href="{{ route('admin.imports.show', $lastImport) }}" wire:navigate class="ml-auto text-indigo-500 hover:underline">View</a>
+                        <a href="{{ route('admin.imports.show', $lastImport) }}" wire:navigate class="ml-auto text-brand hover:underline">View</a>
                     </div>
                 @else
                     <div class="h-5"></div>
                 @endif
 
                 {{-- Actions --}}
+                @php
+                    $noTemplateTypes = ['container_packing_list', 'active_containers'];
+                    $noUploadTypes   = ['container_packing_list'];
+                    $hasTemplate     = !in_array($type->value, $noTemplateTypes);
+                    $hasUpload       = !in_array($type->value, $noUploadTypes);
+                @endphp
                 @if (! $restricted)
                     <div class="flex gap-2 pt-1">
-                        <button type="button"
-                                wire:click="openUpload('{{ $type->value }}')"
-                                class="btn btn-secondary flex-1 text-sm gap-1.5">
-                            <x-ui.icon name="upload" class="w-4 h-4" />
-                            Upload
-                        </button>
-                        <a href="{{ route('admin.imports.template', ['type' => $type->value]) }}"
-                           title="Download template"
-                           class="btn btn-ghost text-sm px-2.5"
-                           download>
-                            <x-ui.icon name="download" class="w-4 h-4" />
-                        </a>
+                        @if($hasUpload)
+                            <button type="button"
+                                    wire:click="openUpload('{{ $type->value }}')"
+                                    class="btn btn-secondary flex-1 text-sm gap-1.5">
+                                <x-ui.icon name="upload" class="w-4 h-4" />
+                                Upload
+                            </button>
+                        @else
+                            <span class="btn btn-secondary flex-1 text-sm opacity-40 cursor-not-allowed" title="Upload via container show page">
+                                <x-ui.icon name="upload" class="w-4 h-4" /> Upload
+                            </span>
+                        @endif
+                        @if($hasTemplate)
+                            <a href="{{ route('admin.imports.template', ['type' => $type->value]) }}"
+                               title="Download template"
+                               class="btn btn-ghost text-sm px-2.5"
+                               download>
+                                <x-ui.icon name="download" class="w-4 h-4" />
+                            </a>
+                        @else
+                            <span class="btn btn-ghost text-sm px-2.5 opacity-40 cursor-not-allowed" title="Template not available for this type">
+                                <x-ui.icon name="download" class="w-4 h-4" />
+                            </span>
+                        @endif
                     </div>
                 @else
                     <div class="flex gap-2 pt-1">
@@ -160,19 +178,28 @@
                 <div x-data="{ dragging: false }"
                      @dragover.prevent="dragging = true"
                      @dragleave.prevent="dragging = false"
-                     @drop.prevent="dragging = false; $el.querySelector('input[type=file]').files = $event.dataTransfer.files; $wire.uploadFile = $event.dataTransfer.files[0];"
-                     :class="dragging ? 'border-indigo-400 bg-indigo-50/30 dark:bg-indigo-950/20' : 'border-slate-300 dark:border-zinc-600'"
+                     @drop.prevent="dragging = false; $el.querySelector('input[type=file]').click()"
+                     :class="dragging ? 'border-brand bg-simba-50/30 dark:bg-simba-950/20' : 'border-slate-300 dark:border-zinc-600'"
                      class="relative flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl py-8 px-4 transition-colors cursor-pointer"
                      onclick="this.querySelector('input[type=file]').click()">
-                    <x-ui.icon name="upload" class="w-8 h-8 text-slate-400" />
-                    <p class="text-sm font-medium text-slate-600 dark:text-slate-300">Drop file here or click to browse</p>
+                    <x-ui.icon name="upload" class="w-8 h-8 text-slate-400" wire:loading.remove wire:target="uploadFile" />
+                    <x-ui.icon name="refresh" class="w-8 h-8 text-brand animate-spin hidden" wire:loading wire:target="uploadFile" />
+                    <p class="text-sm font-medium text-slate-600 dark:text-slate-300" wire:loading.remove wire:target="uploadFile">Drop file here or click to browse</p>
+                    <p class="text-sm font-medium text-brand" wire:loading wire:target="uploadFile">Uploading to server…</p>
                     <p class="text-xs text-slate-400">.xlsx or .csv — max 20 MB</p>
-                    <input type="file" wire:model="uploadFile" accept=".xlsx,.csv,.xls" class="sr-only" />
+                    <input type="file"
+                           wire:model="uploadFile"
+                           accept=".xlsx,.csv,.xls"
+                           class="sr-only"
+                           x-on:livewire-upload-error="$wire.handleUploadError()" />
                 </div>
                 @if ($uploadFile)
                     <p class="text-xs text-green-600 dark:text-green-400 -mt-3">
                         <x-ui.icon name="check" class="w-3 h-3 inline" /> {{ is_object($uploadFile) ? $uploadFile->getClientOriginalName() : 'File selected' }}
                     </p>
+                @endif
+                @if ($uploadError)
+                    <p class="text-xs text-red-500 -mt-3">{{ $uploadError }}</p>
                 @endif
                 @error('uploadFile')
                     <p class="text-xs text-red-500 -mt-3">{{ $message }}</p>
@@ -181,7 +208,7 @@
                 {{-- Auto-category option (items only) --}}
                 @if ($uploadType === \App\Enums\ImportType::Items->value)
                     <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" wire:model="autoCategory" class="rounded text-indigo-600 border-slate-300 dark:border-zinc-600" />
+                        <input type="checkbox" wire:model="autoCategory" class="rounded accent-brand border-slate-300 dark:border-zinc-600" />
                         <span class="text-sm text-slate-700 dark:text-slate-300">Auto-create missing categories</span>
                     </label>
                 @endif
@@ -218,14 +245,13 @@
 
             {{-- Auto-refresh indicator for in-progress --}}
             @if ($this->hasInProgressRows())
-                <span wire:poll.5s class="flex items-center gap-1 text-xs text-blue-500 dark:text-blue-400">
+                <span wire:poll.5s class="flex items-center gap-1 text-xs text-brand dark:text-simba-400">
                     <x-ui.icon name="refresh" class="w-3 h-3 animate-spin" /> Live
                 </span>
             @endif
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="data-table">
+        <x-ui.table>
                 <thead>
                     <tr>
                         <th>Type</th>
@@ -247,7 +273,7 @@
                             <td><span class="badge badge-{{ $row->status->color() }}">{{ $row->status->label() }}</span></td>
                             <td class="text-sm tabular-nums">{{ number_format($row->total_rows) }}</td>
                             <td class="text-sm tabular-nums text-green-600">{{ number_format($row->created_count) }}</td>
-                            <td class="text-sm tabular-nums text-blue-600">{{ number_format($row->updated_count) }}</td>
+                            <td class="text-sm tabular-nums text-slate-600 dark:text-slate-400">{{ number_format($row->updated_count) }}</td>
                             <td class="text-sm text-slate-500 dark:text-slate-400">{{ $row->uploadedBy?->name ?? '—' }}</td>
                             <td class="text-sm text-slate-500 dark:text-slate-400">{{ $row->created_at?->format('d M Y H:i') }}</td>
                             <td>
@@ -257,19 +283,10 @@
                             </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="9" class="py-12 text-center">
-                                <div class="flex flex-col items-center gap-2 text-slate-400 dark:text-slate-500">
-                                    <x-ui.icon name="archive" class="w-8 h-8" />
-                                    <p class="text-sm font-medium">No imports yet</p>
-                                    <p class="text-xs">Upload a file above to get started.</p>
-                                </div>
-                            </td>
-                        </tr>
+                        <x-ui.empty-state icon="archive" title="No imports yet" text="Start with step 1 above." :cols="9" />
                     @endforelse
                 </tbody>
-            </table>
-        </div>
+        </x-ui.table>
         <div class="p-4">{{ $this->history->links() }}</div>
     </div>
 

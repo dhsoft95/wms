@@ -34,8 +34,7 @@
         </div>
 
         {{-- Table --}}
-        <div class="overflow-x-auto">
-            <table class="data-table">
+        <x-ui.table>
                 <thead>
                     <tr>
                         <th>Serial No</th>
@@ -75,13 +74,10 @@
                             </td>
                         </tr>
                     @empty
-                        <tr>
-                            <td colspan="9" class="empty-row">No serials found.</td>
-                        </tr>
+                        <x-ui.empty-state icon="archive" title="No serials found" text="Search by serial number or item, or adjust filters." :cols="9" />
                     @endforelse
                 </tbody>
-            </table>
-        </div>
+        </x-ui.table>
 
         <div class="p-4">
             {{ $this->serials->links() }}

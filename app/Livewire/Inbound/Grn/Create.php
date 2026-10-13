@@ -1,29 +1,135 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Inbound\Grn;
 
-use App\Livewire\Forms\GrnForm;
+use App\Enums\GrnSource;
+use App\Enums\GrnStatus;
+use App\Models\Grn;
+use App\Models\GrnLine;
+use App\Models\Item;
+use App\Models\Location;
+use App\Models\Partner;
+use App\Models\UnitOfMeasure;
+use App\Models\VirtualWarehouse;
+use App\Models\Warehouse;
+use App\Services\Foundation\DocumentNumber;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 class Create extends Component
 {
-    public GrnForm $form;
+    // Header fields
+    public string  $source           = 'supplier';
+    public string  $warehouseId      = '';
+    public string  $supplierId       = '';
+    public string  $customerId       = '';
+    public string  $dockId           = '';
+    public string  $deliveryNoteRef  = '';
+    public string  $expectedDate     = '';
+    public string  $notes            = '';
 
-    public array $lines = [
-        ['sku_code' => 'SKU-AZ-001', 'expected_qty' => 500, 'received_qty' => 488, 'batch_number' => 'BATCH-9021'],
-        ['sku_code' => 'SKU-AZ-SUG', 'expected_qty' => 300, 'received_qty' => 300, 'batch_number' => 'BATCH-9022'],
-    ];
+    // Expected lines
+    public array $lines = [];
+
+    // ─── Lifecycle ────────────────────────────────────────────────────────────
 
     public function mount(): void
     {
-        $this->form->grnNumber = 'GRN-2026-090';
-        $this->form->receivedAt = now()->format('Y-m-d\TH:i');
+        $this->authorize('create', Grn::class);
+        $first = Warehouse::active()->first();
+        if ($first) {
+            $this->warehouseId = (string) $first->id;
+            $this->autofillDock();
+        }
     }
+
+    public function updatedWarehouseId(): void
+    {
+        $this->dockId = '';
+        $this->autofillDock();
+    }
+
+    private function autofillDock(): void
+    {
+        if ($this->warehouseId === '') return;
+        $warehouse = Warehouse::find((int) $this->warehouseId);
+        if ($warehouse?->default_receiving_dock_location_id) {
+            $this->dockId = (string) $warehouse->default_receiving_dock_location_id;
+        }
+    }
+
+    // ─── Computed ─────────────────────────────────────────────────────────────
+
+    #[Computed]
+    public function sources(): array
+    {
+        return GrnSource::cases();
+    }
+
+    #[Computed]
+    public function warehouses(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Warehouse::active()->orderBy('name')->get();
+    }
+
+    #[Computed]
+    public function suppliers(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Partner::ofType('supplier')->active()->orderBy('name')->get();
+    }
+
+    #[Computed]
+    public function customers(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Partner::ofType('customer')->active()->orderBy('name')->get();
+    }
+
+    #[Computed]
+    public function dockLocations(): \Illuminate\Database\Eloquent\Collection
+    {
+        if ($this->warehouseId === '') return collect();
+        return Location::where('warehouse_id', (int) $this->warehouseId)
+            ->where('type', 'receiving_dock')
+            ->where('status', 'active')
+            ->orderBy('code')
+            ->get();
+    }
+
+    #[Computed]
+    public function items(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Item::active()->orderBy('name')->limit(500)->get();
+    }
+
+    #[Computed]
+    public function uoms(): \Illuminate\Database\Eloquent\Collection
+    {
+        return UnitOfMeasure::active()->orderBy('code')->get();
+    }
+
+    #[Computed]
+    public function virtualWarehouses(): \Illuminate\Database\Eloquent\Collection
+    {
+        return VirtualWarehouse::active()->orderBy('name')->get();
+    }
+
+    // ─── Lines ────────────────────────────────────────────────────────────────
 
     public function addLine(): void
     {
-        $this->lines[] = ['sku_code' => '', 'expected_qty' => 0, 'received_qty' => 0, 'batch_number' => ''];
+        $this->lines[] = [
+            'item_id'             => '',
+            'expected_qty'        => '',
+            'uom_id'              => '',
+            'virtual_warehouse_id'=> '',
+            'batch_no'            => '',
+            'expiry_date'         => '',
+        ];
     }
 
     public function removeLine(int $index): void
@@ -32,34 +138,65 @@ class Create extends Component
         $this->lines = array_values($this->lines);
     }
 
-    public function getExpectedTotalProperty(): int
-    {
-        return (int) array_sum(array_column($this->lines, 'expected_qty'));
-    }
-
-    public function getReceivedTotalProperty(): int
-    {
-        return (int) array_sum(array_column($this->lines, 'received_qty'));
-    }
-
-    public function getVarianceTotalProperty(): int
-    {
-        return $this->receivedTotal - $this->expectedTotal;
-    }
-
-    public function saveDraft(): void
-    {
-        $this->dispatch('toast', message: 'GRN saved as draft', type: 'info');
-    }
+    // ─── Save ─────────────────────────────────────────────────────────────────
 
     public function save(): void
     {
-        if ($this->form->save()) {
-            // TODO: persist lines
-            $this->dispatch('toast', message: $this->form->grnNumber . ' submitted successfully', type: 'success');
-            $this->redirect(route('inbound.grn.index'), navigate: true);
-        }
+        $this->authorize('create', Grn::class);
+
+        $this->validate([
+            'source'                    => ['required', Rule::enum(GrnSource::class)],
+            'warehouseId'               => ['required', 'exists:warehouses,id'],
+            'supplierId'                => ['nullable', 'exists:partners,id'],
+            'customerId'                => ['nullable', 'exists:partners,id'],
+            'dockId'                    => ['nullable', 'exists:locations,id'],
+            'deliveryNoteRef'           => ['nullable', 'string', 'max:100'],
+            'expectedDate'              => ['nullable', 'date'],
+            'notes'                     => ['nullable', 'string', 'max:2000'],
+            'lines.*.item_id'           => ['nullable', 'exists:items,id'],
+            'lines.*.expected_qty'      => ['required_with:lines.*.item_id', 'nullable', 'numeric', 'min:0.0001'],
+            'lines.*.uom_id'            => ['required_with:lines.*.item_id', 'nullable', 'exists:units_of_measure,id'],
+            'lines.*.virtual_warehouse_id' => ['required_with:lines.*.item_id', 'nullable', 'exists:virtual_warehouses,id'],
+            'lines.*.batch_no'          => ['nullable', 'string', 'max:100'],
+            'lines.*.expiry_date'       => ['nullable', 'date'],
+        ]);
+
+        DB::transaction(function () {
+            $grn = Grn::create([
+                'number'                     => DocumentNumber::next('GRN'),
+                'source'                     => $this->source,
+                'warehouse_id'               => (int) $this->warehouseId,
+                'supplier_partner_id'        => $this->supplierId ?: null,
+                'customer_partner_id'        => $this->customerId ?: null,
+                'receiving_dock_location_id' => $this->dockId ?: null,
+                'delivery_note_ref'          => $this->deliveryNoteRef ?: null,
+                'expected_date'              => $this->expectedDate ?: null,
+                'status'                     => GrnStatus::Draft->value,
+                'received_by'                => auth()->id(),
+                'notes'                      => $this->notes ?: null,
+            ]);
+
+            foreach ($this->lines as $i => $line) {
+                if (empty($line['item_id'])) continue;
+
+                $item = Item::find((int) $line['item_id']);
+                GrnLine::create([
+                    'grn_id'               => $grn->id,
+                    'item_id'              => (int) $line['item_id'],
+                    'virtual_warehouse_id' => (int) $line['virtual_warehouse_id'],
+                    'uom_id'               => (int) $line['uom_id'],
+                    'expected_qty'         => $line['expected_qty'],
+                    'batch_no'             => $line['batch_no'] ?: null,
+                    'expiry_date'          => $line['expiry_date'] ?: null,
+                ]);
+            }
+
+            $this->dispatch('toast', message: "GRN {$grn->number} created.", type: 'success');
+            $this->redirect(route('inbound.grn.show', $grn), navigate: true);
+        });
     }
+
+    // ─── Render ───────────────────────────────────────────────────────────────
 
     public function render(): View
     {

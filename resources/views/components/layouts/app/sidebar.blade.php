@@ -246,10 +246,7 @@ $bgImage   = asset(file_exists(public_path($appBg)) ? $appBg : $authBg);
                 </button>
 
                 {{-- Notifications --}}
-                <button class="icon-btn relative" title="Notifications">
-                    <x-ui.icon name="bell" class="w-5 h-5" />
-                    <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-simba-600 ring-2 ring-white/50 dark:ring-zinc-900/50"></span>
-                </button>
+                <livewire:notification-bell />
 
                 {{-- User menu --}}
                 <div class="relative" x-data="{ open: false }" @click.outside="open = false">

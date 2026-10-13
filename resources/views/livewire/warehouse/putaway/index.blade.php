@@ -1,101 +1,210 @@
 <div class="space-y-6">
+    {{-- Page Header --}}
     <div class="page-header">
         <div>
-            <h2 class="page-title">Put-Away (RF Handheld)</h2>
-            <p class="page-sub">Scanner emulator for directed put-away tasks.</p>
+            <h2 class="page-title">Put-Away Tasks</h2>
+            <p class="page-sub">Assign and execute putaway tasks to move goods from dock to storage.</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-600 dark:text-slate-400">
+                <input wire:model.live="myTasksOnly" type="checkbox"
+                       class="rounded text-simba-600 focus:ring-simba-600" />
+                My Tasks Only
+            </label>
+            @if (count($selectedTaskIds) > 0)
+                <button wire:click="openBulkAssign" class="btn btn-primary btn-sm">
+                    <x-ui.icon name="users" class="w-4 h-4" />
+                    Assign ({{ count($selectedTaskIds) }})
+                </button>
+            @endif
         </div>
     </div>
 
-    <div class="grid grid-cols-1 xl:grid-cols-5 gap-6">
-        {{-- RF handheld emulator --}}
-        <div class="xl:col-span-2 flex justify-center">
-            <div class="w-full max-w-[360px] bg-slate-900 rounded-[36px] p-3.5 shadow-2xl border-4 border-slate-800 text-white">
-                <div class="w-24 h-1.5 bg-slate-700 rounded-full mx-auto mb-3"></div>
-                <div class="bg-slate-950 rounded-3xl p-5 min-h-[520px] flex flex-col border border-slate-800">
-                    <div class="flex items-center justify-between text-[11px] text-slate-400 pb-3 border-b border-slate-800">
-                        <span class="font-mono">Task #{{ $activeTask['ref'] }}</span>
-                        <span class="flex items-center gap-1.5 text-emerald-400 font-semibold">
-                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Active
-                        </span>
-                    </div>
+    <div class="card">
+        {{-- Status Tabs --}}
+        <div class="card-header flex-col sm:flex-row gap-3">
+            <div class="tabs overflow-x-auto">
+                <button wire:click="$set('statusFilter','all')"
+                        @class(['tab','active' => $statusFilter === 'all'])>
+                    All <span class="badge badge-neutral ml-1">{{ $this->statusCounts['all'] ?? 0 }}</span>
+                </button>
+                @foreach ($this->statuses as $status)
+                    <button wire:click="$set('statusFilter','{{ $status->value }}')"
+                            @class(['tab','active' => $statusFilter === $status->value])>
+                        {{ $status->label() }}
+                        @if (($this->statusCounts[$status->value] ?? 0) > 0)
+                            <span class="badge {{ $status->color() }} ml-1">{{ $this->statusCounts[$status->value] }}</span>
+                        @endif
+                    </button>
+                @endforeach
+            </div>
+            <div class="relative ml-auto">
+                <x-ui.icon name="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input wire:model.live.debounce.300ms="search" type="text"
+                       placeholder="Search item, GRN…"
+                       class="input !pl-9 sm:w-56" />
+            </div>
+        </div>
 
-                    <div class="flex items-center gap-2 py-4">
-                        @for ($s = 1; $s <= $activeTask['steps']; $s++)
-                            <div class="flex-1 h-1 rounded-full {{ $s <= $activeTask['step'] ? 'bg-simba-600' : 'bg-slate-700' }}"></div>
-                        @endfor
-                    </div>
-                    <p class="text-[11px] uppercase tracking-wider text-slate-500 -mt-1 mb-4">
-                        Step {{ $activeTask['step'] }} of {{ $activeTask['steps'] }} · Scan target bin
+        <x-ui.table>
+            <thead>
+                <tr>
+                    <th class="w-8">
+                        <span class="sr-only">Select</span>
+                    </th>
+                    <th>GRN</th>
+                    <th>Item</th>
+                    <th>Qty</th>
+                    <th>From</th>
+                    <th>Suggested</th>
+                    <th>Assigned To</th>
+                    <th>Status</th>
+                    <th class="text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse ($this->tasks as $task)
+                    <tr wire:key="task-{{ $task->id }}">
+                        <td>
+                            <input type="checkbox" wire:model.live="selectedTaskIds"
+                                   value="{{ $task->id }}"
+                                   class="rounded text-simba-600 focus:ring-simba-600" />
+                        </td>
+                        <td class="mono text-sm">{{ $task->grn?->number }}</td>
+                        <td>
+                            <div class="mono text-xs text-simba-600 dark:text-simba-400">{{ $task->item?->sku }}</div>
+                            <div class="text-sm">{{ $task->item?->name }}</div>
+                        </td>
+                        <td class="tabular-nums">{{ number_format((float)$task->qty, 2) }}</td>
+                        <td class="mono text-xs">{{ $task->fromLocation?->code }}</td>
+                        <td class="mono text-xs">{{ $task->suggestedLocation?->code ?? '—' }}</td>
+                        <td class="text-sm">{{ $task->assignedTo?->name ?? '—' }}</td>
+                        <td>
+                            <span class="badge {{ $task->status->color() }}">
+                                <span class="dot"></span>{{ $task->status->label() }}
+                            </span>
+                        </td>
+                        <td class="text-right">
+                            @if (in_array($task->status->value, ['open', 'assigned', 'in_progress']))
+                                @can('execute', $task)
+                                    <button wire:click="openExecute({{ $task->id }})"
+                                            class="btn btn-primary btn-sm">
+                                        Execute
+                                    </button>
+                                @endcan
+                            @elseif ($task->status->value === 'completed')
+                                <span class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                                    {{ $task->actualLocation?->code }}
+                                </span>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="9" class="!py-12 text-center text-slate-500">No putaway tasks found.</td>
+                    </tr>
+                @endforelse
+            </tbody>
+        </x-ui.table>
+
+        <div class="px-4 py-3 border-t border-white/40 dark:border-white/[0.06]">
+            {{ $this->tasks->links() }}
+        </div>
+    </div>
+
+    {{-- Bulk Assign Modal --}}
+    @if ($showBulkAssignModal)
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-5">
+            <h3 class="text-lg font-semibold">Assign {{ count($selectedTaskIds) }} Task(s)</h3>
+
+            <div>
+                <label class="label">Assign To <span class="text-red-500">*</span></label>
+                <select wire:model="assignToUserId" class="input @error('assignToUserId') border-red-400 @enderror">
+                    <option value="">Select user…</option>
+                    @foreach ($this->users as $usr)
+                        <option value="{{ $usr->id }}">{{ $usr->name }}</option>
+                    @endforeach
+                </select>
+                @error('assignToUserId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button wire:click="closeBulkAssign" class="btn btn-secondary">Cancel</button>
+                <button wire:click="bulkAssign" class="btn btn-primary">
+                    <x-ui.icon name="check" class="w-4 h-4" /> Assign
+                </button>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Execute Modal --}}
+    @if ($showExecuteModal && $this->executingTask)
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-semibold">Execute Putaway</h3>
+                <button wire:click="closeExecute" class="icon-btn">
+                    <x-ui.icon name="x" class="w-5 h-5" />
+                </button>
+            </div>
+
+            {{-- Task Info --}}
+            <div class="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4 space-y-2">
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-500">Item</span>
+                    <span class="font-mono font-semibold">{{ $this->executingTask->item?->sku }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-500">Qty</span>
+                    <span class="tabular-nums font-semibold">{{ number_format((float)$this->executingTask->qty, 2) }}</span>
+                </div>
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-500">From</span>
+                    <span class="mono">{{ $this->executingTask->fromLocation?->code }}</span>
+                </div>
+                @if ($this->executingTask->suggestedLocation)
+                <div class="flex justify-between text-sm">
+                    <span class="text-slate-500">Suggested</span>
+                    <span class="mono font-semibold text-simba-600 dark:text-simba-400">
+                        {{ $this->executingTask->suggestedLocation?->code }}
+                    </span>
+                </div>
+                @endif
+            </div>
+
+            {{-- Scan Destination --}}
+            <div>
+                <label class="label">Scan or Enter Destination Bin</label>
+                <div class="flex gap-2">
+                    <input wire:model="scanDestination"
+                           wire:keydown.enter="resolveDestination"
+                           type="text"
+                           placeholder="Scan bin barcode or type code…"
+                           class="input flex-1 font-mono"
+                           autofocus />
+                    <button wire:click="resolveDestination" class="btn btn-secondary">Find</button>
+                </div>
+                @error('destinationId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+            </div>
+
+            @if ($destinationId !== '' && $this->suggestedLocation)
+                <div class="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 px-4 py-3">
+                    <p class="text-sm text-emerald-800 dark:text-emerald-300 font-medium">
+                        Destination confirmed: {{ $this->suggestedLocation->code }}
                     </p>
-
-                    <div class="space-y-4 flex-1">
-                        <div>
-                            <label class="block text-[11px] uppercase tracking-wider text-slate-400 mb-1.5">Source LPN</label>
-                            <div class="flex items-center justify-between bg-slate-900 border border-slate-800 rounded-xl px-3 py-2.5">
-                                <span class="font-mono text-sm text-simba-300">{{ $activeTask['lpn'] }}</span>
-                                <x-ui.icon name="check" class="w-4 h-4 text-emerald-400" />
-                            </div>
-                        </div>
-                        <div class="p-4 bg-slate-900 rounded-xl border border-slate-800 space-y-2 text-sm">
-                            <div class="flex justify-between"><span class="text-slate-400">SKU</span><span class="font-mono font-semibold">{{ $activeTask['sku'] }}</span></div>
-                            <div class="flex justify-between"><span class="text-slate-400">Item</span><span>{{ $activeTask['item'] }}</span></div>
-                            <div class="flex justify-between"><span class="text-slate-400">Quantity</span><span class="font-semibold tabular-nums">{{ number_format($activeTask['qty']) }} bags</span></div>
-                            <div class="flex justify-between pt-2 border-t border-slate-800">
-                                <span class="text-slate-400">Target bin</span>
-                                <span class="font-mono font-bold text-simba-300">{{ $activeTask['targetBin'] }}</span>
-                            </div>
-                        </div>
-                        <div>
-                            <label class="block text-[11px] uppercase tracking-wider text-slate-400 mb-1.5">Scan target bin</label>
-                            <input
-                                wire:model="scanInput"
-                                wire:keydown.enter="confirmPutaway"
-                                type="text"
-                                placeholder="Scan or type bin code"
-                                class="w-full bg-slate-900 border-2 border-simba-600 rounded-xl px-3 py-2.5 text-sm text-white font-mono uppercase focus:outline-none focus:ring-4 focus:ring-simba-600/30"
-                            >
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-3 gap-2 mt-6">
-                        <button wire:click="skipTask" class="py-3 rounded-xl bg-slate-800 text-slate-300 text-sm font-semibold hover:bg-slate-700">Skip</button>
-                        <button wire:click="confirmPutaway" class="col-span-2 py-3 rounded-xl bg-simba-600 hover:bg-simba-700 text-white text-sm font-semibold">Confirm Put-Away</button>
-                    </div>
                 </div>
-            </div>
-        </div>
+            @endif
 
-        {{-- Queue --}}
-        <div class="xl:col-span-3 space-y-6">
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Put-Away Queue</h3>
-                    <span class="badge badge-blue">{{ count($queue) }} open</span>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="table">
-                        <thead>
-                            <tr><th>Task</th><th>LPN</th><th>SKU</th><th class="text-right">Qty</th><th>Target Bin</th><th>Status</th></tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($queue as $task)
-                                <tr>
-                                    <td class="mono font-semibold">{{ $task['ref'] }}</td>
-                                    <td class="mono">{{ $task['lpn'] }}</td>
-                                    <td class="mono">{{ $task['sku'] }}</td>
-                                    <td class="text-right tabular-nums">{{ number_format($task['qty']) }}</td>
-                                    <td class="mono {{ $task['label'] === 'Active' ? 'text-simba-600 font-semibold' : '' }}">{{ $task['bin'] }}</td>
-                                    <td><span class="badge {{ $task['badge'] }}"><span class="dot"></span>{{ $task['label'] }}</span></td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="alert-info">
-                <x-ui.icon name="info" class="w-5 h-5 shrink-0" />
-                <p>Scan the target bin label. The system rejects any bin that does not match the directed location, which keeps stock positions accurate.</p>
+            <div class="flex justify-end gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <button wire:click="closeExecute" class="btn btn-secondary">Cancel</button>
+                <button wire:click="executeTask" class="btn btn-primary"
+                        @disabled($destinationId === '')>
+                    <x-ui.icon name="check" class="w-4 h-4" /> Confirm Putaway
+                </button>
             </div>
         </div>
     </div>
+    @endif
 </div>

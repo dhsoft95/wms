@@ -5,7 +5,7 @@
             'success' => 'border-l-emerald-500 text-emerald-800 dark:text-emerald-300',
             'error'   => 'border-l-red-500 text-red-800 dark:text-red-300',
             'warning' => 'border-l-amber-500 text-amber-800 dark:text-amber-300',
-            default   => 'border-l-blue-500 text-blue-800 dark:text-blue-300',
+            default   => 'border-l-simba-600 text-simba-800 dark:text-simba-300',
         };
         $iconPath = match($type) {
             'success' => 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z',

@@ -9,7 +9,7 @@
 
 @php
 $toneClass = match ($tone) {
-    'info'    => 'text-blue-600   dark:text-blue-400',
+    'info'    => 'text-simba-600  dark:text-simba-400',
     'success' => 'text-green-600  dark:text-green-400',
     'warning' => 'text-amber-600  dark:text-amber-400',
     'danger'  => 'text-red-600    dark:text-red-400',

@@ -283,8 +283,7 @@
                 </p>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full min-w-[780px] text-left text-sm">
+            <x-ui.table class="min-w-[780px]">
 
                     <thead class="text-[11px] font-semibold uppercase tracking-wider
                                   text-slate-500 dark:text-slate-400
@@ -390,8 +389,7 @@
                     @endforelse
                     </tbody>
 
-                </table>
-            </div>
+                </x-ui.table>
         </div>
     @endif
 
@@ -418,8 +416,8 @@
                     </div>
                 </div>
 
-                <div class="overflow-x-auto" wire:loading.class="opacity-50" wire:target="reasonCodeSearch">
-                    <table class="w-full text-left text-sm">
+                <div wire:loading.class="opacity-50" wire:target="reasonCodeSearch">
+                    <x-ui.table>
 
                         <thead class="text-[11px] font-semibold uppercase tracking-wider
                                       text-slate-500 dark:text-slate-400
@@ -484,7 +482,7 @@
                         @endforelse
                         </tbody>
 
-                    </table>
+                    </x-ui.table>
                 </div>
             </div>
 
@@ -599,8 +597,8 @@
                     </div>
                 </div>
 
-                <div class="overflow-x-auto" wire:loading.class="opacity-50" wire:target="uomSearch">
-                    <table class="w-full text-left text-sm">
+                <div wire:loading.class="opacity-50" wire:target="uomSearch">
+                    <x-ui.table>
 
                         <thead class="text-[11px] font-semibold uppercase tracking-wider
                                       text-slate-500 dark:text-slate-400
@@ -657,7 +655,7 @@
                         @endforelse
                         </tbody>
 
-                    </table>
+                    </x-ui.table>
                 </div>
             </div>
 

@@ -2,62 +2,218 @@
 
 namespace App\Livewire\Warehouse\Putaway;
 
+use App\Enums\PutawayTaskStatus;
+use App\Models\Location;
+use App\Models\PutawayTask;
+use App\Models\User;
+use App\Services\Inbound\PutawayEngine;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class Index extends Component
 {
-    public string $scanInput = '';
+    use WithPagination;
 
-    // placeholder data — active task
-    public array $activeTask = [
-        'ref'       => 'PT-8821',
-        'lpn'       => 'LPN-992014',
-        'sku'       => 'SKU-AZ-001',
-        'item'      => 'Flour 25kg',
-        'qty'       => 40,
-        'targetBin' => 'DAR-A-03-02-B',
-        'step'      => 3,
-        'steps'     => 3,
-    ];
+    public string $statusFilter = 'all';
+    public bool   $myTasksOnly  = false;
+    public string $search       = '';
 
-    // placeholder data — queue
-    public array $queue = [
-        ['ref' => 'PT-8821', 'lpn' => 'LPN-992014', 'sku' => 'SKU-AZ-001', 'qty' => 40,    'bin' => 'DAR-A-03-02-B', 'badge' => 'badge-blue',  'label' => 'Active'],
-        ['ref' => 'PT-8822', 'lpn' => 'LPN-992015', 'sku' => 'SKU-AZ-001', 'qty' => 40,    'bin' => 'DAR-A-03-02-C', 'badge' => 'badge-slate', 'label' => 'Queued'],
-        ['ref' => 'PT-8823', 'lpn' => 'LPN-992016', 'sku' => 'SKU-AZ-SUG', 'qty' => 60,    'bin' => 'DAR-B-01-04-A', 'badge' => 'badge-slate', 'label' => 'Queued'],
-        ['ref' => 'PT-8824', 'lpn' => 'LPN-992017', 'sku' => 'SKU-VOD-SIM','qty' => 2000,  'bin' => 'DAR-V-02-01-A', 'badge' => 'badge-slate', 'label' => 'Queued'],
-    ];
+    // Bulk assign modal
+    public bool  $showBulkAssignModal = false;
+    public array $selectedTaskIds     = [];
+    public string $assignToUserId     = '';
 
-    public function confirmPutaway(): void
+    // Execution modal
+    public bool   $showExecuteModal  = false;
+    public ?int   $executingTaskId   = null;
+    public string $scanDestination   = '';
+    public string $destinationId     = '';
+
+    // ─── Lifecycle ────────────────────────────────────────────────────────────
+
+    public function updatedStatusFilter(): void { $this->resetPage(); }
+    public function updatedMyTasksOnly(): void   { $this->resetPage(); }
+    public function updatedSearch(): void        { $this->resetPage(); }
+
+    // ─── Computed ─────────────────────────────────────────────────────────────
+
+    #[Computed]
+    public function tasks(): \Illuminate\Pagination\LengthAwarePaginator
     {
-        $bin = strtoupper(trim($this->scanInput));
+        $query = PutawayTask::with(['grn', 'item', 'fromLocation', 'suggestedLocation', 'actualLocation', 'assignedTo'])
+            ->whereHas('grn'); // must be linked to a GRN
 
-        if ($bin === '') {
-            $this->dispatch('toast', message: 'Scan the destination bin first', type: 'error');
+        if ($this->statusFilter !== 'all') {
+            $query->where('status', $this->statusFilter);
+        }
+
+        if ($this->myTasksOnly) {
+            $query->where('assigned_to', auth()->id());
+        }
+
+        if ($this->search !== '') {
+            $search = '%' . $this->search . '%';
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('item', fn ($sq) => $sq->where('sku', 'like', $search)->orWhere('name', 'like', $search))
+                  ->orWhereHas('grn', fn ($gq) => $gq->where('number', 'like', $search));
+            });
+        }
+
+        return $query->orderByDesc('created_at')->paginate(20);
+    }
+
+    #[Computed]
+    public function statusCounts(): array
+    {
+        $base   = PutawayTask::whereHas('grn');
+        $counts = ['all' => (clone $base)->count()];
+
+        foreach (PutawayTaskStatus::cases() as $status) {
+            $counts[$status->value] = (clone $base)->where('status', $status->value)->count();
+        }
+
+        return $counts;
+    }
+
+    #[Computed]
+    public function statuses(): array
+    {
+        return PutawayTaskStatus::cases();
+    }
+
+    #[Computed]
+    public function users(): \Illuminate\Database\Eloquent\Collection
+    {
+        return User::active()
+            ->whereHas('roles', fn ($q) => $q->whereIn('name', ['storekeeper', 'scanner-operator', 'warehouse-manager']))
+            ->orderBy('name')
+            ->get();
+    }
+
+    #[Computed]
+    public function executingTask(): ?PutawayTask
+    {
+        if ($this->executingTaskId === null) {
+            return null;
+        }
+        return PutawayTask::with(['item', 'fromLocation', 'suggestedLocation', 'grn'])->find($this->executingTaskId);
+    }
+
+    #[Computed]
+    public function suggestedLocation(): ?Location
+    {
+        $task = $this->executingTask;
+        if ($task === null) {
+            return null;
+        }
+
+        if ($this->destinationId !== '') {
+            return Location::find((int) $this->destinationId);
+        }
+
+        return $task->suggestedLocation;
+    }
+
+    // ─── Bulk Assign ──────────────────────────────────────────────────────────
+
+    public function openBulkAssign(): void
+    {
+        $this->showBulkAssignModal = true;
+    }
+
+    public function closeBulkAssign(): void
+    {
+        $this->showBulkAssignModal = false;
+        $this->selectedTaskIds    = [];
+        $this->assignToUserId     = '';
+    }
+
+    public function bulkAssign(): void
+    {
+        $this->validate([
+            'assignToUserId'   => ['required', 'exists:users,id'],
+            'selectedTaskIds'  => ['required', 'array', 'min:1'],
+        ]);
+
+        $assignee = User::findOrFail((int) $this->assignToUserId);
+        $tasks    = PutawayTask::whereIn('id', $this->selectedTaskIds)->get();
+
+        $count = app(PutawayEngine::class)->bulkAssign($tasks, $assignee, auth()->user());
+        $this->closeBulkAssign();
+        $this->dispatch('toast', message: "{$count} task(s) assigned to {$assignee->name}.", type: 'success');
+    }
+
+    // ─── Execute ──────────────────────────────────────────────────────────────
+
+    public function openExecute(int $taskId): void
+    {
+        $this->executingTaskId = $taskId;
+        $this->showExecuteModal = true;
+        $this->scanDestination = '';
+        $this->destinationId   = '';
+    }
+
+    public function closeExecute(): void
+    {
+        $this->showExecuteModal = false;
+        $this->executingTaskId  = null;
+        $this->scanDestination  = '';
+        $this->destinationId    = '';
+    }
+
+    public function resolveDestination(): void
+    {
+        $code = trim($this->scanDestination);
+        if ($code === '') {
             return;
         }
 
-        if ($bin !== $this->activeTask['targetBin']) {
-            $this->dispatch('toast', message: 'Bin mismatch. Expected ' . $this->activeTask['targetBin'] . ', got ' . $bin, type: 'error');
-            return;
+        $location = Location::where('code', $code)
+            ->orWhere('barcode', $code)
+            ->where('type', 'storage')
+            ->where('status', 'active')
+            ->first();
+
+        if ($location) {
+            $this->destinationId   = (string) $location->id;
+            $this->scanDestination = $location->code;
+            $this->dispatch('toast', message: "Location found: {$location->code}", type: 'info');
+        } else {
+            $this->dispatch('toast', message: "Location not found: {$code}", type: 'error');
         }
-
-        $this->dispatch('toast', message: 'Put-away confirmed for ' . $this->activeTask['lpn'], type: 'success');
-        $this->scanInput = '';
     }
 
-    public function skipTask(): void
+    public function executeTask(): void
     {
-        $this->dispatch('toast', message: 'Task skipped', type: 'info');
+        $this->authorize('execute', PutawayTask::findOrFail($this->executingTaskId));
+
+        $this->validate([
+            'destinationId' => ['required', 'exists:locations,id'],
+        ]);
+
+        try {
+            $task        = PutawayTask::findOrFail($this->executingTaskId);
+            $destination = Location::findOrFail((int) $this->destinationId);
+
+            app(PutawayEngine::class)->execute($task, $destination, auth()->user());
+            $this->closeExecute();
+            $this->dispatch('toast', message: 'Putaway complete!', type: 'success');
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: 'Error: ' . $e->getMessage(), type: 'error');
+        }
     }
+
+    // ─── Render ───────────────────────────────────────────────────────────────
 
     public function render(): View
     {
         return view('livewire.warehouse.putaway.index')
             ->layout('components.layouts.app', [
-                'title'           => 'Put-Away (RF Handheld)',
-                'breadcrumbGroup' => 'Warehouse Operations',
+                'title'           => 'Put-Away',
+                'breadcrumbGroup' => 'Inbound',
             ]);
     }
 }

@@ -11,13 +11,26 @@ class RolePermissionSeeder extends Seeder
 {
     // Full permission list — module.action
     private const PERMISSIONS = [
-        // Inbound
-        'containers.view', 'containers.create', 'containers.update', 'containers.delete',
-        'receiving.view',  'receiving.create',  'receiving.update',  'receiving.execute', 'receiving.approve',
-        'inspections.view','inspections.create','inspections.approve',
+        // Inbound — Containers
+        'containers.view', 'containers.create', 'containers.update',
+        'containers.arrive', 'containers.park', 'containers.unload',
+        'containers.release', 'containers.cancel',
+        'containers.documents', 'containers.documents.delete',
+        'containers.discrepancies', 'containers.discrepancies.resolve',
+        'containers.override-number',
+
+        // Inbound — GRN (replaces old receiving.*)
+        'grn.view', 'grn.create', 'grn.receive', 'grn.confirm',
+        'grn.variance.approve', 'grn.cancel', 'grn.close',
+
+        // LPN
+        'lpn.print',
+
+        // Inspections
+        'inspections.view', 'inspections.create', 'inspections.approve',
 
         // Warehouse
-        'putaway.view',    'putaway.execute',
+        'putaway.view', 'putaway.execute', 'putaway.assign',
         'movements.view',  'movements.create',  'movements.approve',
         'transfers.view',  'transfers.create',  'transfers.approve',
 
@@ -42,7 +55,7 @@ class RolePermissionSeeder extends Seeder
         'traceability.view',
         'audit-logs.view',
 
-        // Items (SKU master — replaces old skus.*)
+        // Items (SKU master)
         'items.view',      'items.create',      'items.update',      'items.delete',
 
         // Partners
@@ -78,10 +91,17 @@ class RolePermissionSeeder extends Seeder
         'system-admin' => [], // bypasses via Gate::before — seeded empty intentionally
 
         'warehouse-manager' => [
-            'containers.view', 'containers.create', 'containers.update', 'containers.delete',
-            'receiving.view', 'receiving.create', 'receiving.update', 'receiving.execute', 'receiving.approve',
+            'containers.view', 'containers.create', 'containers.update',
+            'containers.arrive', 'containers.park', 'containers.unload',
+            'containers.release', 'containers.cancel',
+            'containers.documents', 'containers.documents.delete',
+            'containers.discrepancies', 'containers.discrepancies.resolve',
+            'containers.override-number',
+            'grn.view', 'grn.create', 'grn.receive', 'grn.confirm',
+            'grn.variance.approve', 'grn.cancel', 'grn.close',
+            'lpn.print',
             'inspections.view', 'inspections.create', 'inspections.approve',
-            'putaway.view', 'putaway.execute',
+            'putaway.view', 'putaway.execute', 'putaway.assign',
             'movements.view', 'movements.create', 'movements.approve',
             'transfers.view', 'transfers.create', 'transfers.approve',
             'inventory.view', 'inventory.create', 'inventory.update', 'inventory.delete',
@@ -97,30 +117,29 @@ class RolePermissionSeeder extends Seeder
             'partners.view', 'partners.create', 'partners.update',
             'locations.view', 'locations.create', 'locations.update', 'locations.block',
             'virtual-warehouses.view',
-            // Stock Ledger (Module 2)
             'stock.view', 'stock.movements.view', 'stock.verify',
-            // Module 2B
             'serials.view', 'imports.manage',
         ],
 
         'department-user' => [
-            // Scoped to assigned virtual warehouses via BelongsToVirtualWarehouse global scope
+            'containers.view',
+            'grn.view',
             'inventory.view',
             'orders.view', 'orders.create', 'orders.update',
             'items.view',
             'virtual-warehouses.view',
-            // Stock Ledger (Module 2)
             'stock.view', 'stock.movements.view',
-            // Module 2B
             'serials.view',
         ],
 
         'storekeeper' => [
-            // Unrestricted by VW — executes receiving, putaway and picking for every department
-            'containers.view',
-            'receiving.view', 'receiving.create', 'receiving.update', 'receiving.execute',
+            'containers.view', 'containers.arrive', 'containers.park', 'containers.unload',
+            'containers.documents', 'containers.discrepancies',
+            'grn.view', 'grn.create', 'grn.receive', 'grn.confirm',
+            'grn.cancel',
+            'lpn.print',
             'inspections.view', 'inspections.create',
-            'putaway.view', 'putaway.execute',
+            'putaway.view', 'putaway.execute', 'putaway.assign',
             'movements.view', 'movements.create',
             'inventory.view',
             'adjustments.view', 'adjustments.create',
@@ -132,14 +151,11 @@ class RolePermissionSeeder extends Seeder
             'partners.view',
             'locations.view',
             'virtual-warehouses.view',
-            // Stock Ledger (Module 2)
             'stock.view', 'stock.movements.view',
-            // Module 2B
             'serials.view',
         ],
 
         'scanner-operator' => [
-            // Unrestricted by VW — scans for every department
             'inventory.view',
             'scan.receive',
             'scan.putaway',
@@ -152,7 +168,7 @@ class RolePermissionSeeder extends Seeder
 
         'viewer-auditor' => [
             'containers.view',
-            'receiving.view',
+            'grn.view',
             'inspections.view',
             'putaway.view',
             'movements.view',
@@ -171,9 +187,7 @@ class RolePermissionSeeder extends Seeder
             'partners.view',
             'locations.view',
             'virtual-warehouses.view',
-            // Stock Ledger (Module 2)
             'stock.view', 'stock.movements.view',
-            // Module 2B
             'serials.view',
         ],
     ];
@@ -182,7 +196,13 @@ class RolePermissionSeeder extends Seeder
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // Create all permissions
+        // Remove old receiving.* permissions
+        $oldPerms = ['receiving.view', 'receiving.create', 'receiving.update', 'receiving.execute', 'receiving.approve'];
+        foreach ($oldPerms as $name) {
+            Permission::where('name', $name)->where('guard_name', 'web')->delete();
+        }
+
+        // Create all new permissions
         foreach (self::PERMISSIONS as $name) {
             Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
@@ -193,6 +213,10 @@ class RolePermissionSeeder extends Seeder
             $role->syncPermissions($permNames);
         }
 
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+        // Delete legacy permissions
+        Permission::where('name', 'containers.delete')->where('guard_name', 'web')->delete();
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
     }
 }

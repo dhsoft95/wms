@@ -12,8 +12,7 @@
         <div class="card-header">
             <h3 class="card-title">Roles</h3>
         </div>
-        <div class="overflow-x-auto">
-            <table class="table">
+        <x-ui.table>
                 <thead>
                     <tr>
                         <th class="px-4 py-3">Role</th>
@@ -50,8 +49,7 @@
                         </tr>
                     @endforeach
                 </tbody>
-            </table>
-        </div>
+        </x-ui.table>
     </div>
 
     {{-- Edit panel --}}

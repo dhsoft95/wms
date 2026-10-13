@@ -43,6 +43,7 @@ class Edit extends Component
     public bool $trackBatch  = false;
     public bool $trackExpiry = false;
     public bool $trackSerial = false;
+    public string $preferredZoneId = '';
 
     // Stock levels tab
     public string $minStock = '';
@@ -67,9 +68,10 @@ class Edit extends Component
         $this->height = (string) ($item->height ?? '');
         $this->weight = (string) ($item->weight ?? '');
 
-        $this->trackBatch  = (bool) $item->track_batch;
-        $this->trackExpiry = (bool) $item->track_expiry;
-        $this->trackSerial = (bool) $item->track_serial;
+        $this->trackBatch      = (bool) $item->track_batch;
+        $this->trackExpiry     = (bool) $item->track_expiry;
+        $this->trackSerial     = (bool) $item->track_serial;
+        $this->preferredZoneId = (string) ($item->preferred_zone_id ?? '');
 
         $this->minStock = (string) ($item->min_stock ?? '');
         $this->maxStock = (string) ($item->max_stock ?? '');
@@ -116,6 +118,15 @@ class Edit extends Component
     public function virtualWarehouses(): \Illuminate\Database\Eloquent\Collection
     {
         return VirtualWarehouse::active()->orderBy('name')->get();
+    }
+
+    #[Computed]
+    public function zones(): \Illuminate\Database\Eloquent\Collection
+    {
+        return \App\Models\Location::where('level', \App\Enums\LocationLevel::Zone->value)
+            ->where('status', 'active')
+            ->orderBy('code')
+            ->get();
     }
 
     // ─── UoM rows ─────────────────────────────────────────────────────────────
@@ -185,6 +196,7 @@ class Edit extends Component
                 'track_batch'                  => $this->trackBatch,
                 'track_expiry'                 => $this->trackExpiry,
                 'track_serial'                 => $this->trackSerial,
+                'preferred_zone_id'            => $this->preferredZoneId ?: null,
                 'min_stock'                    => $this->minStock ?: null,
                 'max_stock'                    => $this->maxStock ?: null,
                 'is_active'                    => $this->isActive,
@@ -211,6 +223,7 @@ class Edit extends Component
             'width'                    => ['nullable', 'numeric', 'min:0'],
             'height'                   => ['nullable', 'numeric', 'min:0'],
             'weight'                   => ['nullable', 'numeric', 'min:0'],
+            'preferredZoneId'          => ['nullable', 'exists:locations,id'],
             'minStock'                 => ['nullable', 'numeric', 'min:0'],
             'maxStock'                 => ['nullable', 'numeric', 'min:0'],
             'uoms.*.uom_id'            => ['nullable', 'exists:units_of_measure,id'],

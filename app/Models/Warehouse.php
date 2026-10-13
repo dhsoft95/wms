@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -11,7 +12,14 @@ class Warehouse extends Model
 {
     use LogsActivity;
 
-    protected $fillable = ['code', 'name', 'address', 'is_active'];
+    protected $fillable = [
+        'code',
+        'name',
+        'address',
+        'is_active',
+        'default_receiving_dock_location_id',
+        'default_quarantine_location_id',
+    ];
 
     protected function casts(): array
     {
@@ -30,6 +38,16 @@ class Warehouse extends Model
     public function rootLocations(): HasMany
     {
         return $this->hasMany(Location::class)->whereNull('parent_id');
+    }
+
+    public function defaultReceivingDock(): BelongsTo
+    {
+        return $this->belongsTo(Location::class, 'default_receiving_dock_location_id');
+    }
+
+    public function defaultQuarantineLocation(): BelongsTo
+    {
+        return $this->belongsTo(Location::class, 'default_quarantine_location_id');
     }
 
     // ─── Scopes ───────────────────────────────────────────────────────────────

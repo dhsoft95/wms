@@ -33,6 +33,7 @@ class Item extends Model
         'min_stock',
         'max_stock',
         'default_virtual_warehouse_id',
+        'preferred_zone_id',
         'is_active',
     ];
 
@@ -77,6 +78,11 @@ class Item extends Model
     public function defaultVirtualWarehouse(): BelongsTo
     {
         return $this->belongsTo(VirtualWarehouse::class, 'default_virtual_warehouse_id');
+    }
+
+    public function preferredZone(): BelongsTo
+    {
+        return $this->belongsTo(Location::class, 'preferred_zone_id');
     }
 
     // ─── Methods ──────────────────────────────────────────────────────────────

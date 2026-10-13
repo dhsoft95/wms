@@ -11,8 +11,7 @@
     </div>
 
     <div class="card">
-        <div class="overflow-x-auto">
-            <table class="table">
+        <x-ui.table>
                 <thead>
                     <tr><th>Bin</th><th>SKU</th><th>Description</th><th class="text-right">System Qty</th><th>Counted Qty</th><th>Variance</th></tr>
                 </thead>
@@ -40,7 +39,6 @@
                         </tr>
                     @endforeach
                 </tbody>
-            </table>
-        </div>
+        </x-ui.table>
     </div>
 </div>

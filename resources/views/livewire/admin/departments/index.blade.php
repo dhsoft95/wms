@@ -42,8 +42,8 @@
         </div>
 
         {{-- Table --}}
-        <div class="overflow-x-auto" wire:loading.class="opacity-50">
-            <table class="w-full min-w-[960px] text-left text-sm">
+        <div wire:loading.class="opacity-50">
+            <x-ui.table class="min-w-[960px]">
 
                 <thead class="text-[11px] font-semibold uppercase tracking-wider
                               text-slate-500 dark:text-slate-400
@@ -226,7 +226,7 @@
                 @endforelse
                 </tbody>
 
-            </table>
+            </x-ui.table>
         </div>
 
     </div>

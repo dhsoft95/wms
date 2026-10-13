@@ -31,8 +31,8 @@
             </div>
 
             {{-- Table --}}
-            <div class="overflow-x-auto" wire:loading.class="opacity-50">
-                <table class="table min-w-[560px]">
+            <div wire:loading.class="opacity-50">
+                <x-ui.table class="min-w-[560px]">
 
                     <thead>
                     <tr>
@@ -105,7 +105,7 @@
                         @endfor
                     </tbody>
 
-                </table>
+                </x-ui.table>
             </div>
 
         </div>

@@ -23,7 +23,7 @@ enum SerialStatus: string
     {
         return match($this) {
             self::InStock    => 'green',
-            self::Dispatched => 'blue',
+            self::Dispatched => 'neutral',
             self::WrittenOff => 'red',
         };
     }
