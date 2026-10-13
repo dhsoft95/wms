@@ -3,13 +3,14 @@
 namespace App\Models;
 
 use App\Enums\ReasonCodeAppliesTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class ReasonCode extends Model
 {
-    use LogsActivity;
+    use HasFactory, LogsActivity;
 
     protected $fillable = ['code', 'name', 'applies_to', 'is_active'];
 

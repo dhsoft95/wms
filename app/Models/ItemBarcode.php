@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ItemBarcodeType;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Activitylog\LogOptions;
@@ -10,7 +11,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class ItemBarcode extends Model
 {
-    use LogsActivity;
+    use HasFactory, LogsActivity;
 
     protected $table = 'item_barcodes';
 

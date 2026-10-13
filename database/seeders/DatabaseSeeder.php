@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
             StockDemoSeeder::class,
             ContainerDemoSeeder::class,
             ReceivingDemoSeeder::class,
+            LabelsSeeder::class,
         ]);
 
         // Ensure the developer account is active and has system-admin role

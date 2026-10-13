@@ -217,6 +217,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/{import}',                  \App\Livewire\Admin\DataImport\Show::class)->name('show');
     });
 
+    // ─── Label Templates ──────────────────────────────────────────────────────────
+    Route::get('/admin/labels/templates', \App\Livewire\Admin\Labels\Templates\Index::class)
+        ->middleware('permission:labels.templates.manage')->name('admin.labels.templates.index');
+    Route::get('/admin/labels/templates/create', \App\Livewire\Admin\Labels\Templates\Create::class)
+        ->middleware('permission:labels.templates.manage')->name('admin.labels.templates.create');
+    Route::get('/admin/labels/templates/{template}/edit', \App\Livewire\Admin\Labels\Templates\Edit::class)
+        ->middleware('permission:labels.templates.manage')->name('admin.labels.templates.edit');
+
+    // ─── Printers ─────────────────────────────────────────────────────────────────
+    Route::get('/admin/printers', \App\Livewire\Admin\Labels\Printers\Index::class)
+        ->middleware('permission:printers.manage')->name('admin.printers.index');
+    Route::get('/admin/printers/create', \App\Livewire\Admin\Labels\Printers\CreateEdit::class)
+        ->middleware('permission:printers.manage')->name('admin.printers.create');
+    Route::get('/admin/printers/{printer}/edit', \App\Livewire\Admin\Labels\Printers\CreateEdit::class)
+        ->middleware('permission:printers.manage')->name('admin.printers.edit');
+
+    // ─── Scanner Devices ──────────────────────────────────────────────────────────
+    Route::get('/admin/scanner-devices', \App\Livewire\Admin\ScannerDevices\Index::class)
+        ->middleware('permission:scanner-devices.manage')->name('admin.scanner-devices.index');
+
+    // ─── Label Print Log ──────────────────────────────────────────────────────────
+    Route::get('/reports/labels/log', \App\Livewire\Reports\Labels\Log::class)
+        ->middleware('permission:labels.log.view')->name('reports.labels.log');
+
     // Legacy SKU redirect — keep for backward compatibility
     Route::redirect('/admin/skus', '/admin/items')->name('admin.skus.index');
 
@@ -231,12 +255,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // ─── Scanner operator portal ──────────────────────────────────────────────────
-Route::middleware(['auth', 'permission:scan.receive|scan.putaway|scan.pick|scan.stock-lookup'])->prefix('scan')->name('scan.')->group(function () {
+Route::middleware(['auth', 'permission:scan.receive|scan.putaway|scan.pick|scan.move|scan.lookup|scan.stock-lookup'])->prefix('scan')->name('scan.')->group(function () {
     Route::get('/',            \App\Livewire\Scan\Home::class)->name('home');
     Route::get('/receive',     \App\Livewire\Scan\Receive::class)->name('receive');
     Route::get('/putaway',     \App\Livewire\Scan\Putaway::class)->name('putaway');
     Route::get('/pick',        \App\Livewire\Scan\Pick::class)->name('pick');
-    Route::get('/stock-lookup',\App\Livewire\Scan\StockLookup::class)->name('stock-lookup');
+    Route::get('/move',        \App\Livewire\Scan\Move::class)->name('move');
+    Route::get('/lookup',      \App\Livewire\Scan\Lookup::class)->name('lookup');
+    Route::get('/stock-lookup',\App\Livewire\Scan\Lookup::class)->name('stock-lookup');
 });
 
 require __DIR__.'/auth.php';

@@ -10,13 +10,9 @@ use App\Models\Inventory\Lpn;
 use App\Models\Warehouse;
 use App\Services\Foundation\DocumentNumber;
 use Illuminate\Support\Facades\DB;
-use Picqer\Barcode\BarcodeGeneratorSVG;
 
 final class LpnService
 {
-    /**
-     * Generate a new LPN and associate it with a GRN.
-     */
     public function generate(Grn $grn): Lpn
     {
         return DB::transaction(function () use ($grn) {
@@ -31,15 +27,11 @@ final class LpnService
         });
     }
 
-    /**
-     * Render an A4 HTML print page with Code128 SVG barcodes for the given LPNs.
-     */
     public function printSheet(array $lpnIds, Grn $grn): string
     {
-        $lpns      = Lpn::with('grn.warehouse')->whereIn('id', $lpnIds)->get();
-        $generator = new BarcodeGeneratorSVG();
+        $lpns    = Lpn::with('grn.warehouse')->whereIn('id', $lpnIds)->get();
+        $barcode = new \Com\Tecnick\Barcode\Barcode();
 
-        // Track print count
         Lpn::whereIn('id', $lpnIds)->each(function (Lpn $lpn) {
             $lpn->printed_at  = now();
             $lpn->print_count = $lpn->print_count + 1;
@@ -48,7 +40,8 @@ final class LpnService
 
         $labels = [];
         foreach ($lpns as $lpn) {
-            $svg      = $generator->getBarcode($lpn->code, BarcodeGeneratorSVG::TYPE_CODE_128);
+            $bobj     = $barcode->getBarcodeObj('C128', $lpn->code, -4, -60, 'black');
+            $svg      = $bobj->getSvgCode();
             $labels[] = [
                 'lpn'       => $lpn,
                 'svg'       => $svg,

@@ -15,10 +15,11 @@ class LocationFactory extends Factory
     public function definition(): array
     {
         return [
-            'code'   => strtoupper($this->faker->unique()->bothify('LOC-##??')),
-            'type'   => 'storage',
-            'status' => 'active',
-            'level'  => 'bin',
+            'code'         => strtoupper($this->faker->unique()->bothify('LOC-##??')),
+            'segment_code' => strtoupper($this->faker->bothify('??##')),
+            'type'         => 'storage',
+            'status'       => 'active',
+            'level'        => 'bin',
         ];
     }
 

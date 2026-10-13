@@ -9,15 +9,19 @@ use App\Enums\Inventory\StockStatus;
 use App\Models\Item;
 use App\Models\Location;
 use App\Models\VirtualWarehouse;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class SerialNumber extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'item_id',
         'serial_no',
+        'serial',
         'batch_id',
         'location_id',
         'virtual_warehouse_id',
@@ -27,6 +31,17 @@ class SerialNumber extends Model
         'first_received_at',
         'last_transaction_id',
     ];
+
+    // Allow 'serial' as an alias for 'serial_no' (used by tests and factories)
+    public function setSerialAttribute(string $value): void
+    {
+        $this->attributes['serial_no'] = static::normalize($value);
+    }
+
+    public function getSerialAttribute(): ?string
+    {
+        return $this->attributes['serial_no'] ?? null;
+    }
 
     protected function casts(): array
     {

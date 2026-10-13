@@ -84,6 +84,16 @@ class RolePermissionSeeder extends Seeder
 
         // Data Import (Module 2B)
         'imports.manage',
+
+        // Labels & Printing (Module 5)
+        'labels.templates.manage',
+        'labels.print',
+        'labels.reprint',
+        'labels.log.view',
+        'printers.manage',
+        'scanner-devices.manage',
+        'scan.move',
+        'scan.lookup',
     ];
 
     // Role → permission mapping
@@ -119,6 +129,8 @@ class RolePermissionSeeder extends Seeder
             'virtual-warehouses.view',
             'stock.view', 'stock.movements.view', 'stock.verify',
             'serials.view', 'imports.manage',
+            'labels.templates.manage', 'labels.print', 'labels.reprint', 'labels.log.view',
+            'printers.manage', 'scanner-devices.manage', 'scan.move', 'scan.lookup',
         ],
 
         'department-user' => [
@@ -153,6 +165,7 @@ class RolePermissionSeeder extends Seeder
             'virtual-warehouses.view',
             'stock.view', 'stock.movements.view',
             'serials.view',
+            'labels.print', 'labels.log.view', 'scan.move', 'scan.lookup',
         ],
 
         'scanner-operator' => [
@@ -164,6 +177,7 @@ class RolePermissionSeeder extends Seeder
             'items.view',
             'locations.view',
             'virtual-warehouses.view',
+            'labels.print', 'scan.move', 'scan.lookup',
         ],
 
         'viewer-auditor' => [
@@ -189,6 +203,7 @@ class RolePermissionSeeder extends Seeder
             'virtual-warehouses.view',
             'stock.view', 'stock.movements.view',
             'serials.view',
+            'labels.log.view',
         ],
     ];
 

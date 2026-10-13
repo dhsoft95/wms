@@ -8,6 +8,7 @@ use App\Enums\GrnSource;
 use App\Enums\GrnStatus;
 use App\Enums\GrnVarianceType;
 use App\Models\Inventory\Lpn;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -17,7 +18,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Grn extends Model
 {
-    use SoftDeletes, LogsActivity;
+    use HasFactory, SoftDeletes, LogsActivity;
 
     protected $table = 'grns';
 

@@ -3,9 +3,7 @@
     $brandName      = $brand['name'] ?? config('app.name');
     $subtitle       = $brand['subtitle'] ?? 'Warehouse Management System';
     $initials       = strtoupper($brand['initials'] ?? substr($brandName, 0, 2));
-    $logo           = $brand['logo']
-                      ?? (file_exists(public_path('images/logo/logo.png')) ? 'images/logo/logo.png' : null)
-                      ?? (file_exists(public_path('images/logo.svg'))      ? 'images/logo.svg'      : null);
+    $logo           = $brand['logo'] ?? 'images/logo/logo.png';
     $authBg         = $brand['auth_background'] ?? 'images/auth/warehouse-bg.jpg';
     $headline       = $brand['headline'] ?? 'Warehouse operations,';
     $headlineAccent = $brand['headline_accent'] ?? 'from yard to doorstep.';
@@ -46,13 +44,11 @@
 
             {{-- Brand block --}}
             <a href="{{ url('/') }}" class="flex items-center gap-4 no-underline w-fit" wire:navigate>
-                @if ($logo)
-                    <img src="{{ asset($logo) }}" alt="{{ $brandName }}" class="h-12 w-auto">
-                @else
-                    <div class="w-12 h-12 rounded-2xl glass-brand flex items-center justify-center font-bold text-white text-lg shrink-0">
-                        {{ $initials }}
-                    </div>
-                @endif
+                <img src="{{ asset($logo) }}" alt="{{ $brandName }}" class="h-12 w-auto"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                <div class="w-12 h-12 rounded-2xl glass-brand items-center justify-center font-bold text-white text-lg shrink-0" style="display:none">
+                    {{ $initials }}
+                </div>
                 <div>
                     <p class="text-xl font-bold leading-tight text-white">{{ $brandName }}</p>
                     <p class="text-xs text-white/70 tracking-wide mt-0.5">{{ $subtitle }}</p>
@@ -100,13 +96,11 @@
 
             {{-- Mobile brand block (shown below lg) --}}
             <div class="lg:hidden flex items-center gap-3 mb-5 sm:mb-8 text-white">
-                @if ($logo)
-                    <img src="{{ asset($logo) }}" alt="{{ $brandName }}" class="h-8 sm:h-9 w-auto">
-                @else
-                    <div class="w-9 h-9 rounded-xl glass-brand flex items-center justify-center font-bold text-white text-sm shrink-0">
-                        {{ $initials }}
-                    </div>
-                @endif
+                <img src="{{ asset($logo) }}" alt="{{ $brandName }}" class="h-8 sm:h-9 w-auto"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                <div class="w-9 h-9 rounded-xl glass-brand items-center justify-center font-bold text-white text-sm shrink-0" style="display:none">
+                    {{ $initials }}
+                </div>
                 <p class="font-bold text-white text-base sm:text-lg">{{ $brandName }}</p>
             </div>
 

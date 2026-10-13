@@ -12,12 +12,17 @@ $allNavItems  = collect($navGroups)
     ->values()
     ->all();
 
+$navGroupPaths = collect($navGroups)->map(fn ($g) => [
+    'key'   => $g['key'],
+    'paths' => collect($g['items'])->map(fn ($i) => parse_url($i['url'], PHP_URL_PATH))->values()->all(),
+])->values()->all();
+
 $branding  = config('wms.branding');
 $brandName = $branding['name'] ?? config('app.name', 'Warehouse');
 $brandSub  = $branding['subtitle'] ?? 'Warehouse Management System';
 $initials  = $branding['initials'] ?? 'WMS';
 $logoPath  = $branding['logo'] ?? null;
-$hasLogo   = $logoPath && file_exists(public_path($logoPath));
+$hasLogo   = !empty($logoPath);
 $appBg     = $branding['app_background'];
 $authBg    = $branding['auth_background'];
 $bgImage   = asset(file_exists(public_path($appBg)) ? $appBg : $authBg);
@@ -31,6 +36,8 @@ $bgImage   = asset(file_exists(public_path($appBg)) ? $appBg : $authBg);
         darkMode: localStorage.getItem('wms_theme') === 'dark',
         commandOpen: false,
         openGroups: $persist({}).as('wms_nav_groups'),
+        currentPath: window.location.pathname,
+        navGroupPaths: @js($navGroupPaths),
         init() {
             // Reset persisted sidebar state when a different user logs in so that
             // user B never inherits user A's rail/collapse preference.
@@ -60,6 +67,30 @@ $bgImage   = asset(file_exists(public_path($appBg)) ? $appBg : $authBg);
                     this.commandOpen = !this.commandOpen;
                 }
             });
+
+            const syncActiveGroup = () => {
+                this.currentPath = window.location.pathname;
+                const activeKey = this.activeGroupKey();
+                if (activeKey !== null && this.openGroups[activeKey] === false) {
+                    const g = { ...this.openGroups };
+                    g[activeKey] = true;
+                    this.openGroups = g;
+                }
+            };
+            document.addEventListener('livewire:navigated', syncActiveGroup);
+            syncActiveGroup();
+        },
+        isNavLinkActive(path) {
+            const p = this.currentPath;
+            return p === path || (path.length > 1 && p.startsWith(path + '/'));
+        },
+        activeGroupKey() {
+            for (const group of this.navGroupPaths) {
+                for (const path of group.paths) {
+                    if (this.isNavLinkActive(path)) return group.key;
+                }
+            }
+            return null;
         },
         isGroupOpen(key) { return this.openGroups[key] !== false; },
         toggleGroup(key) {
@@ -128,7 +159,12 @@ $bgImage   = asset(file_exists(public_path($appBg)) ? $appBg : $authBg);
         >
             <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-3 min-w-0">
                 @if ($hasLogo)
-                    <img src="{{ asset($logoPath) }}" alt="{{ $brandName }}" class="w-9 h-9 rounded-xl object-contain shrink-0">
+                    <img src="{{ asset($logoPath) }}" alt="{{ $brandName }}"
+                         class="w-9 h-9 rounded-xl object-contain shrink-0"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                    <div class="w-9 h-9 rounded-xl glass-brand items-center justify-center font-black text-[12px] tracking-tight text-white shrink-0" style="display:none">
+                        {{ $initials }}
+                    </div>
                 @else
                     <div class="w-9 h-9 rounded-xl glass-brand flex items-center justify-center font-black text-[12px] tracking-tight text-white shrink-0">
                         {{ $initials }}
