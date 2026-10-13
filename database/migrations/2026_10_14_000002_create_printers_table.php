@@ -12,8 +12,8 @@ return new class extends Migration {
             $table->string('name');
             $table->string('kind', 30);
             $table->string('ip', 45)->nullable();
-            $table->smallInteger('port')->default(9100);
-            $table->tinyInteger('dpi')->default(203);
+            $table->unsignedSmallInteger('port')->default(9100);
+            $table->unsignedSmallInteger('dpi')->default(203);
             $table->string('location_note')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();

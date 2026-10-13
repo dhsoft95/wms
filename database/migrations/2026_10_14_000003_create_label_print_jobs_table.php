@@ -12,7 +12,7 @@ return new class extends Migration {
             $table->foreignId('label_template_id')->nullable()->constrained('label_templates')->nullOnDelete();
             $table->string('type', 30);
             $table->morphs('printable');
-            $table->tinyInteger('copies')->default(1);
+            $table->unsignedTinyInteger('copies')->default(1);
             $table->foreignId('printer_id')->nullable()->constrained('printers')->nullOnDelete();
             $table->string('output', 10);
             $table->boolean('is_reprint')->default(false);

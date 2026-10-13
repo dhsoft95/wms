@@ -13,7 +13,7 @@ return new class extends Migration {
             $table->string('type', 30);
             $table->decimal('width_mm', 6, 2);
             $table->decimal('height_mm', 6, 2);
-            $table->tinyInteger('dpi')->default(203);
+            $table->unsignedSmallInteger('dpi')->default(203);
             $table->json('elements')->nullable();
             $table->boolean('is_default')->default(false);
             $table->boolean('is_active')->default(true);
