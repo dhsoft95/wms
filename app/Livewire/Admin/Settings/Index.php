@@ -57,6 +57,14 @@ class Index extends Component
     public string $uomName    = '';
     public string $uomType    = '';
 
+    // ─── Outbound Tab ─────────────────────────────────────────────────────────────
+
+    public string $outboundApprovalMode       = 'none';
+    public bool   $outboundAllowPartial       = true;
+    public bool   $outboundAutoBackorder      = true;
+    public string $outboundMinShelfLifeDays   = '0';
+    public string $outboundShortPickBehaviour = 'leave_short';
+
     // ─── Document Sequences (mutable state for inline editing) ───────────────
 
     /** @var array<int, array{prefix: string, padding: int, include_year: bool, reset_yearly: bool}> */
@@ -76,6 +84,12 @@ class Index extends Component
         $this->varianceApprovalThresholdPct = (string) SettingsService::get('operations.variance_approval_threshold_pct', '');
         $this->varianceApprovalThresholdQty = (string) SettingsService::get('operations.variance_approval_threshold_qty', '');
         $this->adjustmentApprovalThreshold  = (string) SettingsService::get('operations.adjustment_approval_threshold', '');
+
+        $this->outboundApprovalMode       = SettingsService::get('outbound.approval_mode', 'none');
+        $this->outboundAllowPartial       = (bool) SettingsService::get('outbound.allow_partial_allocation', true);
+        $this->outboundAutoBackorder      = (bool) SettingsService::get('outbound.auto_backorder', true);
+        $this->outboundMinShelfLifeDays   = (string) SettingsService::get('outbound.min_shelf_life_days', '0');
+        $this->outboundShortPickBehaviour = SettingsService::get('outbound.short_pick_behaviour', 'leave_short');
 
         // Pre-populate sequence data for wire:model binding
         foreach (DocumentSequence::orderBy('type')->get() as $seq) {
@@ -133,6 +147,27 @@ class Index extends Component
         SettingsService::set('operations.adjustment_approval_threshold',   $this->adjustmentApprovalThreshold);
 
         $this->dispatch('toast', message: 'Operations settings saved.', type: 'success');
+    }
+
+    // ─── Outbound ─────────────────────────────────────────────────────────────────
+
+    public function saveOutbound(): void
+    {
+        $this->validate([
+            'outboundApprovalMode'       => 'required|string|in:none,department_head,warehouse_manager,both',
+            'outboundAllowPartial'       => 'boolean',
+            'outboundAutoBackorder'      => 'boolean',
+            'outboundMinShelfLifeDays'   => 'nullable|integer|min:0|max:365',
+            'outboundShortPickBehaviour' => 'required|string|in:reallocate,leave_short',
+        ]);
+
+        SettingsService::set('outbound.approval_mode',            $this->outboundApprovalMode);
+        SettingsService::set('outbound.allow_partial_allocation', $this->outboundAllowPartial ? '1' : '0', 'boolean');
+        SettingsService::set('outbound.auto_backorder',           $this->outboundAutoBackorder ? '1' : '0', 'boolean');
+        SettingsService::set('outbound.min_shelf_life_days',      $this->outboundMinShelfLifeDays ?: '0', 'integer');
+        SettingsService::set('outbound.short_pick_behaviour',     $this->outboundShortPickBehaviour);
+
+        $this->dispatch('toast', message: 'Outbound settings saved.', type: 'success');
     }
 
     // ─── Document Sequences ───────────────────────────────────────────────────

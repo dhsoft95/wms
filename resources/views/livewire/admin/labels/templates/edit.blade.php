@@ -371,7 +371,7 @@
                                     @endphp
                                     <div
                                         class="absolute text-[9px] leading-tight overflow-hidden
-                                            @if($el['kind'] === 'text' || $el['kind'] === 'field') bg-blue-50 dark:bg-blue-900/30 border border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-200 px-0.5
+                                            @if($el['kind'] === 'text' || $el['kind'] === 'field') bg-slate-100 dark:bg-slate-700/50 border border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-200 px-0.5
                                             @elseif($el['kind'] === 'barcode') bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 flex items-center justify-center text-amber-600
                                             @elseif($el['kind'] === 'line') bg-slate-400 dark:bg-slate-500
                                             @elseif($el['kind'] === 'box') border-2 border-slate-500 dark:border-slate-400

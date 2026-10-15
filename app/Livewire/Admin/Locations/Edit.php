@@ -20,6 +20,7 @@ class Edit extends Component
     public string $level        = '';
     public string $segmentCode  = '';
     public string $type         = 'storage';
+    public string $pickSequence = '';
     public string $maxPallets   = '';
     public string $maxWeightKg  = '';
     public string $barcode      = '';
@@ -35,6 +36,7 @@ class Edit extends Component
         $this->level        = $location->level->value;
         $this->segmentCode  = $location->segment_code;
         $this->type         = $location->type->value;
+        $this->pickSequence = (string) ($location->pick_sequence ?? '');
         $this->maxPallets   = (string) ($location->max_pallets ?? '');
         $this->maxWeightKg  = (string) ($location->max_weight_kg ?? '');
         $this->barcode      = $location->barcode ?? '';
@@ -131,10 +133,11 @@ class Edit extends Component
             'parentId'    => ['nullable', 'exists:locations,id'],
             'level'       => ['required', 'in:zone,aisle,rack,shelf_level,bin'],
             'segmentCode' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9]+$/'],
-            'type'        => ['required', 'in:yard_slot,receiving_dock,storage,staging,quarantine'],
-            'maxPallets'  => ['nullable', 'integer', 'min:1'],
-            'maxWeightKg' => ['nullable', 'numeric', 'min:0'],
-            'barcode'     => ['nullable', 'string', 'max:100'],
+            'type'         => ['required', 'in:yard_slot,receiving_dock,storage,staging,quarantine'],
+            'pickSequence' => ['nullable', 'integer', 'min:0'],
+            'maxPallets'   => ['nullable', 'integer', 'min:1'],
+            'maxWeightKg'  => ['nullable', 'numeric', 'min:0'],
+            'barcode'      => ['nullable', 'string', 'max:100'],
         ]);
 
         UpdateLocationAction::execute($this->location, [
@@ -143,6 +146,7 @@ class Edit extends Component
             'level'         => $this->level,
             'segment_code'  => $this->segmentCode,
             'type'          => $this->type,
+            'pick_sequence' => $this->pickSequence,
             'max_pallets'   => $this->maxPallets,
             'max_weight_kg' => $this->maxWeightKg,
             'barcode'       => $this->barcode,

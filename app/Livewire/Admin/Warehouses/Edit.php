@@ -22,6 +22,7 @@ class Edit extends Component
 
     public ?string $defaultDockLocationId      = null;
     public ?string $defaultQuarantineLocationId = null;
+    public ?string $defaultStagingLocationId    = null;
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -37,6 +38,9 @@ class Edit extends Component
             : null;
         $this->defaultQuarantineLocationId = $warehouse->default_quarantine_location_id
             ? (string) $warehouse->default_quarantine_location_id
+            : null;
+        $this->defaultStagingLocationId    = $warehouse->default_staging_location_id
+            ? (string) $warehouse->default_staging_location_id
             : null;
     }
 
@@ -62,6 +66,16 @@ class Edit extends Component
             ->get();
     }
 
+    #[Computed]
+    public function stagingLocations(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Location::where('warehouse_id', $this->warehouse->id)
+            ->where('type', 'staging')
+            ->where('status', 'active')
+            ->orderBy('code')
+            ->get();
+    }
+
     // ─── Actions ──────────────────────────────────────────────────────────────
 
     public function save(): void
@@ -75,6 +89,7 @@ class Edit extends Component
             'isActive'                   => ['boolean'],
             'defaultDockLocationId'      => ['nullable', 'exists:locations,id'],
             'defaultQuarantineLocationId'=> ['nullable', 'exists:locations,id'],
+            'defaultStagingLocationId'   => ['nullable', 'exists:locations,id'],
         ]);
 
         try {
@@ -85,6 +100,7 @@ class Edit extends Component
                 'is_active'                           => $this->isActive,
                 'default_receiving_dock_location_id'  => $this->defaultDockLocationId ?: null,
                 'default_quarantine_location_id'      => $this->defaultQuarantineLocationId ?: null,
+                'default_staging_location_id'         => $this->defaultStagingLocationId ?: null,
             ]);
         } catch (InUseException $e) {
             $this->addError('isActive', 'Cannot deactivate: this warehouse has existing locations.');

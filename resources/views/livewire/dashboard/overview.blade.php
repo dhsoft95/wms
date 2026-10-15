@@ -168,6 +168,70 @@ $approvals = [
         </div>
     </div>
 
+    {{-- Outbound metrics --}}
+    <div>
+        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Outbound</h3>
+        <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+            {{-- Pending Orders --}}
+            <a href="{{ route('outbound.orders.index') }}" wire:navigate class="card p-5 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500">Pending Orders</p>
+                        <p class="mt-2 text-3xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">{{ $this->pendingOrdersCount }}</p>
+                    </div>
+                    <div class="kpi-icon bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400">
+                        <x-ui.icon name="clipboard-list" class="w-5 h-5" />
+                    </div>
+                </div>
+                <p class="mt-3 text-xs text-slate-500">Draft, submitted &amp; approved</p>
+            </a>
+
+            {{-- Today's Dispatches --}}
+            <div class="card p-5">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500">Today's Dispatches</p>
+                        <p class="mt-2 text-3xl font-bold tabular-nums">{{ $this->todayDispatchCount }}</p>
+                    </div>
+                    <div class="kpi-icon bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
+                        <x-ui.icon name="truck" class="w-5 h-5" />
+                    </div>
+                </div>
+                <p class="mt-3 text-xs text-slate-500">Dispatched today</p>
+            </div>
+
+            {{-- Open Pick Lists --}}
+            <a href="{{ route('outbound.pick-lists.index') }}" wire:navigate class="card p-5 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500">Open Pick Lists</p>
+                        <p class="mt-2 text-3xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">{{ $this->openPickListsCount }}</p>
+                    </div>
+                    <div class="kpi-icon bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
+                        <x-ui.icon name="clipboard" class="w-5 h-5" />
+                    </div>
+                </div>
+                <p class="mt-3 text-xs text-slate-500">Open &amp; in-progress</p>
+            </a>
+
+            {{-- Overdue Orders --}}
+            <a href="{{ route('outbound.orders.index') }}" wire:navigate class="card p-5 hover:border-red-300 dark:hover:border-red-700 transition-colors group">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <p class="text-xs font-medium text-slate-500">Overdue Orders</p>
+                        <p class="mt-2 text-3xl font-bold tabular-nums {{ $this->overdueOrdersCount > 0 ? 'text-red-600' : '' }}">{{ $this->overdueOrdersCount }}</p>
+                    </div>
+                    <div class="kpi-icon {{ $this->overdueOrdersCount > 0 ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-500' }}">
+                        <x-ui.icon name="alert" class="w-5 h-5" />
+                    </div>
+                </div>
+                <p class="mt-3 text-xs {{ $this->overdueOrdersCount > 0 ? 'text-red-500 font-semibold' : 'text-slate-500' }}">
+                    {{ $this->overdueOrdersCount > 0 ? 'Past required date' : 'All on time' }}
+                </p>
+            </a>
+        </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {{-- Recent activity --}}
         <div class="card lg:col-span-2">

@@ -146,8 +146,7 @@
             </div>
 
             @if (count($lines) > 0)
-            <div class="overflow-x-auto">
-                <table class="table">
+            <x-ui.table>
                     <thead>
                         <tr>
                             <th class="w-8">#</th>
@@ -240,8 +239,7 @@
                         </tr>
                         @endforeach
                     </tbody>
-                </table>
-            </div>
+                </x-ui.table>
             @else
             <div class="card-body">
                 <p class="text-sm text-slate-400 text-center py-6">

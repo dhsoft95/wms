@@ -169,12 +169,30 @@
             <div class="card-header">
                 <h3 class="card-title">
                     <x-ui.icon name="arrows" class="w-4 h-4" />
-                    Capacity &amp; Barcode
+                    Capacity, Routing &amp; Barcode
                     <span class="ml-1 text-xs font-normal text-slate-400 dark:text-slate-500">(optional)</span>
                 </h3>
             </div>
 
-            <div class="card-body">
+            <div class="card-body space-y-5">
+
+                {{-- Pick Sequence --}}
+                <div>
+                    <label class="label" for="loc-pick-seq">Pick Sequence</label>
+                    <input
+                        wire:model="pickSequence"
+                        id="loc-pick-seq"
+                        type="number"
+                        min="0"
+                        placeholder="e.g. 10"
+                        class="input w-48 @error('pickSequence') border-red-400 @enderror"
+                    />
+                    <p class="hint">Lower numbers are picked first. Leave blank to use natural code order.</p>
+                    @error('pickSequence')
+                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
 
                     {{-- Max Pallets --}}

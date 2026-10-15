@@ -15,6 +15,7 @@ class LocationFactory extends Factory
     public function definition(): array
     {
         return [
+            'warehouse_id' => \App\Models\Warehouse::factory(),
             'code'         => strtoupper($this->faker->unique()->bothify('LOC-##??')),
             'segment_code' => strtoupper($this->faker->bothify('??##')),
             'type'         => 'storage',

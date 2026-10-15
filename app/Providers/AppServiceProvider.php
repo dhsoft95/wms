@@ -65,5 +65,8 @@ class AppServiceProvider extends ServiceProvider
         // GRN module: policies
         Gate::policy(\App\Models\Grn::class, \App\Policies\GrnPolicy::class);
         Gate::policy(\App\Models\PutawayTask::class, \App\Policies\PutawayTaskPolicy::class);
+
+        // Outbound module: policies
+        Gate::policy(\App\Models\DeliveryOrder::class, \App\Policies\DeliveryOrderPolicy::class);
     }
 }

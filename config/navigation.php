@@ -173,6 +173,14 @@ return [
                     'can'           => 'orders.view',
                 ],
                 [
+                    'key'           => 'pick-lists',
+                    'label'         => 'Pick Lists',
+                    'icon'          => 'clipboard-list',
+                    'route'         => 'outbound.pick-lists.index',
+                    'active_routes' => ['outbound.pick-lists.*'],
+                    'can'           => 'picking.view',
+                ],
+                [
                     'key'           => 'dispatch',
                     'label'         => 'Dispatch & Gate',
                     'icon'          => 'truck',
@@ -186,7 +194,7 @@ return [
                     'icon'          => 'badge-check',
                     'route'         => 'outbound.pod.index',
                     'active_routes' => ['outbound.pod.*'],
-                    'can'           => 'pod.view',
+                    'can'           => 'pod.upload',
                 ],
             ],
         ],

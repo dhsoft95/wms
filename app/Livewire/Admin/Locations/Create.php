@@ -17,6 +17,7 @@ class Create extends Component
     public string $level        = '';
     public string $segmentCode  = '';
     public string $type         = 'storage';
+    public string $pickSequence = '';
     public string $maxPallets   = '';
     public string $maxWeightKg  = '';
     public string $barcode      = '';
@@ -106,10 +107,11 @@ class Create extends Component
             'parentId'    => ['nullable', 'exists:locations,id'],
             'level'       => ['required', 'in:zone,aisle,rack,shelf_level,bin'],
             'segmentCode' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9]+$/'],
-            'type'        => ['required', 'in:yard_slot,receiving_dock,storage,staging,quarantine'],
-            'maxPallets'  => ['nullable', 'integer', 'min:1'],
-            'maxWeightKg' => ['nullable', 'numeric', 'min:0'],
-            'barcode'     => ['nullable', 'string', 'max:100'],
+            'type'         => ['required', 'in:yard_slot,receiving_dock,storage,staging,quarantine'],
+            'pickSequence' => ['nullable', 'integer', 'min:0'],
+            'maxPallets'   => ['nullable', 'integer', 'min:1'],
+            'maxWeightKg'  => ['nullable', 'numeric', 'min:0'],
+            'barcode'      => ['nullable', 'string', 'max:100'],
         ]);
 
         $warehouse  = Warehouse::findOrFail($this->warehouseId);
@@ -132,6 +134,7 @@ class Create extends Component
             'code'          => $code,
             'type'          => $this->type,
             'status'        => 'active',
+            'pick_sequence' => $this->pickSequence !== '' ? (int) $this->pickSequence : null,
             'max_pallets'   => $this->maxPallets   ?: null,
             'max_weight_kg' => $this->maxWeightKg  ?: null,
             'barcode'       => $this->barcode ?: $code,

@@ -19,7 +19,9 @@ final class NotifyContainerArrived
             ? User::whereHas('virtualWarehouses', fn($q) => $q->whereIn('virtual_warehouses.id', $vwIds))->get()
             : collect();
 
-        $managers = User::role('warehouse-manager')->get();
+        $managers = \Spatie\Permission\Models\Role::where('name', 'warehouse-manager')->exists()
+            ? User::role('warehouse-manager')->get()
+            : collect();
 
         $users = $managers->merge($vwUsers)->unique('id');
 

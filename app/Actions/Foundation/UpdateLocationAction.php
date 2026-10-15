@@ -26,6 +26,7 @@ class UpdateLocationAction
                 'segment_code'  => strtoupper($data['segment_code']),
                 'code'          => $newCode,
                 'type'          => $data['type'],
+                'pick_sequence' => isset($data['pick_sequence']) && $data['pick_sequence'] !== '' ? (int) $data['pick_sequence'] : null,
                 'max_pallets'   => $data['max_pallets'] ?: null,
                 'max_weight_kg' => $data['max_weight_kg'] ?: null,
                 'barcode'       => $data['barcode'] ?: $newCode,

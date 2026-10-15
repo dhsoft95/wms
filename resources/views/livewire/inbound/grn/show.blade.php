@@ -32,6 +32,16 @@
                 </a>
             @endif
 
+            @if ($grn->status->value === 'receiving')
+                @can('confirm', $grn)
+                    <button wire:click="confirmGrn"
+                            wire:confirm="Confirm this GRN? Stock will be posted to the receiving dock."
+                            class="btn btn-primary">
+                        <x-ui.icon name="check" class="w-4 h-4" /> Confirm GRN
+                    </button>
+                @endcan
+            @endif
+
             @if (in_array($grn->status->value, ['received', 'putaway_complete']))
                 @can('close', $grn)
                     <button wire:click="close" wire:confirm="Close this GRN? No further changes will be possible."

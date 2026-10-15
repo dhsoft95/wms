@@ -19,6 +19,7 @@
                     'sequences'    => 'Document Sequences',
                     'reason-codes' => 'Reason Codes',
                     'uom'          => 'Units of Measure',
+                    'outbound'     => 'Outbound',
                 ];
             @endphp
 
@@ -727,6 +728,101 @@
                 </form>
             </div>
 
+        </div>
+    @endif
+
+    {{-- ═══════════════════════════════════════════════════════════════════════ --}}
+    {{-- Tab: Outbound                                                             --}}
+    {{-- ═══════════════════════════════════════════════════════════════════════ --}}
+
+    @if ($activeTab === 'outbound')
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Outbound Settings</h3>
+            </div>
+
+            <form wire:submit="saveOutbound" class="card-body space-y-5">
+
+                {{-- Approval Mode --}}
+                <div>
+                    <label for="outboundApprovalMode" class="label">Approval Mode</label>
+                    <select id="outboundApprovalMode" wire:model="outboundApprovalMode" class="input w-full sm:max-w-xs">
+                        <option value="none">None — submit goes straight to allocated</option>
+                        <option value="department_head">Department Head only</option>
+                        <option value="warehouse_manager">Warehouse Manager only</option>
+                        <option value="both">Both — department head, then warehouse manager</option>
+                    </select>
+                    <p class="hint">Controls who must approve a delivery order before stock can be allocated.</p>
+                    @error('outboundApprovalMode') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                {{-- Partial Allocation + Auto Backorder --}}
+                <fieldset class="rounded-xl border border-white/30 dark:border-white/[0.08] p-4 space-y-4">
+                    <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                        Partial Allocation
+                    </legend>
+
+                    <div class="flex items-center gap-3">
+                        <input
+                            id="outboundAllowPartial"
+                            wire:model.live="outboundAllowPartial"
+                            type="checkbox"
+                            class="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-simba-600 focus:ring-simba-500"
+                        />
+                        <label for="outboundAllowPartial" class="label !mb-0 cursor-pointer">Allow partial allocation</label>
+                    </div>
+                    <p class="hint -mt-2">When enabled, a delivery order can be allocated with less stock than requested.</p>
+
+                    @if ($outboundAllowPartial)
+                        <div class="flex items-center gap-3 pl-7">
+                            <input
+                                id="outboundAutoBackorder"
+                                wire:model="outboundAutoBackorder"
+                                type="checkbox"
+                                class="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-simba-600 focus:ring-simba-500"
+                            />
+                            <label for="outboundAutoBackorder" class="label !mb-0 cursor-pointer">Auto-create backorder for the remainder</label>
+                        </div>
+                        <p class="hint -mt-2 pl-7">A new delivery order is created automatically for any unallocated quantity.</p>
+                    @endif
+                </fieldset>
+
+                {{-- Min Shelf Life --}}
+                <div>
+                    <label for="outboundMinShelfLifeDays" class="label">Minimum Remaining Shelf Life (days)</label>
+                    <input
+                        id="outboundMinShelfLifeDays"
+                        wire:model="outboundMinShelfLifeDays"
+                        type="number"
+                        min="0"
+                        max="365"
+                        class="input w-full sm:max-w-xs"
+                        placeholder="0"
+                    />
+                    <p class="hint">Stock expiring within this many days will not be allocated. Set to 0 to disable.</p>
+                    @error('outboundMinShelfLifeDays') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                {{-- Short Pick Behaviour --}}
+                <div>
+                    <label for="outboundShortPickBehaviour" class="label">Short Pick Behaviour</label>
+                    <select id="outboundShortPickBehaviour" wire:model="outboundShortPickBehaviour" class="input w-full sm:max-w-xs">
+                        <option value="leave_short">Leave short — mark task as short and notify managers</option>
+                        <option value="reallocate">Reallocate — try other bins automatically for the missing qty</option>
+                    </select>
+                    <p class="hint">What happens when a picker cannot find the full quantity at the assigned bin.</p>
+                    @error('outboundShortPickBehaviour') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                {{-- Save --}}
+                <div class="flex justify-end border-t border-white/30 dark:border-white/[0.06] pt-4">
+                    <button type="submit" class="btn btn-primary" wire:loading.attr="disabled">
+                        <span wire:loading.remove wire:target="saveOutbound">Save Outbound Settings</span>
+                        <span wire:loading wire:target="saveOutbound">Saving…</span>
+                    </button>
+                </div>
+
+            </form>
         </div>
     @endif
 

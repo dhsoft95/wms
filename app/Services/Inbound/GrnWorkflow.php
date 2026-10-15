@@ -64,7 +64,6 @@ final class GrnWorkflow
             if ($grn->needsVarianceApproval()) {
                 $this->transition($grn, GrnStatus::PendingVarianceApproval, $user);
 
-                // Create (or update) variance approval request
                 if (! $grn->hasPendingApproval()) {
                     $approval = GrnVarianceApproval::create([
                         'grn_id'       => $grn->id,
@@ -73,16 +72,13 @@ final class GrnWorkflow
 
                     event(new VarianceApprovalRequested($grn, $approval));
                 }
-            } else {
-                // No variance — can go straight to confirm
-                $this->confirm($grn, $user);
-                return;
-            }
 
-            activity()
-                ->performedOn($grn)
-                ->causedBy($user)
-                ->log('Receiving completed — awaiting variance approval');
+                activity()
+                    ->performedOn($grn)
+                    ->causedBy($user)
+                    ->log('Receiving completed — awaiting variance approval');
+            }
+            // No else: when no variance, GRN stays Receiving and the user clicks Confirm GRN on the Show page.
         });
     }
 
@@ -145,6 +141,11 @@ final class GrnWorkflow
                 throw new \DomainException("GRN {$grn->number} cannot be confirmed from status: {$grn->status->label()}");
             }
 
+            // 3b. Guard: at least one receipt must exist
+            if ($grn->receipts()->count() === 0) {
+                throw new \DomainException("GRN {$grn->number} has no receipts. Enter received quantities before confirming.");
+            }
+
             // Load dock + quarantine locations
             $dockLocation      = $grn->receivingDock;
             $warehouseDefault  = $grn->warehouse;
@@ -194,6 +195,7 @@ final class GrnWorkflow
                         batchNo:            $receipt->batch_no,
                         expiryDate:         $receipt->expiry_date ? Carbon::parse($receipt->expiry_date) : null,
                         lpnId:              $receipt->lpn_id,
+                        serials:            $receipt->serial_nos ?? [],
                     );
 
                     $idempotencyKey = "grn:{$grn->id}:receipt:{$receipt->id}:confirm";
@@ -293,6 +295,67 @@ final class GrnWorkflow
             $grn->closed_at = now();
             $grn->save();
         });
+    }
+
+    /**
+     * Re-post stock for an already-confirmed GRN with no stock transactions.
+     * Uses the same idempotency keys as confirm(), so it is safe to call multiple times.
+     * Returns the number of ledger calls made (0 means all were already posted).
+     */
+    public function postStock(Grn $grn): int
+    {
+        $count = 0;
+
+        DB::transaction(function () use ($grn, &$count) {
+            $dockLocation     = $grn->receivingDock;
+            $warehouseDefault = $grn->warehouse;
+
+            if ($dockLocation === null) {
+                $warehouseDefault->load('defaultReceivingDock', 'defaultQuarantineLocation');
+                $dockLocation = $warehouseDefault->defaultReceivingDock;
+            }
+
+            if ($dockLocation === null) {
+                throw new \DomainException("No dock location configured for GRN {$grn->number}.");
+            }
+
+            $quarantineLocation = $warehouseDefault->defaultQuarantineLocation
+                ?? Location::where('warehouse_id', $grn->warehouse_id)
+                    ->where('type', 'quarantine')->where('status', 'active')->first();
+
+            $ref   = new StockReference('grn', $grn->id, $grn->number);
+            $lines = $grn->lines()->with('receipts.uom', 'item', 'uom')->get();
+
+            foreach ($lines as $line) {
+                foreach ($line->receipts as $receipt) {
+                    $isGood      = $receipt->condition === ReceiptCondition::Good;
+                    $locationId  = $isGood
+                        ? $dockLocation->id
+                        : ($quarantineLocation?->id ?? $dockLocation->id);
+                    $stockStatus = ($locationId === ($quarantineLocation?->id))
+                        ? StockStatus::OnHold : StockStatus::Available;
+
+                    $stockLine = new StockLine(
+                        itemId:             $line->item_id,
+                        locationId:         $locationId,
+                        virtualWarehouseId: $line->virtual_warehouse_id,
+                        stockStatus:        $stockStatus,
+                        enteredQty:         (string) $receipt->qty,
+                        enteredUomId:       $receipt->uom_id,
+                        batchNo:            $receipt->batch_no,
+                        expiryDate:         $receipt->expiry_date ? Carbon::parse($receipt->expiry_date) : null,
+                        lpnId:              $receipt->lpn_id,
+                        serials:            $receipt->serial_nos ?? [],
+                    );
+
+                    $idempotencyKey = "grn:{$grn->id}:receipt:{$receipt->id}:confirm";
+                    $this->ledger->receive($stockLine, $ref, $idempotencyKey);
+                    $count++;
+                }
+            }
+        });
+
+        return $count;
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────

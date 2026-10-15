@@ -12,6 +12,9 @@ enum DocumentSequenceType: string
     case Lpn = 'LPN';
     case Ctr = 'CTR';
     case Stk = 'STK';
+    case Pck = 'PCK';
+    case Dsp = 'DSP';
+    case Gp  = 'GP';
 
     public function label(): string
     {
@@ -24,6 +27,9 @@ enum DocumentSequenceType: string
             self::Lpn => 'License Plate Number',
             self::Ctr => 'Container',
             self::Stk => 'Stock Transaction',
+            self::Pck => 'Pick List',
+            self::Dsp => 'Dispatch',
+            self::Gp  => 'Gate Pass',
         };
     }
 }

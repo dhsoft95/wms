@@ -129,7 +129,32 @@ class GrnWorkflowTest extends TestCase
         app(GrnWorkflow::class)->startReceiving($grn, $this->admin);
     }
 
-    // ─── Test: No-variance GRN can be directly confirmed ─────────────────────
+    // ─── Test: finishReceiving does NOT auto-confirm (no variance) ───────────
+
+    public function test_finish_receiving_does_not_auto_confirm_no_variance(): void
+    {
+        $grn  = $this->makeDraftGrnWithLine(100);
+        $line = $grn->lines()->first();
+
+        app(GrnWorkflow::class)->startReceiving($grn, $this->admin);
+
+        GrnReceipt::create([
+            'grn_line_id' => $line->id,
+            'qty'         => 100,
+            'uom_id'      => $this->pcs->id,
+            'condition'   => ReceiptCondition::Good->value,
+            'received_by' => $this->admin->id,
+        ]);
+        $line->recalculateTotals();
+
+        app(GrnWorkflow::class)->finishReceiving($grn->fresh(), $this->admin);
+
+        // Must remain Receiving — user must explicitly click Confirm GRN
+        $this->assertEquals(GrnStatus::Receiving, $grn->fresh()->status);
+        $this->assertDatabaseEmpty('stock_transactions');
+    }
+
+    // ─── Test: No-variance GRN confirms after explicit confirm ───────────────
 
     public function test_no_variance_grn_confirms_without_approval(): void
     {
@@ -148,6 +173,7 @@ class GrnWorkflowTest extends TestCase
         $line->recalculateTotals();
 
         app(GrnWorkflow::class)->finishReceiving($grn->fresh(), $this->admin);
+        app(GrnWorkflow::class)->confirm($grn->fresh(), $this->admin);
 
         $this->assertEquals(GrnStatus::Received, $grn->fresh()->status);
     }
@@ -228,14 +254,119 @@ class GrnWorkflowTest extends TestCase
         ]);
         $line->recalculateTotals();
 
-        app(GrnWorkflow::class)->finishReceiving($grn->fresh(), $this->admin);
-        // Second call should not throw
+        app(GrnWorkflow::class)->confirm($grn->fresh(), $this->admin);
+        // Second call should not throw or double-post
         $grn2 = $grn->fresh();
-        $grn2->status = GrnStatus::Receiving; // artificially set back
+        $grn2->status = GrnStatus::Receiving; // artificially force back
         app(GrnWorkflow::class)->confirm($grn2, $this->admin);
 
-        // Should still be received (idempotency returned early from the second confirm in the original)
         $this->assertEquals(GrnStatus::Received, $grn->fresh()->status);
+        $this->assertDatabaseCount('stock_transactions', 1);
+    }
+
+    // ─── Test: confirm() posts stock transactions ─────────────────────────────
+
+    public function test_confirm_posts_stock_transactions_and_balances(): void
+    {
+        $grn  = $this->makeDraftGrnWithLine(50);
+        $line = $grn->lines()->first();
+
+        app(GrnWorkflow::class)->startReceiving($grn, $this->admin);
+
+        GrnReceipt::create([
+            'grn_line_id' => $line->id,
+            'qty'         => 50,
+            'uom_id'      => $this->pcs->id,
+            'condition'   => ReceiptCondition::Good->value,
+            'received_by' => $this->admin->id,
+        ]);
+        $line->recalculateTotals();
+
+        app(GrnWorkflow::class)->confirm($grn->fresh(), $this->admin);
+
+        $this->assertDatabaseCount('stock_transactions', 1);
+        $this->assertDatabaseCount('stock_movements', 1);
+        $this->assertDatabaseHas('stock_balances', [
+            'item_id'     => $line->item_id,
+            'location_id' => $this->dock->id,
+            'qty_on_hand' => '50.0000',
+        ]);
+    }
+
+    // ─── Test: confirm() creates putaway tasks ────────────────────────────────
+
+    public function test_confirm_creates_putaway_tasks(): void
+    {
+        $grn  = $this->makeDraftGrnWithLine(10);
+        $line = $grn->lines()->first();
+
+        app(GrnWorkflow::class)->startReceiving($grn, $this->admin);
+
+        GrnReceipt::create([
+            'grn_line_id' => $line->id,
+            'qty'         => 10,
+            'uom_id'      => $this->pcs->id,
+            'condition'   => ReceiptCondition::Good->value,
+            'received_by' => $this->admin->id,
+        ]);
+        $line->recalculateTotals();
+
+        app(GrnWorkflow::class)->confirm($grn->fresh(), $this->admin);
+
+        $this->assertDatabaseHas('putaway_tasks', ['grn_id' => $grn->id]);
+    }
+
+    // ─── Test: confirm() throws if no receipts ────────────────────────────────
+
+    public function test_confirm_throws_if_no_receipts(): void
+    {
+        $grn = $this->makeDraftGrnWithLine(100);
+
+        app(GrnWorkflow::class)->startReceiving($grn, $this->admin);
+
+        $this->expectException(\DomainException::class);
+        $this->expectExceptionMessageMatches('/no receipts/i');
+
+        app(GrnWorkflow::class)->confirm($grn->fresh(), $this->admin);
+    }
+
+    // ─── Test: postStock() repairs GRN without double-posting ────────────────
+
+    public function test_post_stock_repairs_and_is_idempotent(): void
+    {
+        $grn  = $this->makeDraftGrnWithLine(20);
+        $line = $grn->lines()->first();
+
+        app(GrnWorkflow::class)->startReceiving($grn, $this->admin);
+
+        GrnReceipt::create([
+            'grn_line_id' => $line->id,
+            'qty'         => 20,
+            'uom_id'      => $this->pcs->id,
+            'condition'   => ReceiptCondition::Good->value,
+            'received_by' => $this->admin->id,
+        ]);
+        $line->recalculateTotals();
+
+        // Simulate a "confirmed but no stock" GRN by setting status directly
+        $grn->update(['status' => GrnStatus::Received->value, 'confirmed_at' => now()]);
+
+        $workflow = app(GrnWorkflow::class);
+
+        // First repair — should post stock
+        $count1 = $workflow->postStock($grn->fresh());
+        $this->assertEquals(1, $count1);
+        $this->assertDatabaseCount('stock_transactions', 1);
+
+        // Second repair — idempotency means no new transactions
+        $count2 = $workflow->postStock($grn->fresh());
+        $this->assertEquals(1, $count2); // ledger called but returned existing tx
+        $this->assertDatabaseCount('stock_transactions', 1);
+
+        $this->assertDatabaseHas('stock_balances', [
+            'item_id'     => $line->item_id,
+            'qty_on_hand' => '20.0000',
+        ]);
     }
 
     // ─── Test: GrnLine recalculate totals ─────────────────────────────────────

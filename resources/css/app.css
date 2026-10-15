@@ -204,6 +204,11 @@
     .badge-green   { @apply bg-emerald-500/15 text-emerald-700 ring-emerald-600/30 dark:text-emerald-400; }
     .badge-red     { @apply bg-red-500/15    text-red-700    ring-red-600/30    dark:text-red-400; }
     .badge-simba   { @apply bg-simba-500/15  text-simba-700  ring-simba-600/30  dark:text-simba-300; }
+    .badge-emerald { @apply bg-emerald-500/15 text-emerald-700 ring-emerald-600/30 dark:text-emerald-400; }
+    .badge-orange  { @apply bg-orange-500/15 text-orange-700  ring-orange-600/30  dark:text-orange-400; }
+    .badge-cyan    { @apply bg-simba-500/15  text-simba-700   ring-simba-600/30   dark:text-simba-300; }
+    .badge-violet  { @apply bg-slate-500/15  text-slate-700   ring-slate-600/30   dark:text-slate-300; }
+    .badge-teal    { @apply bg-emerald-500/15 text-emerald-700 ring-emerald-600/30 dark:text-emerald-400; }
     .dot { @apply w-1.5 h-1.5 rounded-full bg-current; }
 
     /* ── Tables ────────────────────────────────────────────────────────────── */

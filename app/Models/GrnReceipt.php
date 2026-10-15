@@ -23,6 +23,7 @@ class GrnReceipt extends Model
         'expiry_date',
         'condition',
         'lpn_id',
+        'serial_nos',
         'received_by',
         'device',
     ];
@@ -33,6 +34,7 @@ class GrnReceipt extends Model
             'qty'         => 'decimal:4',
             'expiry_date' => 'date',
             'condition'   => ReceiptCondition::class,
+            'serial_nos'  => 'array',
         ];
     }
 

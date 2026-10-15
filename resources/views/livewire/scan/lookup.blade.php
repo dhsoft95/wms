@@ -31,30 +31,28 @@
                 <p class="text-slate-500 text-sm">{{ $item->name }}</p>
             </div>
             @if ($stock->isNotEmpty())
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
-                        <thead>
-                            <tr class="bg-slate-50 dark:bg-slate-700/50 text-xs text-slate-400 uppercase tracking-wider">
-                                <th class="px-3 py-2 text-left">Location</th>
-                                <th class="px-3 py-2 text-left">VW</th>
-                                <th class="px-3 py-2 text-right">On Hand</th>
-                                <th class="px-3 py-2 text-right">Allocated</th>
-                                <th class="px-3 py-2 text-right">On Hold</th>
+                <x-ui.table class="text-sm">
+                    <thead>
+                        <tr class="text-xs text-slate-400 uppercase tracking-wider">
+                            <th class="px-3 py-2 text-left">Location</th>
+                            <th class="px-3 py-2 text-left">VW</th>
+                            <th class="px-3 py-2 text-right">On Hand</th>
+                            <th class="px-3 py-2 text-right">Allocated</th>
+                            <th class="px-3 py-2 text-right">On Hold</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
+                        @foreach ($stock as $row)
+                            <tr>
+                                <td class="px-3 py-2 font-mono font-semibold">{{ $row->location }}</td>
+                                <td class="px-3 py-2 text-slate-500 text-xs">{{ $row->vw }}</td>
+                                <td class="px-3 py-2 text-right font-semibold">{{ number_format($row->qty_on_hand, 2) }}</td>
+                                <td class="px-3 py-2 text-right text-amber-600">{{ number_format($row->qty_allocated, 2) }}</td>
+                                <td class="px-3 py-2 text-right text-red-500">{{ number_format($row->qty_on_hold, 2) }}</td>
                             </tr>
-                        </thead>
-                        <tbody class="divide-y divide-slate-100 dark:divide-slate-700">
-                            @foreach ($stock as $row)
-                                <tr>
-                                    <td class="px-3 py-2 font-mono font-semibold">{{ $row->location }}</td>
-                                    <td class="px-3 py-2 text-slate-500 text-xs">{{ $row->vw }}</td>
-                                    <td class="px-3 py-2 text-right font-semibold">{{ number_format($row->qty_on_hand, 2) }}</td>
-                                    <td class="px-3 py-2 text-right text-amber-600">{{ number_format($row->qty_allocated, 2) }}</td>
-                                    <td class="px-3 py-2 text-right text-red-500">{{ number_format($row->qty_on_hold, 2) }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+                        @endforeach
+                    </tbody>
+                </x-ui.table>
             @else
                 <p class="px-4 py-6 text-sm text-slate-400 text-center">No stock on hand.</p>
             @endif

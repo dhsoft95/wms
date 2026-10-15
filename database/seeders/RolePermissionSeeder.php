@@ -42,10 +42,20 @@ class RolePermissionSeeder extends Seeder
         'adjustments.view','adjustments.create','adjustments.approve',
         'cycle-counts.view','cycle-counts.execute','cycle-counts.approve',
 
-        // Outbound
-        'orders.view',     'orders.create',     'orders.update',     'orders.approve',
-        'dispatch.view',   'dispatch.execute',
-        'pod.view',        'pod.create',
+        // Outbound — Delivery Orders
+        'orders.view', 'orders.create', 'orders.update',
+        'orders.submit', 'orders.approve.department', 'orders.approve.warehouse',
+        'orders.allocate', 'orders.cancel',
+        // Outbound — Picking
+        'picking.view', 'picking.assign', 'picking.execute',
+        // Outbound — Dispatch & Gate
+        'dispatch.view', 'dispatch.execute',
+        'gate.verify',
+        // Outbound — POD & Returns
+        'pod.upload',
+        'returns.create',
+        // Outbound — Scanner
+        'scan.dispatch', 'scan.gate',
 
         // Approvals
         'approvals.view',  'approvals.approve',
@@ -117,9 +127,13 @@ class RolePermissionSeeder extends Seeder
             'inventory.view', 'inventory.create', 'inventory.update', 'inventory.delete',
             'adjustments.view', 'adjustments.create', 'adjustments.approve',
             'cycle-counts.view', 'cycle-counts.execute', 'cycle-counts.approve',
-            'orders.view', 'orders.create', 'orders.update', 'orders.approve',
+            'orders.view', 'orders.create', 'orders.update',
+            'orders.submit', 'orders.approve.department', 'orders.approve.warehouse',
+            'orders.allocate', 'orders.cancel',
+            'picking.view', 'picking.assign', 'picking.execute',
             'dispatch.view', 'dispatch.execute',
-            'pod.view', 'pod.create',
+            'gate.verify', 'pod.upload', 'returns.create',
+            'scan.dispatch', 'scan.gate',
             'approvals.view', 'approvals.approve',
             'reports.view', 'reports.export',
             'traceability.view',
@@ -134,10 +148,9 @@ class RolePermissionSeeder extends Seeder
         ],
 
         'department-user' => [
-            'containers.view',
-            'grn.view',
             'inventory.view',
-            'orders.view', 'orders.create', 'orders.update',
+            'orders.view', 'orders.create', 'orders.update', 'orders.submit',
+            'orders.approve.department',
             'items.view',
             'virtual-warehouses.view',
             'stock.view', 'stock.movements.view',
@@ -156,9 +169,11 @@ class RolePermissionSeeder extends Seeder
             'inventory.view',
             'adjustments.view', 'adjustments.create',
             'cycle-counts.view', 'cycle-counts.execute',
-            'orders.view',
+            'orders.view', 'orders.allocate',
+            'picking.view', 'picking.assign', 'picking.execute',
             'dispatch.view', 'dispatch.execute',
-            'pod.view', 'pod.create',
+            'pod.upload', 'returns.create',
+            'scan.pick', 'scan.dispatch',
             'items.view',
             'partners.view',
             'locations.view',
@@ -173,11 +188,17 @@ class RolePermissionSeeder extends Seeder
             'scan.receive',
             'scan.putaway',
             'scan.pick',
+            'scan.dispatch',
             'scan.stock-lookup',
             'items.view',
             'locations.view',
             'virtual-warehouses.view',
             'labels.print', 'scan.move', 'scan.lookup',
+        ],
+
+        'gate-security' => [
+            'gate.verify',
+            'scan.gate',
         ],
 
         'viewer-auditor' => [
@@ -191,8 +212,8 @@ class RolePermissionSeeder extends Seeder
             'adjustments.view',
             'cycle-counts.view',
             'orders.view',
+            'picking.view',
             'dispatch.view',
-            'pod.view',
             'approvals.view',
             'reports.view', 'reports.export',
             'traceability.view',
@@ -232,6 +253,9 @@ class RolePermissionSeeder extends Seeder
 
         // Delete legacy permissions
         Permission::where('name', 'containers.delete')->where('guard_name', 'web')->delete();
+        foreach (['orders.approve', 'pod.view', 'pod.create'] as $old) {
+            Permission::where('name', $old)->where('guard_name', 'web')->delete();
+        }
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
     }
 }

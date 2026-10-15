@@ -16,7 +16,6 @@ use App\Models\VirtualWarehouse;
 use App\Models\Warehouse;
 use App\Services\Foundation\DocumentNumber;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -161,7 +160,7 @@ class Create extends Component
             'lines.*.expiry_date'       => ['nullable', 'date'],
         ]);
 
-        DB::transaction(function () {
+        app('db')->transaction(function () {
             $grn = Grn::create([
                 'number'                     => DocumentNumber::next('GRN'),
                 'source'                     => $this->source,

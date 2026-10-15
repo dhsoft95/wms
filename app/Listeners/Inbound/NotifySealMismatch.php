@@ -13,7 +13,9 @@ final class NotifySealMismatch
 {
     public function handle(ContainerSealMismatch $event): void
     {
-        $managers = User::role('warehouse-manager')->get();
+        $managers = \Spatie\Permission\Models\Role::where('name', 'warehouse-manager')->exists()
+            ? User::role('warehouse-manager')->get()
+            : collect();
         Notification::send(
             $managers,
             new SealMismatchNotification($event->container, $event->expectedSeal, $event->actualSeal)

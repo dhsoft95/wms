@@ -20,6 +20,7 @@ class Warehouse extends Model
         'is_active',
         'default_receiving_dock_location_id',
         'default_quarantine_location_id',
+        'default_staging_location_id',
     ];
 
     protected function casts(): array
@@ -49,6 +50,11 @@ class Warehouse extends Model
     public function defaultQuarantineLocation(): BelongsTo
     {
         return $this->belongsTo(Location::class, 'default_quarantine_location_id');
+    }
+
+    public function defaultStagingLocation(): BelongsTo
+    {
+        return $this->belongsTo(Location::class, 'default_staging_location_id');
     }
 
     // ─── Scopes ───────────────────────────────────────────────────────────────

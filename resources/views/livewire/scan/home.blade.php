@@ -56,12 +56,32 @@
     @endif
 
     @if(auth()->user()->can('scan.pick'))
-    <div class="scan-btn scan-btn-secondary opacity-50 cursor-not-allowed">
-        <x-ui.icon name="clipboard" class="w-7 h-7 text-slate-400" />
+    <a href="{{ route('scan.pick') }}" wire:navigate class="scan-btn scan-btn-secondary">
+        <x-ui.icon name="clipboard-list" class="w-7 h-7 text-simba-600" />
         <div class="text-left">
-            <p class="font-bold text-slate-400">Pick <span class="text-xs font-normal bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded-full ml-1">Coming soon</span></p>
+            <p class="font-bold">Pick</p>
             <p class="text-sm text-slate-400 font-normal">Fulfil a pick list</p>
         </div>
-    </div>
+    </a>
+    @endif
+
+    @if(auth()->user()->can('scan.dispatch'))
+    <a href="{{ route('scan.dispatch') }}" wire:navigate class="scan-btn scan-btn-secondary">
+        <x-ui.icon name="truck" class="w-7 h-7 text-simba-600" />
+        <div class="text-left">
+            <p class="font-bold">Dispatch</p>
+            <p class="text-sm text-slate-400 font-normal">Process outbound shipment</p>
+        </div>
+    </a>
+    @endif
+
+    @if(auth()->user()->can('scan.gate'))
+    <a href="{{ route('scan.gate') }}" wire:navigate class="scan-btn scan-btn-secondary">
+        <x-ui.icon name="check" class="w-7 h-7 text-simba-600" />
+        <div class="text-left">
+            <p class="font-bold">Gate Check</p>
+            <p class="text-sm text-slate-400 font-normal">Verify vehicle exit</p>
+        </div>
+    </a>
     @endif
 </div>

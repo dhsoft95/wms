@@ -38,6 +38,19 @@ class FoundationDefaultsSeeder extends Seeder
             ['type' => 'CTR'],
             ['prefix' => 'CTR', 'include_year' => true, 'padding' => 4, 'reset_yearly' => true, 'next_number' => 1]
         );
+
+        // Outbound sequences — updateOrCreate so sandbox can gain these without duplicating
+        // next_number intentionally absent: DB default=1 on first insert, counter preserved on re-run
+        foreach ([
+            ['type' => 'PCK', 'prefix' => 'PCK', 'include_year' => true, 'padding' => 4, 'reset_yearly' => true],
+            ['type' => 'DSP', 'prefix' => 'DSP', 'include_year' => true, 'padding' => 4, 'reset_yearly' => true],
+            ['type' => 'GP',  'prefix' => 'GP',  'include_year' => true, 'padding' => 4, 'reset_yearly' => true],
+        ] as $seq) {
+            DocumentSequence::updateOrCreate(
+                ['type' => $seq['type']],
+                ['prefix' => $seq['prefix'], 'include_year' => $seq['include_year'], 'padding' => $seq['padding'], 'reset_yearly' => $seq['reset_yearly']]
+            );
+        }
     }
 
     private function seedReasonCodes(): void

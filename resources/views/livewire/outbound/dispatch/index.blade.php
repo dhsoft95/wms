@@ -1,108 +1,286 @@
 <div class="space-y-6">
+
+    {{-- Page Header --}}
     <div class="page-header">
         <div>
-            <h2 class="page-title">Dispatch &amp; Gate Release</h2>
-            <p class="page-sub">Verify the load, capture vehicle details and issue the gate pass.</p>
+            <h2 class="page-title">Dispatch &amp; Gate</h2>
+            <p class="page-sub">Process outbound shipments and record gate exit.</p>
         </div>
     </div>
 
-    <form wire:submit="save" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2 card">
-            <div class="card-body space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label class="label">Order reference *</label>
-                        <select wire:model="form.orderId" class="input font-mono">
-                            <option value="">Select order</option>
-                            <option value="ORD-2026-101">ORD-2026-101</option>
-                            <option value="ORD-2026-102">ORD-2026-102</option>
-                        </select>
-                        @error('form.orderId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <label class="label">Gate pass number</label>
-                        <input type="text" readonly value="{{ $form->gatePassNumber }}" class="input font-mono">
-                    </div>
-                    <div>
-                        <label class="label">Departure time *</label>
-                        <input wire:model="form.departureTime" type="datetime-local" required class="input tabular-nums">
-                        @error('form.departureTime') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                    </div>
+    <div class="card">
+        {{-- Tabs + Search --}}
+        <div class="card-header flex-col sm:flex-row gap-3">
+            <div class="tabs overflow-x-auto">
+                <button wire:click="$set('tab','ready')"
+                        @class(['tab', 'active' => $tab === 'ready'])>
+                    Ready to Dispatch
+                </button>
+                <button wire:click="$set('tab','recent')"
+                        @class(['tab', 'active' => $tab === 'recent'])>
+                    Recent Dispatches
+                </button>
+            </div>
+
+            <div class="relative ml-auto">
+                <x-ui.icon name="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input wire:model.live.debounce.300ms="search"
+                       type="text"
+                       placeholder="{{ $tab === 'ready' ? 'Search DO, consignee…' : 'Search dispatch, DO…' }}"
+                       class="input !pl-9 sm:w-64" />
+            </div>
+        </div>
+
+        {{-- ── Ready to Dispatch tab ────────────────────────────────────────── --}}
+        @if ($tab === 'ready')
+            <x-ui.table>
+                <thead>
+                    <tr>
+                        <th>DO Number</th>
+                        <th>Consignee</th>
+                        <th>VW / Warehouse</th>
+                        <th>Required Date</th>
+                        <th>Lines</th>
+                        <th class="text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($this->readyOrders as $do)
+                        <tr wire:key="ready-{{ $do->id }}">
+                            <td class="mono font-semibold">{{ $do->number }}</td>
+                            <td>{{ $do->consigneePartner?->name ?? '—' }}</td>
+                            <td>
+                                <div class="text-sm font-medium text-slate-800 dark:text-slate-100">
+                                    {{ $do->virtualWarehouse?->name ?? '—' }}
+                                </div>
+                                <div class="text-xs text-slate-500 dark:text-slate-400">
+                                    {{ $do->warehouse?->name ?? '—' }}
+                                </div>
+                            </td>
+                            <td class="tabular-nums text-sm @if($do->required_date && $do->required_date->isPast()) text-red-600 dark:text-red-400 font-semibold @endif">
+                                {{ $do->required_date?->format('d M Y') ?? '—' }}
+                                @if ($do->required_date && $do->required_date->isPast())
+                                    <span class="block text-xs font-normal">Overdue</span>
+                                @endif
+                            </td>
+                            <td class="tabular-nums text-sm">
+                                {{ $do->lines_count ?? $do->lines->count() }}
+                            </td>
+                            <td class="text-right">
+                                <button wire:click="openDispatchModal({{ $do->id }})"
+                                        class="btn btn-primary btn-sm">
+                                    <x-ui.icon name="arrow-right" class="w-3.5 h-3.5" /> Dispatch
+                                </button>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6" class="!py-12 text-center text-slate-500">
+                                @if ($search)
+                                    No orders match your search.
+                                @else
+                                    No orders ready to dispatch.
+                                @endif
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </x-ui.table>
+
+            <div class="px-4 py-3 border-t border-white/40 dark:border-white/[0.06]">
+                {{ $this->readyOrders->links() }}
+            </div>
+        @endif
+
+        {{-- ── Recent Dispatches tab ────────────────────────────────────────── --}}
+        @if ($tab === 'recent')
+            <x-ui.table>
+                <thead>
+                    <tr>
+                        <th>Dispatch #</th>
+                        <th>DO Number</th>
+                        <th>Consignee</th>
+                        <th>Vehicle No</th>
+                        <th>Driver</th>
+                        <th>Dispatched At</th>
+                        <th>Gate Pass</th>
+                        <th class="text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($this->recentDispatches as $dispatch)
+                        <tr wire:key="dispatch-{{ $dispatch->id }}">
+                            <td class="mono font-semibold">{{ $dispatch->number }}</td>
+                            <td class="mono text-sm text-simba-600 dark:text-simba-400">
+                                {{ $dispatch->deliveryOrder?->number ?? '—' }}
+                            </td>
+                            <td>{{ $dispatch->deliveryOrder?->consigneePartner?->name ?? '—' }}</td>
+                            <td class="mono text-sm">{{ $dispatch->vehicle_no ?? '—' }}</td>
+                            <td class="text-sm">{{ $dispatch->driver_name ?? '—' }}</td>
+                            <td class="tabular-nums text-sm">
+                                {{ $dispatch->dispatched_at?->format('d M Y H:i') ?? '—' }}
+                            </td>
+                            <td>
+                                @if ($dispatch->gatePass)
+                                    <div class="text-sm mono">{{ $dispatch->gatePass->number }}</div>
+                                    @php
+                                        $gpStatus = $dispatch->gatePass->status;
+                                        $gpBadge  = $gpStatus->value === 'exited' ? 'badge-green' : 'badge-amber';
+                                    @endphp
+                                    <span class="badge {{ $gpBadge }} mt-1">
+                                        <span class="dot"></span>{{ $gpStatus->label() }}
+                                    </span>
+                                @else
+                                    <span class="text-slate-400">—</span>
+                                @endif
+                            </td>
+                            <td class="text-right">
+                                @if ($dispatch->gatePass && $dispatch->gatePass->status->value === 'issued')
+                                    <button wire:click="verifyGateExit({{ $dispatch->gatePass->id }})"
+                                            wire:confirm="Mark gate exit for {{ $dispatch->number }}?"
+                                            class="btn btn-primary btn-sm">
+                                        <x-ui.icon name="check" class="w-3.5 h-3.5" /> Verify Exit
+                                    </button>
+                                @else
+                                    <span class="text-xs text-slate-400">—</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="8" class="!py-12 text-center text-slate-500">
+                                @if ($search)
+                                    No dispatches match your search.
+                                @else
+                                    No recent dispatches found.
+                                @endif
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </x-ui.table>
+
+            <div class="px-4 py-3 border-t border-white/40 dark:border-white/[0.06]">
+                {{ $this->recentDispatches->links() }}
+            </div>
+        @endif
+    </div>
+
+    {{-- ── Dispatch Modal ────────────────────────────────────────────────────── --}}
+    @if ($showDispatchModal)
+        <x-ui.modal title="Confirm Dispatch" wireClose="closeDispatchModal" maxWidth="xl">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                {{-- Vehicle Registration No --}}
+                <div>
+                    <label class="label" for="dispatch-vehicle">
+                        Vehicle Registration No <span class="text-rose-500">*</span>
+                    </label>
+                    <input wire:model="vehicleNo"
+                           id="dispatch-vehicle"
+                           type="text"
+                           placeholder="T 452 ABC"
+                           class="input w-full mono uppercase @error('vehicleNo') border-red-400 @enderror" />
+                    @error('vehicleNo')
+                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                    @enderror
                 </div>
 
-                <div class="space-y-4 pt-6 border-t border-slate-100 dark:border-slate-800">
-                    <p class="section-label">Vehicle &amp; Driver</p>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label class="label">Vehicle plate *</label>
-                            <input wire:model="form.vehiclePlate" type="text" required placeholder="T 452 ABC" class="input font-mono uppercase">
-                            @error('form.vehiclePlate') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="label">Trailer number</label>
-                            <input wire:model="form.trailerNumber" type="text" placeholder="T 118 DEF" class="input font-mono uppercase">
-                        </div>
-                        <div>
-                            <label class="label">Seal number *</label>
-                            <input wire:model="form.sealNumber" type="text" required placeholder="SL-55021" class="input font-mono">
-                            @error('form.sealNumber') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="label">Driver name *</label>
-                            <input wire:model="form.driverName" type="text" required placeholder="Juma Kassim" class="input">
-                            @error('form.driverName') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="label">Driver phone *</label>
-                            <input wire:model="form.driverPhone" type="tel" required placeholder="+255 712 000 000" class="input tabular-nums">
-                            @error('form.driverPhone') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="label">Licence number</label>
-                            <input wire:model="form.licenceNumber" type="text" placeholder="DL-4410923" class="input font-mono">
-                        </div>
-                    </div>
+                {{-- Seal No --}}
+                <div>
+                    <label class="label" for="dispatch-seal">Seal No</label>
+                    <input wire:model="sealNo"
+                           id="dispatch-seal"
+                           type="text"
+                           placeholder="SL-55021"
+                           class="input w-full mono" />
                 </div>
 
-                <div class="space-y-3 pt-6 border-t border-slate-100 dark:border-slate-800">
-                    <p class="section-label">Release Checklist</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        @foreach ([
-                            ['field' => 'checklistLoadVerified',       'label' => 'Load verified against picklist'],
-                            ['field' => 'checklistVehicleInspected',   'label' => 'Vehicle condition inspected'],
-                            ['field' => 'checklistSealApplied',        'label' => 'Seal applied and recorded'],
-                            ['field' => 'checklistDocumentsHandedOver','label' => 'Delivery documents handed to driver'],
-                        ] as $check)
-                            <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                                <input wire:model="form.{{ $check['field'] }}" type="checkbox" required class="rounded border-slate-300 text-simba-600 focus:ring-simba-600">
-                                {{ $check['label'] }}
-                            </label>
+                {{-- Driver Name --}}
+                <div>
+                    <label class="label" for="dispatch-driver">
+                        Driver Name <span class="text-rose-500">*</span>
+                    </label>
+                    <input wire:model="driverName"
+                           id="dispatch-driver"
+                           type="text"
+                           placeholder="Juma Kassim"
+                           class="input w-full @error('driverName') border-red-400 @enderror" />
+                    @error('driverName')
+                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Driver Phone --}}
+                <div>
+                    <label class="label" for="dispatch-phone">Driver Phone</label>
+                    <input wire:model="driverPhone"
+                           id="dispatch-phone"
+                           type="tel"
+                           placeholder="+255 712 000 000"
+                           class="input w-full tabular-nums @error('driverPhone') border-red-400 @enderror" />
+                    @error('driverPhone')
+                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Driver ID No --}}
+                <div>
+                    <label class="label" for="dispatch-id-no">Driver ID No</label>
+                    <input wire:model="driverIdNo"
+                           id="dispatch-id-no"
+                           type="text"
+                           placeholder="DL-4410923"
+                           class="input w-full mono @error('driverIdNo') border-red-400 @enderror" />
+                    @error('driverIdNo')
+                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Transporter --}}
+                <div>
+                    <label class="label" for="dispatch-transporter">Transporter</label>
+                    <select wire:model="transporterPartnerId"
+                            id="dispatch-transporter"
+                            class="input w-full">
+                        <option value="">— None / Own transport —</option>
+                        @foreach ($this->transporters as $transporter)
+                            <option value="{{ $transporter->id }}">{{ $transporter->name }}</option>
                         @endforeach
-                    </div>
+                    </select>
                 </div>
-            </div>
-            <div class="card-footer">
-                <a href="{{ route('outbound.orders.index') }}" wire:navigate class="btn btn-secondary">Cancel</a>
-                <button type="submit" class="btn btn-primary">Issue Gate Pass &amp; Release</button>
-            </div>
-        </div>
 
-        <div class="self-start space-y-4">
-            <div class="card overflow-hidden">
-                <div class="bg-simba-600 text-white px-5 py-4">
-                    <p class="text-[11px] uppercase tracking-wider text-simba-100">Gate Pass</p>
-                    <p class="text-xl font-bold font-mono">{{ $form->gatePassNumber }}</p>
-                </div>
-                <div class="card-body space-y-3 text-sm">
-                    <div class="flex justify-between"><span class="text-slate-500">Order</span><span class="mono font-semibold">{{ $form->orderId ?: 'ORD-2026-101' }}</span></div>
-                    <div class="flex justify-between"><span class="text-slate-500">Packages</span><span class="tabular-nums font-semibold">120 bags</span></div>
-                    <div class="flex justify-between"><span class="text-slate-500">Gross weight</span><span class="tabular-nums">3,000 kg</span></div>
-                    <div class="pt-3 border-t border-dashed border-slate-300 dark:border-slate-700 font-mono text-center text-xs tracking-[0.3em] text-slate-500">|||| | ||| || |||| | ||</div>
-                </div>
             </div>
-            <a href="{{ route('reports.print') }}" wire:navigate class="btn btn-secondary w-full">
-                <x-ui.icon name="printer" class="w-4 h-4" /> Print Gate Pass
-            </a>
-        </div>
-    </form>
+
+            {{-- Notes --}}
+            <div>
+                <label class="label" for="dispatch-notes">Notes</label>
+                <textarea wire:model="dispatchNotes"
+                          id="dispatch-notes"
+                          rows="3"
+                          placeholder="Optional dispatch notes…"
+                          class="input w-full resize-none"></textarea>
+            </div>
+
+            <x-slot:footer>
+                <button type="button"
+                        wire:click="closeDispatchModal"
+                        class="btn btn-secondary">
+                    Cancel
+                </button>
+                <button type="button"
+                        wire:click="confirmDispatch"
+                        wire:loading.attr="disabled"
+                        class="btn btn-primary">
+                    <span wire:loading.remove wire:target="confirmDispatch">
+                        <x-ui.icon name="arrow-right" class="w-4 h-4" /> Confirm Dispatch
+                    </span>
+                    <span wire:loading wire:target="confirmDispatch">Confirming…</span>
+                </button>
+            </x-slot:footer>
+
+        </x-ui.modal>
+    @endif
+
 </div>

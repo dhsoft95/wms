@@ -29,6 +29,7 @@ class Grn extends Model
         'supplier_partner_id',
         'customer_partner_id',
         'warehouse_id',
+        'delivery_order_id',
         'receiving_dock_location_id',
         'status',
         'received_by',
@@ -52,6 +53,11 @@ class Grn extends Model
     }
 
     // ─── Relationships ────────────────────────────────────────────────────────
+
+    public function deliveryOrder(): BelongsTo
+    {
+        return $this->belongsTo(DeliveryOrder::class);
+    }
 
     public function container(): BelongsTo
     {

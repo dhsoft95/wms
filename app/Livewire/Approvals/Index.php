@@ -1,52 +1,101 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Approvals;
 
+use App\Models\DeliveryOrderApproval;
+use App\Services\Outbound\DeliveryOrderWorkflow;
 use Illuminate\Contracts\View\View;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 class Index extends Component
 {
-    public string $statusFilter = 'all';
+    public string $typeFilter = 'all';    // all | do_approval | adjustment
 
-    // placeholder data
-    public array $rows = [
-        ['id' => 1, 'ref' => 'ADJ-2026-014', 'type' => 'adjustment', 'badge' => 'badge-amber', 'label' => 'Adjustment', 'details' => 'SKU-AZ-001 at DAR-A-03-02-B', 'sub' => 'Counted 450 vs system 500', 'by' => 'Onesmo Mlelwa', 'at' => '2026-10-03 09:12', 'impact' => '-50', 'impactColor' => 'text-red-600'],
-        ['id' => 2, 'ref' => 'TRF-2026-031', 'type' => 'transfer',   'badge' => 'badge-violet', 'label' => 'Transfer',    'details' => '200 x SKU-VOD-SIM',            'sub' => 'DAR-Tech Vault to Zanzibar Regional Hub', 'by' => 'Neema Joseph',  'at' => '2026-10-03 08:40', 'impact' => '200',  'impactColor' => ''],
-        ['id' => 3, 'ref' => 'INS-2026-022', 'type' => 'discrepancy','badge' => 'badge-red',    'label' => 'Discrepancy', 'details' => 'GRN-2026-089 shortage',         'sub' => '12 bags of SKU-AZ-001 missing',           'by' => 'Onesmo Mlelwa', 'at' => '2026-10-02 16:05', 'impact' => '-12', 'impactColor' => 'text-red-600'],
-        ['id' => 4, 'ref' => 'ADJ-2026-013', 'type' => 'adjustment', 'badge' => 'badge-amber',  'label' => 'Adjustment',  'details' => 'Found stock SKU-AZ-SUG',        'sub' => 'DAR-B-01-04-A',                           'by' => 'Neema Joseph',  'at' => '2026-10-02 14:22', 'impact' => '+24', 'impactColor' => 'text-emerald-600'],
-    ];
+    // DO approval state
+    public bool   $showDoRejectModal = false;
+    public ?int   $rejectApprovalId  = null;
+    public string $rejectNotes       = '';
 
-    public function filteredRows(): array
+    #[Computed]
+    public function pendingDoApprovals(): \Illuminate\Database\Eloquent\Collection
     {
-        if ($this->statusFilter === 'all') {
-            return $this->rows;
+        $query = DeliveryOrderApproval::with(['deliveryOrder.consigneePartner', 'deliveryOrder.requestedBy', 'deliveryOrder.virtualWarehouse'])
+            ->whereNull('decision')
+            ->whereHas('deliveryOrder', fn ($q) => $q->where('status', \App\Enums\Outbound\DeliveryOrderStatus::Submitted->value));
+
+        $user = auth()->user();
+
+        // Only show approvals relevant to this user's role
+        if ($user->hasRole('department-manager') || $user->hasRole('department-head')) {
+            $query->where('approver_role', 'department');
+        } elseif ($user->hasRole('warehouse-manager') || $user->hasRole('warehouse-supervisor')) {
+            $query->where('approver_role', 'warehouse');
         }
-        return array_values(array_filter($this->rows, fn($r) => $r['type'] === $this->statusFilter));
+        // system-admin sees all via Gate::before
+
+        return $query->orderBy('created_at')->get();
     }
 
-    public function approve(int $id): void
+    #[Computed]
+    public function totalPendingCount(): int
     {
-        $row = collect($this->rows)->firstWhere('id', $id);
-        $this->rows = array_values(array_filter($this->rows, fn($r) => $r['id'] !== $id));
-        $this->dispatch('toast', message: ($row['ref'] ?? '') . ' approved', type: 'success');
+        return $this->pendingDoApprovals->count();
     }
 
-    public function reject(int $id): void
+    // ─── Actions ──────────────────────────────────────────────────────────────
+
+    public function approveOrder(int $approvalId): void
     {
-        $row = collect($this->rows)->firstWhere('id', $id);
-        $this->rows = array_values(array_filter($this->rows, fn($r) => $r['id'] !== $id));
-        $this->dispatch('toast', message: ($row['ref'] ?? '') . ' rejected', type: 'error');
+        $approval = DeliveryOrderApproval::with('deliveryOrder')->findOrFail($approvalId);
+        $this->authorize('approveDepartment', $approval->deliveryOrder);
+
+        app(DeliveryOrderWorkflow::class)->approve(
+            $approval->deliveryOrder,
+            auth()->user(),
+            (int) $approval->level,
+        );
+
+        $this->dispatch('toast', message: "Order {$approval->deliveryOrder->number} approved.", type: 'success');
+        unset($this->pendingDoApprovals, $this->totalPendingCount);
+    }
+
+    public function openRejectModal(int $approvalId): void
+    {
+        $this->rejectApprovalId  = $approvalId;
+        $this->rejectNotes       = '';
+        $this->showDoRejectModal = true;
+    }
+
+    public function confirmReject(): void
+    {
+        $this->validate(['rejectNotes' => ['required', 'string', 'min:5']]);
+
+        $approval = DeliveryOrderApproval::with('deliveryOrder')->findOrFail($this->rejectApprovalId);
+        $this->authorize('cancel', $approval->deliveryOrder);
+
+        app(DeliveryOrderWorkflow::class)->reject(
+            $approval->deliveryOrder,
+            auth()->user(),
+            $this->rejectNotes,
+        );
+
+        $this->showDoRejectModal = false;
+        $this->rejectApprovalId  = null;
+        $this->rejectNotes       = '';
+
+        $this->dispatch('toast', message: "Order {$approval->deliveryOrder->number} rejected.", type: 'success');
+        unset($this->pendingDoApprovals, $this->totalPendingCount);
     }
 
     public function render(): View
     {
-        return view('livewire.approvals.index', [
-            'filteredRows' => $this->filteredRows(),
-            'pendingCount' => count($this->rows),
-        ])->layout('components.layouts.app', [
-            'title'           => 'Approvals Inbox',
-            'breadcrumbGroup' => 'Overview',
-        ]);
+        return view('livewire.approvals.index')
+            ->layout('components.layouts.app', [
+                'title'           => 'Approvals Inbox',
+                'breadcrumbGroup' => 'Overview',
+            ]);
     }
 }

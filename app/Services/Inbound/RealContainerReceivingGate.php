@@ -23,6 +23,12 @@ final class RealContainerReceivingGate implements ContainerReceivingGate
      */
     public function checkReadyForUnloaded(int $containerId): ?string
     {
+        $total = Grn::where('container_id', $containerId)->whereNull('deleted_at')->count();
+
+        if ($total === 0) {
+            return 'Container has no GRNs. All goods must be received before marking as unloaded.';
+        }
+
         $notDoneCount = Grn::where('container_id', $containerId)
             ->whereNotIn('status', array_column(self::DONE_STATUSES, 'value'))
             ->whereNull('deleted_at')

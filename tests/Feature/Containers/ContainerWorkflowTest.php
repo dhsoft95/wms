@@ -15,7 +15,7 @@ use App\Services\Inbound\ContainerWorkflow;
 // ── Group: ISO 6346 ─────────────────────────────────────────────────────────
 
 test('ISO6346 valid numbers pass', function () {
-    expect(ISO6346Validator::isValid('MSCU4134997'))->toBeTrue();
+    expect(ISO6346Validator::isValid('MSCU4134998'))->toBeTrue();
 });
 
 test('ISO6346 invalid check digit fails', function () {
@@ -53,6 +53,8 @@ test('forbidden transitions fail', function (ContainerStatus $from, ContainerSta
 // ── Group: workflow (uses RefreshDatabase) ───────────────────────────────────
 
 uses(\Illuminate\Foundation\Testing\RefreshDatabase::class);
+
+beforeEach(fn () => (new \Database\Seeders\RolePermissionSeeder())->run());
 
 test('confirmArrival transitions to arrived and writes history', function () {
     $user      = User::factory()->create();

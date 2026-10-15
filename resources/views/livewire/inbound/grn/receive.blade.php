@@ -141,6 +141,20 @@
                         @error('receiptUomId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                     </div>
 
+                    {{-- Serial Numbers --}}
+                    @if ($this->activeGrnLine->item?->track_serial)
+                    <div>
+                        <label class="label">
+                            Serial Numbers <span class="text-red-500">*</span>
+                            <span class="text-slate-400 font-normal text-xs ml-1">(one per line, must match qty)</span>
+                        </label>
+                        <textarea wire:model="receiptSerials" rows="5"
+                                  class="input font-mono text-xs @error('receiptSerials') border-red-400 @enderror"
+                                  placeholder="SN-000001&#10;SN-000002&#10;SN-000003"></textarea>
+                        @error('receiptSerials') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    @endif
+
                     {{-- Batch / Expiry --}}
                     @if ($this->activeGrnLine->item?->track_batch)
                     <div>

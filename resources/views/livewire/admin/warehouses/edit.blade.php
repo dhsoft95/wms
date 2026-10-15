@@ -90,12 +90,12 @@
             </div>
         </div>
 
-        {{-- Receiving Defaults --}}
+        {{-- Default Locations --}}
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">
                     <x-ui.icon name="archive" class="w-4 h-4" />
-                    Receiving Defaults
+                    Default Locations
                 </h3>
             </div>
             <div class="card-body space-y-5">
@@ -126,6 +126,21 @@
                     </select>
                     <p class="hint">Damaged goods are posted to this location.</p>
                     @error('defaultQuarantineLocationId')
+                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label class="label" for="wh-staging">Default Staging Location</label>
+                    <select wire:model="defaultStagingLocationId" id="wh-staging"
+                            class="input @error('defaultStagingLocationId') border-red-400 @enderror">
+                        <option value="">— None —</option>
+                        @foreach ($this->stagingLocations as $loc)
+                            <option value="{{ $loc->id }}">{{ $loc->code }}</option>
+                        @endforeach
+                    </select>
+                    <p class="hint">Picked stock is moved here before dispatch. Required for outbound picking.</p>
+                    @error('defaultStagingLocationId')
                         <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
                     @enderror
                 </div>

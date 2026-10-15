@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace App\Livewire\Dashboard;
 
 use App\Enums\ContainerStatus;
+use App\Enums\Outbound\DeliveryOrderStatus;
+use App\Enums\Outbound\PickListStatus;
+use App\Models\DeliveryOrder;
+use App\Models\Dispatch;
+use App\Models\PickList;
 use App\Services\Inbound\ContainerQueryService;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
@@ -46,6 +51,43 @@ class Overview extends Component
             ->orderByDesc('id')
             ->limit(5)
             ->get();
+    }
+
+    #[Computed]
+    public function pendingOrdersCount(): int
+    {
+        return DeliveryOrder::whereIn('status', [
+            DeliveryOrderStatus::Draft->value,
+            DeliveryOrderStatus::Submitted->value,
+            DeliveryOrderStatus::Approved->value,
+        ])->count();
+    }
+
+    #[Computed]
+    public function todayDispatchCount(): int
+    {
+        return Dispatch::whereDate('dispatched_at', today())->count();
+    }
+
+    #[Computed]
+    public function openPickListsCount(): int
+    {
+        return PickList::whereIn('status', [
+            PickListStatus::Open->value,
+            PickListStatus::InProgress->value,
+        ])->count();
+    }
+
+    #[Computed]
+    public function overdueOrdersCount(): int
+    {
+        return DeliveryOrder::whereDate('required_date', '<', today())
+            ->whereNotIn('status', [
+                DeliveryOrderStatus::Dispatched->value,
+                DeliveryOrderStatus::Delivered->value,
+                DeliveryOrderStatus::Cancelled->value,
+            ])
+            ->count();
     }
 
     public function render(): View

@@ -66,6 +66,43 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('auth')
         ->name('containers.documents.download');
 
+    // Packing list import sample template
+    Route::get('/containers/packing-list/sample', function () {
+        $headers = ['Item Code', 'Description', 'Quantity', 'Unit', 'Batch No', 'Expiry Date', 'Department'];
+        $rows    = [
+            ['SKU001',   'Widget A',                 '2',  'CTN', 'BATCH-001', '2027-01-01', 'DEPT-A'],
+            ['SKU002',   'Tracked Product',           '10', 'PCS', 'LOT-X99',  '2026-06-30', 'DEPT-B'],
+            ['NEWITEM1', 'New Product (map/create)',  '5',  'PCS', '',         '',           'DEPT-A'],
+        ];
+        $instructions = [
+            ['Item Code',   'Required. SKU or barcode. Unknown SKUs can be mapped or created during import.'],
+            ['Description', 'Optional product description.'],
+            ['Quantity',    'Required numeric quantity in the specified unit.'],
+            ['Unit',        'UoM code (e.g. PCS, CTN, KG). Converted to base UoM if a conversion exists for the item.'],
+            ['Batch No',    'Batch/lot number. Required for items that track batches.'],
+            ['Expiry Date', 'Date format YYYY-MM-DD. Required for items that track expiry.'],
+            ['Department',  'Virtual Warehouse code or name. Falls back to the item\'s default warehouse if omitted.'],
+        ];
+
+        return response()->streamDownload(function () use ($headers, $rows, $instructions) {
+            $writer = new \OpenSpout\Writer\XLSX\Writer();
+            $writer->openToFile('php://output');
+            $writer->getCurrentSheet()->setName('Packing List');
+            $writer->addRow(\OpenSpout\Common\Entity\Row::fromValues($headers));
+            foreach ($rows as $row) {
+                $writer->addRow(\OpenSpout\Common\Entity\Row::fromValues($row));
+            }
+            $writer->addNewSheetAndMakeItCurrent()->setName('Column Guide');
+            $writer->addRow(\OpenSpout\Common\Entity\Row::fromValues(['Column', 'Description']));
+            foreach ($instructions as $row) {
+                $writer->addRow(\OpenSpout\Common\Entity\Row::fromValues($row));
+            }
+            $writer->close();
+        }, 'packing_list_sample.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
+    })->middleware('auth')->name('containers.packing-list.sample');
+
     // Warehouse
     Route::prefix('warehouse')->name('warehouse.')->group(function () {
         // putaway.index kept as alias for backward-compat
@@ -98,14 +135,25 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // Outbound
-    Route::prefix('outbound')->name('outbound.')->middleware('permission:orders.view')->group(function () {
+    Route::prefix('outbound')->name('outbound.')->group(function () {
+        Route::get('/orders', \App\Livewire\Outbound\Orders\Index::class)
+            ->middleware('permission:orders.view')->name('orders.index');
         Route::get('/orders/create', \App\Livewire\Outbound\Orders\Create::class)
             ->middleware('permission:orders.create')->name('orders.create');
-        Route::get('/orders',        \App\Livewire\Outbound\Orders\Create::class)->name('orders.index');
-        Route::get('/dispatch',      \App\Livewire\Outbound\Dispatch\Index::class)
+        Route::get('/orders/{deliveryOrder}', \App\Livewire\Outbound\Orders\Show::class)
+            ->middleware('permission:orders.view')->name('orders.show');
+        Route::get('/orders/{deliveryOrder}/edit', \App\Livewire\Outbound\Orders\Edit::class)
+            ->middleware('permission:orders.create')->name('orders.edit');
+        Route::get('/pick-lists', \App\Livewire\Outbound\PickLists\Index::class)
+            ->middleware('permission:picking.view')->name('pick-lists.index');
+        Route::get('/dispatch', \App\Livewire\Outbound\Dispatch\Index::class)
             ->middleware('permission:dispatch.view')->name('dispatch.index');
-        Route::get('/pod',           \App\Livewire\Outbound\Pod\Index::class)
-            ->middleware('permission:pod.view')->name('pod.index');
+        Route::get('/dispatch/{dispatch}', \App\Livewire\Outbound\Dispatch\Show::class)
+            ->middleware('permission:dispatch.view')->name('dispatch.show');
+        Route::get('/pod', \App\Livewire\Outbound\Pod\Index::class)
+            ->middleware('permission:pod.upload')->name('pod.index');
+        Route::get('/gate', \App\Livewire\Outbound\Gate\Check::class)
+            ->middleware('permission:gate.verify')->name('gate.check');
     });
 
     // Reports
@@ -255,14 +303,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // ─── Scanner operator portal ──────────────────────────────────────────────────
-Route::middleware(['auth', 'permission:scan.receive|scan.putaway|scan.pick|scan.move|scan.lookup|scan.stock-lookup'])->prefix('scan')->name('scan.')->group(function () {
-    Route::get('/',            \App\Livewire\Scan\Home::class)->name('home');
-    Route::get('/receive',     \App\Livewire\Scan\Receive::class)->name('receive');
-    Route::get('/putaway',     \App\Livewire\Scan\Putaway::class)->name('putaway');
-    Route::get('/pick',        \App\Livewire\Scan\Pick::class)->name('pick');
-    Route::get('/move',        \App\Livewire\Scan\Move::class)->name('move');
-    Route::get('/lookup',      \App\Livewire\Scan\Lookup::class)->name('lookup');
-    Route::get('/stock-lookup',\App\Livewire\Scan\Lookup::class)->name('stock-lookup');
+Route::middleware(['auth', 'permission:scan.receive|scan.putaway|scan.pick|scan.dispatch|scan.gate|scan.move|scan.lookup|scan.stock-lookup'])->prefix('scan')->name('scan.')->group(function () {
+    Route::get('/',             \App\Livewire\Scan\Home::class)->name('home');
+    Route::get('/receive',      \App\Livewire\Scan\Receive::class)->name('receive');
+    Route::get('/putaway',      \App\Livewire\Scan\Putaway::class)->name('putaway');
+    Route::get('/pick',         \App\Livewire\Scan\Pick::class)->name('pick');
+    Route::get('/dispatch',     \App\Livewire\Scan\Dispatch::class)->name('dispatch');
+    Route::get('/move',         \App\Livewire\Scan\Move::class)->name('move');
+    Route::get('/lookup',       \App\Livewire\Scan\Lookup::class)->name('lookup');
+    Route::get('/stock-lookup', \App\Livewire\Scan\Lookup::class)->name('stock-lookup');
+    Route::get('/gate',         \App\Livewire\Scan\GateCheck::class)->name('gate');
 });
 
 require __DIR__.'/auth.php';

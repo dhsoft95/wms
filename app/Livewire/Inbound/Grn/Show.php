@@ -55,11 +55,7 @@ class Show extends Component
     #[Computed]
     public function activityLog(): \Illuminate\Database\Eloquent\Collection
     {
-        return activity()
-            ->performedOn($this->grn)
-            ->latest()
-            ->take(50)
-            ->get();
+        return $this->grn->activities()->latest()->take(50)->get();
     }
 
     #[Computed]
@@ -85,6 +81,19 @@ class Show extends Component
         app(GrnWorkflow::class)->startReceiving($this->grn, auth()->user());
         $this->grn->refresh();
         $this->dispatch('toast', message: 'Receiving started.', type: 'success');
+    }
+
+    public function confirmGrn(): void
+    {
+        $this->authorize('confirm', $this->grn);
+
+        try {
+            app(GrnWorkflow::class)->confirm($this->grn, auth()->user());
+            $this->grn->refresh();
+            $this->dispatch('toast', message: 'GRN confirmed — stock posted to dock.', type: 'success');
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
     }
 
     public function approveVariance(): void

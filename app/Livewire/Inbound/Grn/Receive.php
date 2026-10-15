@@ -33,6 +33,7 @@ class Receive extends Component
     public string $receiptExpiry    = '';
     public string $receiptCondition = 'good';
     public string $receiptLpnId     = '';
+    public string $receiptSerials   = '';  // one serial per line, for track_serial items
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -70,7 +71,7 @@ class Receive extends Component
     }
 
     #[Computed]
-    public function uomOptions(): \Illuminate\Database\Eloquent\Collection
+    public function uomOptions(): \Illuminate\Support\Collection
     {
         if ($this->activeGrnLine === null) {
             return collect();
@@ -152,6 +153,8 @@ class Receive extends Component
 
     public function addReceipt(): void
     {
+        $trackSerial = (bool) ($this->activeGrnLine?->item?->track_serial);
+
         $this->validate([
             'activeLine'       => ['required', 'exists:grn_lines,id'],
             'receiptQty'       => ['required', 'numeric', 'min:0.0001'],
@@ -160,7 +163,24 @@ class Receive extends Component
             'receiptExpiry'    => ['nullable', 'date'],
             'receiptCondition' => ['required', 'in:good,damaged'],
             'receiptLpnId'     => ['nullable', 'exists:lpns,id'],
+            'receiptSerials'   => $trackSerial ? ['required', 'string'] : ['nullable'],
         ]);
+
+        // Parse serials — one per line, deduplicated, non-empty
+        $serialNos = null;
+        if ($trackSerial) {
+            $parsed = array_values(array_unique(array_filter(
+                array_map('trim', preg_split('/[\r\n,]+/', $this->receiptSerials)),
+                fn ($s) => $s !== ''
+            )));
+
+            $qty = (int) round((float) $this->receiptQty);
+            if (count($parsed) !== $qty) {
+                $this->addError('receiptSerials', "Expected {$qty} serial(s), got " . count($parsed) . '.');
+                return;
+            }
+            $serialNos = $parsed;
+        }
 
         GrnReceipt::create([
             'grn_line_id' => $this->activeLine,
@@ -170,16 +190,17 @@ class Receive extends Component
             'expiry_date' => $this->receiptExpiry ?: null,
             'condition'   => $this->receiptCondition,
             'lpn_id'      => $this->receiptLpnId ?: null,
+            'serial_nos'  => $serialNos,
             'received_by' => auth()->id(),
         ]);
 
-        // Recalculate line totals
         GrnLine::find($this->activeLine)?->recalculateTotals();
 
         $this->receiptQty     = '';
         $this->receiptBatchNo = '';
         $this->receiptExpiry  = '';
         $this->receiptLpnId   = '';
+        $this->receiptSerials = '';
 
         $this->dispatch('toast', message: 'Receipt recorded.', type: 'success');
     }
@@ -213,7 +234,7 @@ class Receive extends Component
 
         try {
             app(GrnWorkflow::class)->finishReceiving($this->grn, auth()->user());
-            $this->dispatch('toast', message: 'Receiving finished — stock posted.', type: 'success');
+            $this->dispatch('toast', message: 'Receiving complete — click Confirm GRN to post stock.', type: 'success');
             $this->redirect(route('inbound.grn.show', $this->grn), navigate: true);
         } catch (\Exception $e) {
             $this->dispatch('toast', message: 'Error: ' . $e->getMessage(), type: 'error');

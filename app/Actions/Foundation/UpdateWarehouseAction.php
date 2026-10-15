@@ -16,10 +16,13 @@ class UpdateWarehouseAction
         }
 
         $warehouse->update([
-            'code'      => strtoupper($data['code']),
-            'name'      => $data['name'],
-            'address'   => $data['address'] ?: null,
-            'is_active' => $data['is_active'] ?? $warehouse->is_active,
+            'code'                                => strtoupper($data['code']),
+            'name'                                => $data['name'],
+            'address'                             => $data['address'] ?: null,
+            'is_active'                           => $data['is_active'] ?? $warehouse->is_active,
+            'default_receiving_dock_location_id'  => $data['default_receiving_dock_location_id'] ?? $warehouse->default_receiving_dock_location_id,
+            'default_quarantine_location_id'      => $data['default_quarantine_location_id'] ?? $warehouse->default_quarantine_location_id,
+            'default_staging_location_id'         => $data['default_staging_location_id'] ?? $warehouse->default_staging_location_id,
         ]);
     }
 }

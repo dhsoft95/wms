@@ -5,7 +5,6 @@ namespace App\Livewire\Scan;
 use App\Enums\ScanResultType;
 use App\Services\Scanning\BarcodeResolver;
 use Illuminate\Contracts\View\View;
-use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class Lookup extends Component
@@ -68,38 +67,34 @@ class Lookup extends Component
     private function itemStockData(): array
     {
         $item  = \App\Models\Item::find($this->resultId);
-        $stock = DB::table('stock_balances')
+        $stock = \App\Models\Inventory\StockBalance::with(['location', 'virtualWarehouse'])
             ->where('item_id', $this->resultId)
             ->where('qty_on_hand', '>', 0)
-            ->join('locations', 'locations.id', '=', 'stock_balances.location_id')
-            ->join('virtual_warehouses', 'virtual_warehouses.id', '=', 'stock_balances.virtual_warehouse_id')
-            ->select(
-                'locations.code as location',
-                'virtual_warehouses.name as vw',
-                'stock_balances.qty_on_hand',
-                'stock_balances.qty_allocated',
-                'stock_balances.qty_on_hold'
-            )
-            ->get();
+            ->get()
+            ->map(fn ($b) => (object) [
+                'location'      => $b->location?->code,
+                'vw'            => $b->virtualWarehouse?->name,
+                'qty_on_hand'   => $b->qty_on_hand,
+                'qty_allocated' => $b->qty_allocated,
+                'qty_on_hold'   => $b->qty_on_hold,
+            ]);
         return ['item' => $item, 'stock' => $stock];
     }
 
     private function locationData(): array
     {
         $loc      = \App\Models\Location::find($this->resultId);
-        $contents = DB::table('stock_balances')
+        $contents = \App\Models\Inventory\StockBalance::with(['item', 'lpn'])
             ->where('location_id', $this->resultId)
             ->where('qty_on_hand', '>', 0)
-            ->join('items', 'items.id', '=', 'stock_balances.item_id')
-            ->leftJoin('lpns', 'lpns.id', '=', 'stock_balances.lpn_id')
-            ->select(
-                'items.sku',
-                'items.name',
-                'lpns.code as lpn_code',
-                'stock_balances.qty_on_hand',
-                'stock_balances.stock_status'
-            )
-            ->get();
+            ->get()
+            ->map(fn ($b) => (object) [
+                'sku'          => $b->item?->sku,
+                'name'         => $b->item?->name,
+                'lpn_code'     => $b->lpn?->code,
+                'qty_on_hand'  => $b->qty_on_hand,
+                'stock_status' => $b->stock_status,
+            ]);
         return ['location' => $loc, 'contents' => $contents];
     }
 

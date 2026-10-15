@@ -1,59 +1,139 @@
 <div class="space-y-6">
+    {{-- Page header --}}
     <div class="page-header">
         <div>
             <h2 class="page-title">Approvals Inbox</h2>
-            <p class="page-sub">Requests that need a supervisor decision before stock records are updated.</p>
+            <p class="page-sub">Delivery orders awaiting your approval before stock is allocated.</p>
         </div>
-        <span class="badge badge-simba !text-sm !px-3 !py-1">{{ $pendingCount }} pending</span>
+        @if ($this->totalPendingCount > 0)
+            <span class="badge badge-simba !text-sm !px-3 !py-1">{{ $this->totalPendingCount }} pending</span>
+        @endif
     </div>
 
-    <div class="card">
-        <div class="card-header">
-            <div class="tabs">
-                @foreach ([['all','All'],['adjustment','Adjustments'],['transfer','Transfers'],['discrepancy','Discrepancies']] as [$val, $lbl])
-                    <button
-                        wire:click="$set('statusFilter', '{{ $val }}')"
-                        @class(['tab', 'active' => $statusFilter === $val])
-                    >{{ $lbl }}</button>
-                @endforeach
+    {{-- Empty state --}}
+    @if ($this->pendingDoApprovals->isEmpty())
+        <div class="card p-12 flex flex-col items-center justify-center text-center space-y-3">
+            <div class="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                <x-ui.icon name="check" class="w-7 h-7 text-emerald-600" />
             </div>
+            <p class="font-semibold text-slate-700 dark:text-slate-200">No pending approvals</p>
+            <p class="text-sm text-slate-400">All delivery orders have been reviewed. Check back later.</p>
         </div>
+    @else
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Pending Delivery Orders</h3>
+                <span class="badge badge-amber">{{ $this->totalPendingCount }}</span>
+            </div>
 
-        <x-ui.table>
+            <x-ui.table>
                 <thead>
                     <tr>
-                        <th>Request</th><th>Details</th><th>Requested By</th><th>Submitted</th>
-                        <th class="text-right">Impact</th><th class="text-right">Decision</th>
+                        <th>DO Number</th>
+                        <th>Consignee</th>
+                        <th>Virtual Warehouse</th>
+                        <th>Requested By</th>
+                        <th>Required Date</th>
+                        <th>Approval Level</th>
+                        <th class="text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse ($filteredRows as $row)
+                    @foreach ($this->pendingDoApprovals as $approval)
                         <tr>
                             <td>
-                                <p class="mono font-semibold">{{ $row['ref'] }}</p>
-                                <span class="badge {{ $row['badge'] }} mt-1">{{ $row['label'] }}</span>
+                                <a href="{{ route('outbound.orders.show', $approval->deliveryOrder) }}"
+                                   wire:navigate
+                                   class="mono font-semibold text-simba-700 dark:text-simba-400 hover:text-simba-600 transition-colors">
+                                    {{ $approval->deliveryOrder->number }}
+                                </a>
                             </td>
-                            <td class="text-slate-600 dark:text-slate-300">
-                                {{ $row['details'] }}<br>
-                                <span class="text-xs text-slate-500">{{ $row['sub'] }}</span>
+                            <td class="text-sm">
+                                {{ $approval->deliveryOrder->consigneePartner?->name ?? '—' }}
                             </td>
-                            <td>{{ $row['by'] }}</td>
-                            <td class="tabular-nums">{{ $row['at'] }}</td>
-                            <td class="text-right tabular-nums font-semibold {{ $row['impactColor'] }}">{{ $row['impact'] }}</td>
+                            <td class="text-sm">
+                                {{ $approval->deliveryOrder->virtualWarehouse?->name ?? '—' }}
+                            </td>
+                            <td class="text-sm">
+                                {{ $approval->deliveryOrder->requestedBy?->name ?? '—' }}
+                            </td>
+                            <td class="tabular-nums text-sm">
+                                @if ($approval->deliveryOrder->required_date)
+                                    @php
+                                        $rd = \Illuminate\Support\Carbon::parse($approval->deliveryOrder->required_date);
+                                        $isOverdue = $rd->isPast();
+                                    @endphp
+                                    <span class="{{ $isOverdue ? 'text-red-600 font-semibold' : '' }}">
+                                        {{ $rd->format('d M Y') }}
+                                    </span>
+                                    @if ($isOverdue)
+                                        <span class="badge badge-red ml-1">Overdue</span>
+                                    @endif
+                                @else
+                                    <span class="text-slate-400">—</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if ($approval->approver_role === 'department')
+                                    <span class="badge badge-violet">Department</span>
+                                @elseif ($approval->approver_role === 'warehouse')
+                                    <span class="badge badge-simba">Warehouse</span>
+                                @else
+                                    <span class="badge badge-neutral">{{ ucfirst($approval->approver_role) }}</span>
+                                @endif
+                            </td>
                             <td class="text-right">
-                                <x-ui.row-actions :label="'Actions for ' . $row['ref']">
-                                    <x-ui.row-actions.item icon="check" label="Approve" tone="success" wire:click="approve({{ $row['id'] }})" />
-                                    <x-ui.row-actions.divider />
-                                    <x-ui.row-actions.item icon="x" label="Reject" tone="danger" wire:click="reject({{ $row['id'] }})" />
-                                </x-ui.row-actions>
+                                <div class="flex items-center justify-end gap-2">
+                                    <button wire:click="approveOrder({{ $approval->id }})"
+                                            wire:loading.attr="disabled"
+                                            wire:confirm="Approve order {{ $approval->deliveryOrder->number }}?"
+                                            class="btn btn-xs bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 px-3 py-1.5 text-xs font-semibold rounded-lg">
+                                        <x-ui.icon name="check" class="w-3.5 h-3.5 inline -mt-0.5" /> Approve
+                                    </button>
+                                    <button wire:click="openRejectModal({{ $approval->id }})"
+                                            class="btn btn-xs bg-red-600 hover:bg-red-700 text-white border-red-600 px-3 py-1.5 text-xs font-semibold rounded-lg">
+                                        <x-ui.icon name="x" class="w-3.5 h-3.5 inline -mt-0.5" /> Reject
+                                    </button>
+                                </div>
                             </td>
                         </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6" class="!py-12 text-center text-slate-500">All caught up. No pending approvals.</td>
-                        </tr>
-                    @endforelse
+                    @endforeach
                 </tbody>
-        </x-ui.table>
-    </div>
+            </x-ui.table>
+        </div>
+    @endif
+
+    {{-- Reject Modal --}}
+    @if ($showDoRejectModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-base font-semibold text-slate-800 dark:text-slate-200">Reject Order</h3>
+                    <button wire:click="$set('showDoRejectModal', false)"
+                            class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                        <x-ui.icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+                <p class="text-sm text-slate-500 dark:text-slate-400">
+                    Provide a reason for rejecting this order. The requester will be notified.
+                </p>
+                <div>
+                    <label class="label">Rejection Notes <span class="text-red-500">*</span></label>
+                    <textarea wire:model="rejectNotes" rows="4"
+                              class="input resize-none"
+                              placeholder="Describe why this order is being rejected…"></textarea>
+                    @error('rejectNotes')
+                        <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                    @enderror
+                </div>
+                <div class="flex justify-end gap-3 pt-1">
+                    <button wire:click="$set('showDoRejectModal', false)" class="btn btn-secondary">Cancel</button>
+                    <button wire:click="confirmReject" wire:loading.attr="disabled"
+                            class="btn btn-primary bg-red-600 hover:bg-red-700 border-red-600">
+                        <x-ui.icon name="x-circle" class="w-4 h-4" /> Confirm Rejection
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>

@@ -26,6 +26,7 @@ class Location extends Model
         'code',
         'type',
         'status',
+        'pick_sequence',
         'max_pallets',
         'max_weight_kg',
         'barcode',

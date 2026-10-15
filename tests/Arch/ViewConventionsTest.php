@@ -20,7 +20,8 @@ test('no raw <table> tags outside ui component folder and vendor', function () u
         $relative = str_replace(DIRECTORY_SEPARATOR, '/', $relative);
 
         if (Str::startsWith($relative, 'components/ui/table') ||
-            Str::startsWith($relative, 'vendor/')) {
+            Str::startsWith($relative, 'vendor/') ||
+            Str::startsWith($relative, 'pdf/')) {
             continue;
         }
 

@@ -13,11 +13,13 @@ class DatabaseSeeder extends Seeder
             FoundationDefaultsSeeder::class,
             DepartmentSeeder::class,
             AdminUserSeeder::class,
-            FoundationDemoSeeder::class,
-            StockDemoSeeder::class,
-            ContainerDemoSeeder::class,
-            ReceivingDemoSeeder::class,
-            LabelsSeeder::class,
+            TestMasterDataSeeder::class,
+//            FoundationDemoSeeder::class,
+//            StockDemoSeeder::class,
+//            ContainerDemoSeeder::class,
+//            ReceivingDemoSeeder::class,
+//            LabelsSeeder::class,
+//            OutboundDemoSeeder::class,
         ]);
 
         // Ensure the developer account is active and has system-admin role

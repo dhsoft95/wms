@@ -293,9 +293,16 @@
                     <p class="text-xs text-slate-500 mt-0.5">{{ $container->expectedLines->count() }} lines · {{ $container->expectedLines->sum('qty') }} total qty</p>
                 </div>
                 @if($container->linesEditable())
-                    <button wire:click="openLineModal()" class="btn btn-primary">
-                        <x-ui.icon name="plus" class="w-4 h-4" /> Add Line
-                    </button>
+                    <div class="flex items-center gap-2">
+                        @can('update', $container)
+                            <button wire:click="openPackingListWizard" class="btn btn-secondary">
+                                <x-ui.icon name="upload" class="w-4 h-4" /> Import packing list
+                            </button>
+                        @endcan
+                        <button wire:click="openLineModal()" class="btn btn-primary">
+                            <x-ui.icon name="plus" class="w-4 h-4" /> Add Line
+                        </button>
+                    </div>
                 @endif
             </div>
 
@@ -954,4 +961,6 @@
         </div>
     </div>
 @endif
+
+@include('livewire.inbound.containers._packing-list-wizard')
 </div>{{-- single Livewire root --}}

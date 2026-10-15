@@ -307,15 +307,24 @@ final class StockLedger
             throw new \InvalidArgumentException('Stock line quantity cannot be zero.');
         }
 
-        // 5e2. Serial count must equal base qty for serial-tracked items
-        if ($item->track_serial) {
+        // 5e2. Serial count validation for serial-tracked items.
+        // Inbound (qty > 0): serials are optional at dock receive — they can be captured during putaway.
+        //   If provided, the count must match exactly.
+        // Outbound (qty < 0): serials are always required and must match.
+        if ($item->track_serial && ! empty($line->serials)) {
             $serialCount = count($line->serials);
             $absBaseQty  = (int) round((float) ltrim($baseQty, '-'));
             if ($serialCount !== $absBaseQty) {
                 throw new \InvalidArgumentException(
-                    "Item {$item->sku} requires {$absBaseQty} serial number(s) but {$serialCount} were provided."
+                    "Item {$item->sku} requires {$absBaseQty} serial number(s) but {$serialCount} provided."
                 );
             }
+        }
+        if ($item->track_serial && bccomp($baseQty, '0', 4) < 0 && empty($line->serials)) {
+            $absBaseQty = (int) round((float) ltrim($baseQty, '-'));
+            throw new \InvalidArgumentException(
+                "Item {$item->sku} requires {$absBaseQty} serial number(s) for outbound movement but none were provided."
+            );
         }
 
         // Resolve the effective stock status (may be overridden by quarantine location)
