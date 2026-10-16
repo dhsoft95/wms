@@ -7,6 +7,7 @@ namespace App\Services\Inbound;
 use App\Contracts\ContainerReceivingGate;
 use App\Enums\ContainerDiscrepancyType;
 use App\Enums\ContainerStatus;
+use App\Enums\LocationLevel;
 use App\Events\Inbound\ContainerArrived;
 use App\Events\Inbound\ContainerSealMismatch;
 use App\Events\Inbound\ContainerUnloadingStarted;
@@ -191,6 +192,12 @@ final class ContainerWorkflow
     {
         if ($location->type->value !== 'yard_slot') {
             throw new \InvalidArgumentException("Location {$location->code} is not a yard slot.");
+        }
+
+        if ($location->level !== LocationLevel::Bin) {
+            throw new \InvalidArgumentException(
+                "Location {$location->code} is a {$location->level->label()}, not a bin. Choose a bin-level yard slot."
+            );
         }
 
         $occupied = Container::where('yard_location_id', $location->id)

@@ -1,36 +1,37 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Inventory\Counts;
 
+use App\Models\CycleCount;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class Index extends Component
 {
-    // placeholder data
-    public array $rows = [
-        ['bin' => 'DAR-A-01-01-A', 'sku' => 'SKU-AZ-001', 'desc' => 'Azam Bakhresa Flour 25kg', 'systemQty' => 500, 'countedQty' => 500],
-        ['bin' => 'DAR-A-01-02-A', 'sku' => 'SKU-AZ-001', 'desc' => 'Azam Bakhresa Flour 25kg', 'systemQty' => 320, 'countedQty' => 318],
-        ['bin' => 'DAR-A-02-01-B', 'sku' => 'SKU-AZ-SUG', 'desc' => 'Azam Sugar 1kg',           'systemQty' => 960, 'countedQty' => 960],
-        ['bin' => 'DAR-A-03-02-B', 'sku' => 'SKU-AZ-001', 'desc' => 'Azam Bakhresa Flour 25kg', 'systemQty' => 500, 'countedQty' => 450],
-        ['bin' => 'DAR-A-03-03-A', 'sku' => 'SKU-AZ-JCE', 'desc' => 'Azam Mango Juice 1L',      'systemQty' => 240, 'countedQty' => null],
-    ];
+    use WithPagination;
 
-    public function saveProgress(): void
-    {
-        $this->dispatch('toast', message: 'Count session saved', type: 'info');
-    }
+    public string $search = '';
+    public string $status = '';
 
-    public function submitCount(): void
-    {
-        $this->dispatch('toast', message: 'Count CC-2026-041 submitted for review', type: 'success');
-    }
+    public function updatingSearch(): void { $this->resetPage(); }
+    public function updatingStatus(): void { $this->resetPage(); }
 
     public function render(): View
     {
-        return view('livewire.inventory.counts.index')
+        $counts = CycleCount::query()
+            ->with(['createdBy', 'virtualWarehouse'])
+            ->withCount('lines')
+            ->when($this->search, fn ($q) => $q->where('number', 'like', "%{$this->search}%"))
+            ->when($this->status, fn ($q) => $q->where('status', $this->status))
+            ->latest()
+            ->paginate(20);
+
+        return view('livewire.inventory.counts.index', compact('counts'))
             ->layout('components.layouts.app', [
-                'title'           => 'Cycle Count',
+                'title'           => 'Cycle Counts',
                 'breadcrumbGroup' => 'Inventory Control',
             ]);
     }

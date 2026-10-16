@@ -2,7 +2,7 @@
     {{-- Page Header --}}
     <div class="page-header">
         <div>
-            <h2 class="page-title">Delivery Orders</h2>
+            <h2 class="page-title">Dispatch Orders</h2>
             <p class="page-sub">Manage outbound delivery requests from creation through dispatch.</p>
         </div>
         @can('create', \App\Models\DeliveryOrder::class)
@@ -232,17 +232,19 @@
                                     </a>
                                 @endif
 
+                                @if ($order->status === \App\Enums\Outbound\DeliveryOrderStatus::Submitted)
+                                    <button wire:click="openRejectModal({{ $order->id }})"
+                                            class="btn btn-secondary btn-sm">
+                                        <x-ui.icon name="x" class="w-3.5 h-3.5" /> Reject
+                                    </button>
+                                @endif
+
                                 @if (! in_array($order->status, [
                                     \App\Enums\Outbound\DeliveryOrderStatus::Dispatched,
                                     \App\Enums\Outbound\DeliveryOrderStatus::Delivered,
                                     \App\Enums\Outbound\DeliveryOrderStatus::Cancelled,
                                     \App\Enums\Outbound\DeliveryOrderStatus::Rejected,
                                 ], true))
-                                    <button wire:click="openRejectModal({{ $order->id }})"
-                                            class="btn btn-secondary btn-sm">
-                                        <x-ui.icon name="x" class="w-3.5 h-3.5" /> Reject
-                                    </button>
-
                                     <button wire:click="cancelOrder({{ $order->id }})"
                                             wire:confirm="Cancel order {{ $order->number }}? This cannot be undone."
                                             class="btn btn-secondary btn-sm !text-red-600 dark:!text-red-400">

@@ -143,31 +143,43 @@
 
                     {{-- Serial Numbers --}}
                     @if ($this->activeGrnLine->item?->track_serial)
-                    <div>
-                        <label class="label">
-                            Serial Numbers <span class="text-red-500">*</span>
-                            <span class="text-slate-400 font-normal text-xs ml-1">(one per line, must match qty)</span>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <label class="label mb-0">
+                                Serial Numbers <span class="text-red-500">*</span>
+                                <span class="text-slate-400 font-normal text-xs ml-1">(one per line, must match qty)</span>
+                            </label>
+                        </div>
+                        <label class="flex items-center gap-2 cursor-pointer text-xs">
+                            <input type="checkbox" wire:model.live="receiptSerialsMissing" class="rounded accent-amber-500">
+                            <span class="text-amber-600 dark:text-amber-400 font-medium">Serials not available — enter later</span>
                         </label>
+                        @if (! $receiptSerialsMissing)
                         <textarea wire:model="receiptSerials" rows="5"
                                   class="input font-mono text-xs @error('receiptSerials') border-red-400 @enderror"
                                   placeholder="SN-000001&#10;SN-000002&#10;SN-000003"></textarea>
                         @error('receiptSerials') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @else
+                        <p class="hint text-amber-600">Serials will be flagged as missing. You can enter them later from the GRN or Stock on Hand.</p>
+                        @endif
                     </div>
                     @endif
 
                     {{-- Batch / Expiry --}}
                     @if ($this->activeGrnLine->item?->track_batch)
                     <div>
-                        <label class="label">Batch No.</label>
+                        <label class="label">Batch No. <span class="text-red-500">*</span></label>
                         <input wire:model="receiptBatchNo" type="text"
                                class="input font-mono" placeholder="BATCH-001" />
+                        @error('receiptBatchNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                     </div>
                     @endif
 
                     @if ($this->activeGrnLine->item?->track_expiry)
                     <div>
-                        <label class="label">Expiry Date</label>
+                        <label class="label">Expiry Date <span class="text-red-500">*</span></label>
                         <input wire:model="receiptExpiry" type="date" class="input" />
+                        @error('receiptExpiry') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                     </div>
                     @endif
 

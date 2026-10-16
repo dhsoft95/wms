@@ -1,33 +1,42 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Warehouse\Movements;
 
-use App\Livewire\Forms\MovementForm;
+use App\Models\InternalMovement;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class Index extends Component
 {
-    public MovementForm $form;
+    use WithPagination;
 
-    // placeholder data
-    public array $recent = [
-        ['ref' => 'MOV-2026-141', 'from' => 'DAR-A-01-01-A', 'to' => 'DAR-A-03-02-B', 'qty' => 150],
-        ['ref' => 'MOV-2026-140', 'from' => 'DAR-B-02-01-C', 'to' => 'DAR-B-01-04-A', 'qty' => 80],
-        ['ref' => 'MOV-2026-139', 'from' => 'DAR-V-01-01-A', 'to' => 'DAR-V-02-01-A', 'qty' => 1000],
-    ];
+    public string $search = '';
+    public string $status = '';
 
-    public function save(): void
+    public function updatingSearch(): void
     {
-        if ($this->form->save()) {
-            $this->dispatch('toast', message: 'Movement order generated', type: 'success');
-            $this->form->reset();
-        }
+        $this->resetPage();
+    }
+
+    public function updatingStatus(): void
+    {
+        $this->resetPage();
     }
 
     public function render(): View
     {
-        return view('livewire.warehouse.movements.index')
+        $movements = InternalMovement::query()
+            ->with(['virtualWarehouse', 'createdBy'])
+            ->withCount('lines')
+            ->when($this->search, fn ($q) => $q->where('number', 'like', "%{$this->search}%"))
+            ->when($this->status, fn ($q) => $q->where('status', $this->status))
+            ->latest()
+            ->paginate(25);
+
+        return view('livewire.warehouse.movements.index', compact('movements'))
             ->layout('components.layouts.app', [
                 'title'           => 'Internal Movements',
                 'breadcrumbGroup' => 'Warehouse Operations',

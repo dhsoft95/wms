@@ -11,6 +11,7 @@ class FoundationDefaultsSeeder extends Seeder
     public function run(): void
     {
         $this->seedDocumentSequences();
+        $this->seedUnitOfMeasures();
         $this->seedReasonCodes();
     }
 
@@ -24,6 +25,7 @@ class FoundationDefaultsSeeder extends Seeder
             ['type' => 'CNT', 'prefix' => 'CNT', 'include_year' => true,  'padding' => 4, 'reset_yearly' => true],
             ['type' => 'LPN', 'prefix' => 'LPN', 'include_year' => false, 'padding' => 6, 'reset_yearly' => false],
             ['type' => 'STK', 'prefix' => 'STK', 'include_year' => true,  'padding' => 4, 'reset_yearly' => true],
+            ['type' => 'MOV', 'prefix' => 'MOV', 'include_year' => true,  'padding' => 4, 'reset_yearly' => true],
         ];
 
         foreach ($sequences as $seq) {
@@ -51,6 +53,14 @@ class FoundationDefaultsSeeder extends Seeder
                 ['prefix' => $seq['prefix'], 'include_year' => $seq['include_year'], 'padding' => $seq['padding'], 'reset_yearly' => $seq['reset_yearly']]
             );
         }
+    }
+
+    private function seedUnitOfMeasures(): void
+    {
+        \App\Models\UnitOfMeasure::firstOrCreate(
+            ['code' => 'EA'],
+            ['name' => 'Each', 'type' => 'count', 'is_active' => true]
+        );
     }
 
     private function seedReasonCodes(): void

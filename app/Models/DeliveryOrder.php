@@ -25,6 +25,7 @@ class DeliveryOrder extends Model
         'consignee_partner_id', 'delivery_address', 'required_date',
         'priority', 'allocation_rule', 'status', 'requested_by',
         'submitted_at', 'remarks', 'backorder_of_id',
+        'mrn_number', 'mrn_file_path',
     ];
 
     protected function casts(): array

@@ -129,7 +129,7 @@
                         <x-ui.icon name="check" class="w-4 h-4" /> Approve Variance & Confirm
                     </button>
                     <button wire:click="rejectVariance" class="btn btn-secondary text-red-600 dark:text-red-400">
-                        <x-ui.icon name="x" class="w-4 h-4" /> Reject — Return to Receiving
+                        <x-ui.icon name="x" class="w-4 h-4" /> Reject  Return to Receiving
                     </button>
                 </div>
             @else

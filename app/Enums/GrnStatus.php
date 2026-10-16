@@ -20,7 +20,7 @@ enum GrnStatus: string
         return match($this) {
             self::Draft                   => in_array($new, [self::Receiving, self::Cancelled], true),
             self::Receiving               => in_array($new, [self::PendingVarianceApproval, self::Received, self::Cancelled], true),
-            self::PendingVarianceApproval => in_array($new, [self::Receiving, self::Received], true),
+            self::PendingVarianceApproval => in_array($new, [self::Receiving, self::Received, self::Cancelled], true),
             self::Received                => $new === self::PutawayInProgress,
             self::PutawayInProgress       => $new === self::PutawayComplete,
             self::PutawayComplete         => $new === self::Closed,

@@ -4,70 +4,69 @@
             <h2 class="page-title">Stock Adjustments</h2>
             <p class="page-sub">Correct system balances after counts, damages or found stock.</p>
         </div>
+        @can('create', \App\Models\StockAdjustment::class)
+            <a href="{{ route('inventory.adjustments.create') }}" wire:navigate class="btn btn-primary">
+                <x-ui.icon name="plus" class="w-4 h-4" /> New Adjustment
+            </a>
+        @endcan
     </div>
 
-    <form wire:submit="save" class="card max-w-4xl">
-        <div class="card-body space-y-6">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                    <label class="label">SKU code *</label>
-                    <input wire:model="form.skuCode" type="text" required class="input font-mono">
-                    @error('form.skuCode') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="label">Location bin *</label>
-                    <input wire:model="form.locationBin" type="text" required class="input font-mono uppercase">
-                    @error('form.locationBin') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="label">Reason code *</label>
-                    <select wire:model="form.reasonCode" class="input">
-                        <option>CYCLE_COUNT_VARIANCE</option>
-                        <option>DAMAGED_IN_STORAGE</option>
-                        <option>FOUND_STOCK</option>
-                        <option>EXPIRED_WRITE_OFF</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/60">
-                <div>
-                    <label class="label">System quantity</label>
-                    <input type="number" readonly value="{{ $form->systemQuantity }}" class="input tabular-nums">
-                </div>
-                <div>
-                    <label class="label">Physical count *</label>
-                    <input wire:model.live="form.physicalCount" type="number" required min="0" class="input tabular-nums">
-                    @error('form.physicalCount') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="label">Variance</label>
-                    <div class="h-[38px] flex items-center">
-                        @php
-                            $variance = $this->variance;
-                            $vBadge = $variance === 0 ? 'badge-slate' : ($variance < 0 ? 'badge-red' : 'badge-amber');
-                        @endphp
-                        <span class="badge {{ $vBadge }} !text-sm !px-3 !py-1">
-                            {{ ($variance > 0 ? '+' : '') . $variance }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-
-            <div>
-                <label class="label">Justification *</label>
-                <textarea wire:model="form.justification" rows="3" required placeholder="Explain why the adjustment is needed..." class="input"></textarea>
-                @error('form.justification') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-            </div>
-
-            <div class="alert-info">
-                <x-ui.icon name="info" class="w-5 h-5 shrink-0" />
-                <p>Adjustments do not change stock until approved. Approved adjustments are written to the audit log with your user ID.</p>
+    <div class="card">
+        <div class="card-body">
+            <div class="flex gap-3 flex-wrap">
+                <input wire:model.live.debounce.300ms="search" type="text" placeholder="Search number…" class="input w-56">
+                <select wire:model.live="status" class="input w-44">
+                    <option value="">All statuses</option>
+                    @foreach(\App\Enums\AdjustmentStatus::cases() as $s)
+                        <option value="{{ $s->value }}">{{ $s->label() }}</option>
+                    @endforeach
+                </select>
             </div>
         </div>
-        <div class="card-footer">
-            <button type="button" wire:click="$refresh" class="btn btn-secondary">Clear</button>
-            <button type="submit" class="btn btn-primary">Request Approval</button>
-        </div>
-    </form>
+    </div>
+
+    <div class="card">
+        <x-ui.table>
+            <thead>
+                <tr>
+                    <th>Number</th>
+                    <th>Virtual Warehouse</th>
+                    <th>Lines</th>
+                    <th>Created By</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($adjustments as $adj)
+                    <tr wire:key="adj-{{ $adj->id }}">
+                        <td>
+                            <a href="{{ route('inventory.adjustments.show', $adj) }}" wire:navigate
+                               class="mono font-semibold text-simba-600 dark:text-simba-400 hover:underline">
+                                {{ $adj->number }}
+                            </a>
+                        </td>
+                        <td class="text-sm">{{ $adj->virtualWarehouse?->name ?? '—' }}</td>
+                        <td class="tabular-nums text-slate-500">{{ $adj->lines_count }}</td>
+                        <td class="text-sm">{{ $adj->createdBy?->name ?? '—' }}</td>
+                        <td>
+                            <span class="badge {{ $adj->status->badge() }}">
+                                <span class="dot"></span>{{ $adj->status->label() }}
+                            </span>
+                        </td>
+                        <td class="text-meta tabular-nums">{{ $adj->created_at->format('d M Y') }}</td>
+                        <td class="text-right">
+                            <a href="{{ route('inventory.adjustments.show', $adj) }}" wire:navigate class="btn btn-sm btn-ghost">
+                                <x-ui.icon name="eye" class="w-3.5 h-3.5" />
+                            </a>
+                        </td>
+                    </tr>
+                @empty
+                    <x-ui.empty-state title="No adjustments found." :cols="7" />
+                @endforelse
+            </tbody>
+        </x-ui.table>
+        <div class="card-footer">{{ $adjustments->links() }}</div>
+    </div>
 </div>

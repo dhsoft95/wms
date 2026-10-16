@@ -48,9 +48,12 @@ final class AllocationService
             } elseif ($anyAllocated && $allowPartial) {
                 $do->status = DeliveryOrderStatus::PartiallyAllocated;
                 $this->handleBackorder($do);
+            } elseif ($anyAllocated) {
+                $do->status = DeliveryOrderStatus::PartiallyAllocated;
             } else {
-                // No stock at all — remain Approved
-                $do->status = DeliveryOrderStatus::Approved;
+                throw new \DomainException(
+                    'No stock could be allocated. Ensure stock has been received and put away into storage locations for this virtual warehouse.'
+                );
             }
 
             $do->save();

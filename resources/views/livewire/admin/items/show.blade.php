@@ -280,69 +280,68 @@
 
     {{-- ── BARCODES TAB ─────────────────────────────────────────────────────── --}}
     @if ($activeTab === 'barcodes')
-    <div class="card overflow-hidden">
-        <div class="card-header">
+    <div class="card p-5">
+        <div class="card-header mb-4">
             <h3 class="card-title">
                 <x-ui.icon name="search" class="w-4 h-4" />
                 Barcodes
             </h3>
         </div>
 
-        <x-ui.table class="min-w-[500px]">
-                <thead class="text-[11px] font-semibold uppercase tracking-wider
-                              text-slate-500 dark:text-slate-400
-                              bg-white/[0.45] dark:bg-white/[0.04]
-                              border-b border-white/50 dark:border-white/[0.07]">
-                    <tr>
-                        <th class="px-5 py-3">Barcode</th>
-                        <th class="px-5 py-3">Unit</th>
-                        <th class="px-5 py-3">Type</th>
-                        <th class="px-5 py-3 text-center">Primary</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-white/50 dark:divide-white/[0.06]">
-                @forelse ($item->barcodes as $barcode)
-                    <tr wire:key="bc-{{ $barcode->id }}"
-                        class="transition hover:bg-white/30 dark:hover:bg-white/[0.04]">
-                        <td class="px-5 py-3.5 font-mono text-slate-800 dark:text-slate-200">
-                            {{ $barcode->barcode }}
-                        </td>
-                        <td class="px-5 py-3.5">
-                            @if ($barcode->uom)
-                                <span class="badge badge-slate font-mono">{{ $barcode->uom->code }}</span>
-                            @else
-                                <span class="text-slate-400">—</span>
-                            @endif
-                        </td>
-                        <td class="px-5 py-3.5 text-slate-600 dark:text-slate-300">
-                            @php
-                                $typeValue = $barcode->type instanceof \App\Enums\ItemBarcodeType
-                                    ? $barcode->type->value
-                                    : (string) $barcode->type;
-                            @endphp
-                            @if ($typeValue === 'supplier')
-                                <span class="badge badge-amber">Supplier</span>
-                            @else
-                                <span class="badge badge-slate">Internal</span>
-                            @endif
-                        </td>
-                        <td class="px-5 py-3.5 text-center">
-                            @if ($barcode->is_primary)
-                                <x-ui.icon name="check" class="mx-auto h-4 w-4 text-emerald-500" />
-                            @else
-                                <span class="text-slate-300 dark:text-slate-600">—</span>
-                            @endif
-                        </td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="4" class="px-5 py-12 text-center text-sm text-slate-400 dark:text-slate-500">
-                            No barcodes defined yet.
-                        </td>
-                    </tr>
-                @endforelse
-                </tbody>
-        </x-ui.table>
+        @if ($item->barcodes->isEmpty())
+            <p class="py-10 text-center text-sm text-slate-400 dark:text-slate-500">No barcodes defined yet.</p>
+        @else
+            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                @foreach ($item->barcodes as $bc)
+                @php
+                    $bcType = $bc->type instanceof \App\Enums\ItemBarcodeType ? $bc->type->value : (string) $bc->type;
+                @endphp
+                <div wire:key="bc-{{ $bc->id }}"
+                     class="flex flex-col items-center rounded-xl border border-white/40 dark:border-white/10
+                            bg-white/30 dark:bg-white/[0.04] p-4 gap-3">
+
+                    {{-- badges row --}}
+                    <div class="flex flex-wrap gap-1.5 w-full">
+                        @if ($bc->is_primary)
+                            <span class="badge badge-green">Primary</span>
+                        @endif
+                        @if ($bcType === 'supplier')
+                            <span class="badge badge-amber">Supplier</span>
+                        @else
+                            <span class="badge badge-slate">Internal</span>
+                        @endif
+                        @if ($bc->uom)
+                            <span class="badge badge-slate font-mono">{{ $bc->uom->code }}</span>
+                        @endif
+                    </div>
+
+                    {{-- barcode image --}}
+                    <img src="{{ route('admin.items.barcodes.png', [$item, $bc]) }}"
+                         alt="{{ $bc->barcode }}"
+                         class="max-w-full h-16 object-contain bg-white rounded px-1">
+
+                    {{-- barcode value --}}
+                    <span class="font-mono text-xs text-slate-700 dark:text-slate-300 break-all text-center leading-tight">
+                        {{ $bc->barcode }}
+                    </span>
+
+                    {{-- action buttons --}}
+                    <div class="flex gap-2 mt-auto pt-1 w-full">
+                        <a href="{{ route('admin.items.barcodes.label', [$item, $bc]) }}"
+                           target="_blank"
+                           class="btn btn-secondary btn-sm flex-1 text-center text-xs">
+                            Print label
+                        </a>
+                        <a href="{{ route('admin.items.barcodes.png', [$item, $bc]) }}"
+                           download="{{ $bc->barcode }}.png"
+                           class="btn btn-secondary btn-sm flex-1 text-center text-xs">
+                            Download PNG
+                        </a>
+                    </div>
+                </div>
+                @endforeach
+            </div>
+        @endif
     </div>
     @endif
 

@@ -62,11 +62,20 @@
             @if (in_array($this->do->status, [
                     \App\Enums\Outbound\DeliveryOrderStatus::Allocated,
                     \App\Enums\Outbound\DeliveryOrderStatus::PartiallyAllocated,
+                    \App\Enums\Outbound\DeliveryOrderStatus::Picking,
                 ]))
                 @can('allocate', $this->do)
-                    <button wire:click="$set('showAssignModal', true)" class="btn btn-primary">
-                        <x-ui.icon name="clipboard-list" class="w-4 h-4" /> Generate Pick List
-                    </button>
+                    @if ($this->activePickList === null)
+                        <button wire:click="$set('showAssignModal', true)" class="btn btn-primary">
+                            <x-ui.icon name="clipboard-list" class="w-4 h-4" /> Generate Pick List
+                        </button>
+                    @else
+                        <button wire:click="$set('activeTab', 'pick_lists')" class="btn btn-secondary">
+                            <x-ui.icon name="clipboard-list" class="w-4 h-4" />
+                            View Pick List
+                            <span class="badge badge-slate ml-1 py-0">{{ $this->activePickList->status->label() }}</span>
+                        </button>
+                    @endif
                 @endcan
             @endif
 
@@ -312,13 +321,16 @@
                     <th>Tasks Progress</th>
                     <th>Started At</th>
                     <th>Completed At</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
                 @forelse ($this->do->pickLists as $pickList)
                     @php
                         $totalTasks     = $pickList->tasks->count();
-                        $completedTasks = $pickList->tasks->where('status.value', 'completed')->count();
+                        $doneTasks      = $pickList->tasks->whereIn('status.value', ['picked', 'short'])->count();
+                        $canCancel      = in_array($pickList->status->value, ['open', 'in_progress'])
+                                          && $doneTasks === 0;
                     @endphp
                     <tr>
                         <td class="font-mono text-sm font-semibold text-slate-700 dark:text-slate-300">
@@ -341,10 +353,10 @@
                                 <div class="flex items-center gap-2">
                                     <div class="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 min-w-[60px]">
                                         <div class="bg-simba-500 h-1.5 rounded-full transition-all"
-                                             style="width: {{ round($completedTasks / $totalTasks * 100) }}%"></div>
+                                             style="width: {{ round($doneTasks / $totalTasks * 100) }}%"></div>
                                     </div>
                                     <span class="text-xs text-slate-500 tabular-nums whitespace-nowrap">
-                                        {{ $completedTasks }}/{{ $totalTasks }}
+                                        {{ $doneTasks }}/{{ $totalTasks }}
                                     </span>
                                 </div>
                             @else
@@ -357,9 +369,21 @@
                         <td class="tabular-nums text-xs text-slate-500">
                             {{ $pickList->completed_at?->format('d M H:i') ?? '—' }}
                         </td>
+                        <td>
+                            @if ($canCancel)
+                                @can('allocate', $this->do)
+                                    <button
+                                        wire:click="cancelPickList({{ $pickList->id }})"
+                                        wire:confirm="Cancel this pick list? Tasks will be cancelled and you can regenerate."
+                                        class="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400 font-medium">
+                                        Cancel
+                                    </button>
+                                @endcan
+                            @endif
+                        </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="!py-8 text-center text-slate-500">No pick lists generated yet.</td></tr>
+                    <tr><td colspan="7" class="!py-8 text-center text-slate-500">No pick lists generated yet.</td></tr>
                 @endforelse
             </tbody>
         </x-ui.table>

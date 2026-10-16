@@ -68,11 +68,11 @@ final class DeliveryOrderWorkflow
         });
     }
 
-    public function approve(DeliveryOrder $do, User $by, int $level, string $notes = ''): void
+    public function approve(DeliveryOrder $do, User $by, string $approverRole, string $notes = ''): void
     {
-        DB::transaction(function () use ($do, $by, $level, $notes) {
+        DB::transaction(function () use ($do, $by, $approverRole, $notes) {
             $approval = $do->approvals()
-                ->where('level', $level)
+                ->where('approver_role', $approverRole)
                 ->whereNull('decision')
                 ->firstOrFail();
 
@@ -83,7 +83,7 @@ final class DeliveryOrderWorkflow
                 'decided_at' => now(),
             ]);
 
-            activity()->performedOn($do)->causedBy($by)->log("Level {$level} approved");
+            activity()->performedOn($do)->causedBy($by)->log("{$approverRole} approved");
 
             // Check if all levels approved
             $pendingCount = $do->approvals()->whereNull('decision')->count();

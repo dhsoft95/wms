@@ -6,9 +6,12 @@ namespace App\Livewire\Inbound\Containers;
 
 use App\Livewire\Forms\ContainerForm;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Create extends Component
 {
+    use WithFileUploads;
+
     public ContainerForm $form;
 
     public function mount(): void

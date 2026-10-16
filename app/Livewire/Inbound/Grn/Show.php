@@ -78,9 +78,13 @@ class Show extends Component
     {
         $this->authorize('receive', $this->grn);
 
-        app(GrnWorkflow::class)->startReceiving($this->grn, auth()->user());
-        $this->grn->refresh();
-        $this->dispatch('toast', message: 'Receiving started.', type: 'success');
+        try {
+            app(GrnWorkflow::class)->startReceiving($this->grn, auth()->user());
+            $this->grn->refresh();
+            $this->dispatch('toast', message: 'Receiving started.', type: 'success');
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
     }
 
     public function confirmGrn(): void
@@ -100,38 +104,54 @@ class Show extends Component
     {
         $this->authorize('approveVariance', $this->grn);
 
-        app(GrnWorkflow::class)->approveVariance($this->grn, auth()->user(), $this->approvalNotes);
-        $this->grn->refresh();
-        $this->approvalNotes = '';
-        $this->dispatch('toast', message: 'Variance approved — GRN confirmed.', type: 'success');
+        try {
+            app(GrnWorkflow::class)->approveVariance($this->grn, auth()->user(), $this->approvalNotes);
+            $this->grn->refresh();
+            $this->approvalNotes = '';
+            $this->dispatch('toast', message: 'Variance approved — GRN confirmed.', type: 'success');
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
     }
 
     public function rejectVariance(): void
     {
         $this->authorize('approveVariance', $this->grn);
 
-        app(GrnWorkflow::class)->rejectVariance($this->grn, auth()->user(), $this->approvalNotes);
-        $this->grn->refresh();
-        $this->approvalNotes = '';
-        $this->dispatch('toast', message: 'Variance rejected — returned to receiving.', type: 'info');
+        try {
+            app(GrnWorkflow::class)->rejectVariance($this->grn, auth()->user(), $this->approvalNotes);
+            $this->grn->refresh();
+            $this->approvalNotes = '';
+            $this->dispatch('toast', message: 'Variance rejected — returned to receiving.', type: 'info');
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
     }
 
     public function cancel(): void
     {
         $this->authorize('cancel', $this->grn);
 
-        app(GrnWorkflow::class)->cancel($this->grn, 'Cancelled by user.', auth()->user());
-        $this->grn->refresh();
-        $this->dispatch('toast', message: 'GRN cancelled.', type: 'info');
+        try {
+            app(GrnWorkflow::class)->cancel($this->grn, 'Cancelled by user.', auth()->user());
+            $this->grn->refresh();
+            $this->dispatch('toast', message: 'GRN cancelled.', type: 'info');
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
     }
 
     public function close(): void
     {
         $this->authorize('close', $this->grn);
 
-        app(GrnWorkflow::class)->close($this->grn, auth()->user());
-        $this->grn->refresh();
-        $this->dispatch('toast', message: 'GRN closed.', type: 'success');
+        try {
+            app(GrnWorkflow::class)->close($this->grn, auth()->user());
+            $this->grn->refresh();
+            $this->dispatch('toast', message: 'GRN closed.', type: 'success');
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
     }
 
     // ─── Render ───────────────────────────────────────────────────────────────

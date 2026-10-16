@@ -8,6 +8,7 @@ use App\Actions\Outbound\CreateDeliveryOrderAction;
 use App\Enums\Outbound\AllocationRule;
 use App\Enums\Outbound\DeliveryOrderPriority;
 use App\Models\Department;
+use App\Models\Inventory\StockBalance;
 use App\Models\Item;
 use App\Models\Partner;
 use App\Models\VirtualWarehouse;
@@ -16,9 +17,12 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Create extends Component
 {
+    use WithFileUploads;
+
     // ─── Form Properties ──────────────────────────────────────────────────────
 
     public string $virtualWarehouseId  = '';
@@ -30,6 +34,8 @@ class Create extends Component
     public string $priority            = 'normal';
     public string $allocationRule      = 'fefo';
     public string $remarks             = '';
+    public string $mrnNumber           = '';
+    public mixed  $mrnFile             = null;
     public array  $lines               = [];
     public bool   $autoSubmit          = false;
 
@@ -151,13 +157,23 @@ class Create extends Component
             return;
         }
 
-        $this->lines[$lineIndex]['item_id']        = (string) $item->id;
-        $this->lines[$lineIndex]['item_name']       = $item->name;
-        $this->lines[$lineIndex]['item_sku']        = $item->sku;
-        $this->lines[$lineIndex]['uom_id']          = (string) ($item->baseUom?->id ?? '');
-        $this->lines[$lineIndex]['uom_code']        = $item->baseUom?->code ?? '';
-        $this->lines[$lineIndex]['available_qty']   = null;
-        $this->lines[$lineIndex]['search_results']  = [];
+        // Sum available qty across all balances for this item in the selected VW
+        $availableQty = null;
+        if ($this->virtualWarehouseId !== '') {
+            $availableQty = StockBalance::where('item_id', $item->id)
+                ->where('virtual_warehouse_id', $this->virtualWarehouseId)
+                ->where('stock_status', \App\Enums\Inventory\StockStatus::Available->value)
+                ->get()
+                ->sum(fn ($b) => (float) $b->qtyAvailable());
+        }
+
+        $this->lines[$lineIndex]['item_id']       = (string) $item->id;
+        $this->lines[$lineIndex]['item_name']      = $item->name;
+        $this->lines[$lineIndex]['item_sku']       = $item->sku;
+        $this->lines[$lineIndex]['uom_id']         = (string) ($item->baseUom?->id ?? '');
+        $this->lines[$lineIndex]['uom_code']       = $item->baseUom?->code ?? '';
+        $this->lines[$lineIndex]['available_qty']  = $availableQty;
+        $this->lines[$lineIndex]['search_results'] = [];
     }
 
     // ─── Save ─────────────────────────────────────────────────────────────────
@@ -170,11 +186,35 @@ class Create extends Component
             'requiredDate'         => ['required', 'date', 'after_or_equal:today'],
             'priority'             => ['required', Rule::in(array_column(DeliveryOrderPriority::cases(), 'value'))],
             'allocationRule'       => ['required', Rule::in(array_column(AllocationRule::cases(), 'value'))],
+            'mrnNumber'            => [$this->autoSubmit ? 'required' : 'nullable', 'string', 'max:100'],
+            'mrnFile'              => [$this->autoSubmit ? 'required' : 'nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
             'lines'                => ['required', 'array', 'min:1'],
             'lines.*.item_id'      => ['required', 'exists:items,id'],
             'lines.*.qty'          => ['required', 'numeric', 'min:0.0001'],
             'lines.*.uom_id'       => ['required', 'exists:units_of_measure,id'],
         ]);
+
+        // Stock check only on submit (draft can be saved with no stock yet)
+        if ($this->autoSubmit) {
+            foreach ($this->lines as $i => $line) {
+                $available = StockBalance::where('item_id', $line['item_id'])
+                    ->where('virtual_warehouse_id', $this->virtualWarehouseId)
+                    ->where('stock_status', \App\Enums\Inventory\StockStatus::Available->value)
+                    ->get()
+                    ->sum(fn ($b) => (float) $b->qtyAvailable());
+
+                if ($available <= 0) {
+                    $this->addError("lines.{$i}.qty", "No stock available for {$line['item_sku']}.");
+                    return;
+                }
+                if ((float) $line['qty'] > $available) {
+                    $this->addError("lines.{$i}.qty", "Qty exceeds available stock ({$available} {$line['uom_code']}) for {$line['item_sku']}.");
+                    return;
+                }
+            }
+        }
+
+        $mrnFilePath = $this->mrnFile?->store('delivery_orders/mrn', 'local');
 
         $do = app(CreateDeliveryOrderAction::class)->execute(
             [
@@ -187,6 +227,8 @@ class Create extends Component
                 'priority'             => $this->priority,
                 'allocation_rule'      => $this->allocationRule,
                 'remarks'              => $this->remarks,
+                'mrn_number'           => $this->mrnNumber,
+                'mrn_file_path'        => $mrnFilePath,
                 'auto_submit'          => $this->autoSubmit,
                 'lines'                => $this->lines,
             ],

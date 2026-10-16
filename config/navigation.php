@@ -147,7 +147,15 @@ return [
                     'icon'          => 'refresh',
                     'route'         => 'inventory.counts.index',
                     'active_routes' => ['inventory.counts.*'],
-                    'can'           => 'cycle-counts.view',
+                    'can'           => 'counts.view',
+                ],
+                [
+                    'key'           => 'quarantine',
+                    'label'         => 'Quarantine',
+                    'icon'          => 'lock',
+                    'route'         => 'inventory.quarantine.index',
+                    'active_routes' => ['inventory.quarantine.*'],
+                    'can'           => 'quarantine.manage',
                 ],
                 [
                     'key'           => 'serials',

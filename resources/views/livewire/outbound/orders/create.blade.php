@@ -110,6 +110,29 @@
                 </div>
             </div>
 
+            {{-- MRN / Supporting Document --}}
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">MRN / Supporting Document</h3>
+                    <span class="text-xs text-slate-400">Required before submitting for approval</span>
+                </div>
+                <div class="card-body grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <div>
+                        <label class="label">MRN Number</label>
+                        <input wire:model="mrnNumber" type="text" placeholder="e.g. MRN-2026-00123" class="input">
+                        @error('mrnNumber') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="label">MRN Document <span class="text-xs text-slate-400">(PDF / image, max 10 MB)</span></label>
+                        <input wire:model="mrnFile" type="file" accept=".pdf,.jpg,.jpeg,.png" class="input text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-slate-100 dark:file:bg-slate-700">
+                        @error('mrnFile') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                </div>
+            </div>
+
             {{-- Order Lines --}}
             <div class="card">
                 <div class="card-header">

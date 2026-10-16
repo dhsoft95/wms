@@ -49,6 +49,15 @@ final class DispatchService
                 throw new \DomainException('Can only dispatch a picked delivery order.');
             }
 
+            // All allocated qty must be picked before dispatch
+            foreach ($do->lines as $line) {
+                if (bccomp((string) $line->picked_qty, (string) $line->allocated_qty, 4) !== 0) {
+                    throw new \DomainException(
+                        "Line {$line->line_no} ({$line->item->sku}): picked qty {$line->picked_qty} does not match allocated qty {$line->allocated_qty}. Dispatch blocked."
+                    );
+                }
+            }
+
             $staging = $do->warehouse->defaultStagingLocation;
             if ($staging === null) {
                 throw new \DomainException('No default staging location configured.');

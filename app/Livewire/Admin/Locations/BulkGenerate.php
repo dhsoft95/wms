@@ -141,14 +141,20 @@ class BulkGenerate extends Component
 
     public function preview(): void
     {
+        $isBin = $this->level === 'bin';
+
         $this->validate([
             'warehouseId'  => ['required', 'exists:warehouses,id'],
             'level'        => ['required', 'in:zone,aisle,rack,shelf_level,bin'],
-            'type'         => ['required', 'in:yard_slot,receiving_dock,storage,staging,quarantine'],
+            'type'         => $isBin ? ['required', 'in:yard_slot,receiving_dock,storage,staging,quarantine'] : [],
             'segmentStart' => ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9]+$/'],
             'segmentEnd'   => ['required', 'string', 'max:10', 'regex:/^[A-Za-z0-9]+$/'],
             'segmentPadding' => ['nullable', 'integer', 'min:1', 'max:6'],
         ]);
+
+        if (! $isBin) {
+            $this->type = 'storage';
+        }
 
         $padding  = (int) ($this->segmentPadding ?: 2);
         $prefix   = strtoupper($this->segmentPrefix);

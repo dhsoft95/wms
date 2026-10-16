@@ -7,6 +7,7 @@ use App\Data\Inventory\StockPosting;
 use App\Data\Inventory\StockReference;
 use App\Enums\Inventory\MovementType;
 use App\Enums\Inventory\StockStatus;
+use App\Enums\LocationLevel;
 use App\Models\Item;
 use App\Models\Location;
 use App\Models\UnitOfMeasure;
@@ -115,7 +116,7 @@ class OpeningBalance extends Component
     #[Computed]
     public function locations()
     {
-        return Location::active()->orderBy('code')->get();
+        return Location::active()->bin()->orderBy('code')->get();
     }
 
     #[Computed]

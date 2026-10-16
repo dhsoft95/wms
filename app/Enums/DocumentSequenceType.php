@@ -15,6 +15,7 @@ enum DocumentSequenceType: string
     case Pck = 'PCK';
     case Dsp = 'DSP';
     case Gp  = 'GP';
+    case Mov = 'MOV';
 
     public function label(): string
     {
@@ -30,6 +31,7 @@ enum DocumentSequenceType: string
             self::Pck => 'Pick List',
             self::Dsp => 'Dispatch',
             self::Gp  => 'Gate Pass',
+            self::Mov => 'Internal Movement',
         };
     }
 }

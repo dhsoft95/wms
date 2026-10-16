@@ -29,6 +29,8 @@ final class UpdateDeliveryOrderAction
                 'priority'             => $data['priority'],
                 'allocation_rule'      => $data['allocation_rule'],
                 'remarks'              => $data['remarks'] ?? null,
+                'mrn_number'           => $data['mrn_number'] ?? null,
+                'mrn_file_path'        => $data['mrn_file_path'] ?? null,
             ]);
 
             // Delete existing lines and re-create for simplicity during draft edit

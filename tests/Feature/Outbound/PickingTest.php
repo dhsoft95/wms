@@ -278,6 +278,78 @@ test('test_execute_task_releases_reservation', function () {
     expect($reservation->status)->toBe(ReservationStatus::Consumed);
 });
 
+// ─── Test: Generating twice throws DomainException ────────────────────────────
+
+test('generating pick list twice throws domain exception', function () {
+    [$do] = buildAllocatedDo($this->picker);
+
+    $service = app(PickingService::class);
+    $service->generatePickList($do);
+
+    expect(fn () => $service->generatePickList($do))
+        ->toThrow(\DomainException::class);
+});
+
+// ─── Test: Sequential calls act as the race guard ────────────────────────────
+
+test('second call within same transaction cannot create a duplicate pick list', function () {
+    [$do] = buildAllocatedDo($this->picker);
+
+    $service = app(PickingService::class);
+    $service->generatePickList($do, $this->picker);
+
+    // Simulate a "double click" by calling again
+    try {
+        $service->generatePickList($do, $this->picker);
+        $this->fail('Expected DomainException was not thrown');
+    } catch (\DomainException $e) {
+        // expected
+    }
+
+    expect(PickList::where('delivery_order_id', $do->id)->count())->toBe(1);
+});
+
+// ─── Test: Cancel and regenerate ──────────────────────────────────────────────
+
+test('pick list can be cancelled and regenerated when nothing picked', function () {
+    [$do] = buildAllocatedDo($this->picker);
+
+    $service  = app(PickingService::class);
+    $first    = $service->generatePickList($do);
+
+    $service->cancelPickList($first);
+    $first->refresh();
+
+    expect($first->status)->toBe(\App\Enums\Outbound\PickListStatus::Cancelled);
+    expect(PickTask::where('pick_list_id', $first->id)->where('status', 'cancelled')->count())
+        ->toBe(PickTask::where('pick_list_id', $first->id)->count());
+
+    // Regenerating after cancel should succeed
+    $second = $service->generatePickList($do);
+    expect($second->id)->not->toBe($first->id);
+    expect($second->status)->toBe(\App\Enums\Outbound\PickListStatus::Open);
+});
+
+// ─── Test: Cannot cancel a completed pick list ────────────────────────────────
+
+test('cancelling completed pick list throws domain exception', function () {
+    [$do, $allocation, $reservation, $balance] = buildAllocatedDo($this->picker);
+
+    $service  = app(PickingService::class);
+    $pickList = $service->generatePickList($do, $this->picker);
+    $task     = PickTask::where('pick_list_id', $pickList->id)->firstOrFail();
+
+    // Executing all tasks completes the pick list automatically
+    $service->executeTask($task, '5.0000', $this->picker);
+
+    $pickList->refresh();
+    expect($pickList->status)->toBe(\App\Enums\Outbound\PickListStatus::Completed);
+
+    // A completed list cannot be cancelled
+    expect(fn () => $service->cancelPickList($pickList))
+        ->toThrow(\DomainException::class, 'cannot be cancelled');
+});
+
 // ─── Test 4: Short pick triggers stock count request ──────────────────────────
 
 test('test_short_pick_triggers_stock_count_request', function () {

@@ -57,6 +57,7 @@
                     <th>Qty</th>
                     <th>From</th>
                     <th>Suggested</th>
+                    <th>Location</th>
                     <th>Assigned To</th>
                     <th>Status</th>
                     <th class="text-right">Actions</th>
@@ -78,6 +79,15 @@
                         <td class="tabular-nums">{{ number_format((float)$task->qty, 2) }}</td>
                         <td class="mono text-xs">{{ $task->fromLocation?->code }}</td>
                         <td class="mono text-xs">{{ $task->suggestedLocation?->code ?? '—' }}</td>
+                        <td class="mono text-xs">
+                            @if ($task->actualLocation)
+                                <span class="font-semibold text-emerald-600 dark:text-emerald-400">
+                                    {{ $task->actualLocation->code }}
+                                </span>
+                            @else
+                                <span class="text-slate-400">—</span>
+                            @endif
+                        </td>
                         <td class="text-sm">{{ $task->assignedTo?->name ?? '—' }}</td>
                         <td>
                             <span class="badge {{ $task->status->color() }}">
@@ -92,16 +102,12 @@
                                         Execute
                                     </button>
                                 @endcan
-                            @elseif ($task->status->value === 'completed')
-                                <span class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                                    {{ $task->actualLocation?->code }}
-                                </span>
                             @endif
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="!py-12 text-center text-slate-500">No putaway tasks found.</td>
+                        <td colspan="10" class="!py-12 text-center text-slate-500">No putaway tasks found.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -174,17 +180,54 @@
                 @endif
             </div>
 
-            {{-- Scan Destination --}}
-            <div>
+            {{-- Scan / Search Destination Bin --}}
+            <div x-data="{ open: false }">
                 <label class="label">Scan or Enter Destination Bin</label>
-                <div class="flex gap-2">
-                    <input wire:model="scanDestination"
+                <div class="relative">
+                    <input wire:model.live.debounce.250ms="scanDestination"
                            wire:keydown.enter="resolveDestination"
+                           @focus="open = true"
+                           @keydown.escape="open = false"
                            type="text"
-                           placeholder="Scan bin barcode or type code…"
-                           class="input flex-1 font-mono"
+                           placeholder="Type to search or scan barcode…"
+                           class="input w-full font-mono pr-10"
+                           autocomplete="off"
                            autofocus />
-                    <button wire:click="resolveDestination" class="btn btn-secondary">Find</button>
+
+                    {{-- Clear button --}}
+                    @if($scanDestination !== '')
+                        <button type="button"
+                                wire:click="$set('scanDestination', ''); $set('destinationId', '')"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                            <x-ui.icon name="x" class="w-4 h-4" />
+                        </button>
+                    @endif
+
+                    {{-- Dropdown results --}}
+                    @if(count($this->binSearchResults) > 0)
+                        <div x-show="open"
+                             @click.outside="open = false"
+                             class="absolute z-20 w-full mt-1 overflow-hidden rounded-xl
+                                    border border-white/50 dark:border-white/[0.08]
+                                    shadow-lg shadow-black/10 dark:shadow-black/30
+                                    glass-solid dark:glass-solid-dark">
+                            @foreach($this->binSearchResults as $loc)
+                                <button type="button"
+                                        wire:click="selectBin({{ $loc['id'] }}, '{{ $loc['code'] }}')"
+                                        @click="open = false"
+                                        class="w-full flex items-center justify-between px-4 py-2.5 text-sm
+                                               hover:bg-brand-50/60 dark:hover:bg-brand-900/20 transition-colors
+                                               {{ !$loop->first ? 'border-t border-white/40 dark:border-white/[0.06]' : '' }}">
+                                    <span class="font-mono font-semibold text-slate-800 dark:text-slate-100">
+                                        {{ $loc['code'] }}
+                                    </span>
+                                    @if($loc['barcode'] && $loc['barcode'] !== $loc['code'])
+                                        <span class="text-xs text-slate-400 font-mono truncate ml-3">{{ $loc['barcode'] }}</span>
+                                    @endif
+                                </button>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
                 @error('destinationId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
             </div>

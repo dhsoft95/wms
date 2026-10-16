@@ -68,5 +68,13 @@ class AppServiceProvider extends ServiceProvider
 
         // Outbound module: policies
         Gate::policy(\App\Models\DeliveryOrder::class, \App\Policies\DeliveryOrderPolicy::class);
+
+        // Inventory control module: policies
+        Gate::policy(\App\Models\StockAdjustment::class, \App\Policies\StockAdjustmentPolicy::class);
+        Gate::policy(\App\Models\StockTransfer::class, \App\Policies\StockTransferPolicy::class);
+        Gate::policy(\App\Models\CycleCount::class, \App\Policies\CycleCountPolicy::class);
+
+        // Warehouse module: policies
+        Gate::policy(\App\Models\InternalMovement::class, \App\Policies\InternalMovementPolicy::class);
     }
 }

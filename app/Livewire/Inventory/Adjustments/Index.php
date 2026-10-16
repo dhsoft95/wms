@@ -1,31 +1,35 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Livewire\Inventory\Adjustments;
 
-use App\Livewire\Forms\AdjustmentForm;
+use App\Models\StockAdjustment;
 use Illuminate\Contracts\View\View;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class Index extends Component
 {
-    public AdjustmentForm $form;
+    use WithPagination;
 
-    public function getVarianceProperty(): int
-    {
-        return $this->form->physicalCount - $this->form->systemQuantity;
-    }
+    public string $search = '';
+    public string $status = '';
 
-    public function save(): void
-    {
-        if ($this->form->save()) {
-            $this->dispatch('toast', message: 'Adjustment submitted for approval', type: 'success');
-            $this->redirect(route('approvals.index'), navigate: true);
-        }
-    }
+    public function updatingSearch(): void { $this->resetPage(); }
+    public function updatingStatus(): void { $this->resetPage(); }
 
     public function render(): View
     {
-        return view('livewire.inventory.adjustments.index')
+        $adjustments = StockAdjustment::query()
+            ->with(['createdBy', 'virtualWarehouse'])
+            ->withCount('lines')
+            ->when($this->search, fn ($q) => $q->where('number', 'like', "%{$this->search}%"))
+            ->when($this->status, fn ($q) => $q->where('status', $this->status))
+            ->latest()
+            ->paginate(20);
+
+        return view('livewire.inventory.adjustments.index', compact('adjustments'))
             ->layout('components.layouts.app', [
                 'title'           => 'Stock Adjustments',
                 'breadcrumbGroup' => 'Inventory Control',

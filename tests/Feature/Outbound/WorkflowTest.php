@@ -167,7 +167,7 @@ test('test_submitted_order_transitions_to_approved', function () {
     ]);
 
     $workflow = app(DeliveryOrderWorkflow::class);
-    $workflow->approve($do, $this->admin, level: 1, notes: 'Looks good');
+    $workflow->approve($do, $this->admin, 'department_head', 'Looks good');
 
     $do->refresh();
 

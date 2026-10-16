@@ -66,6 +66,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('auth')
         ->name('containers.documents.download');
 
+    // Container PO file download
+    Route::get('/containers/{container}/po/download',
+        \App\Http\Controllers\ContainerPoController::class)
+        ->middleware('auth')
+        ->name('inbound.containers.po.download');
+
     // Packing list import sample template
     Route::get('/containers/packing-list/sample', function () {
         $headers = ['Item Code', 'Description', 'Quantity', 'Unit', 'Batch No', 'Expiry Date', 'Department'];
@@ -110,8 +116,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:putaway.view')->name('putaway.index');
         Route::get('/movements', \App\Livewire\Warehouse\Movements\Index::class)
             ->middleware('permission:movements.view')->name('movements.index');
+        Route::get('/movements/create', \App\Livewire\Warehouse\Movements\Create::class)
+            ->middleware('permission:movements.create')->name('movements.create');
+        Route::get('/movements/{movement}', \App\Livewire\Warehouse\Movements\Show::class)
+            ->middleware('permission:movements.view')->name('movements.show');
         Route::get('/transfers', \App\Livewire\Warehouse\Transfers\Index::class)
             ->middleware('permission:transfers.view')->name('transfers.index');
+        Route::get('/transfers/create', \App\Livewire\Warehouse\Transfers\Create::class)
+            ->middleware('permission:transfers.create')->name('transfers.create');
+        Route::get('/transfers/{transfer}', \App\Livewire\Warehouse\Transfers\Show::class)
+            ->middleware('permission:transfers.view')->name('transfers.show');
     });
 
     // LPN Print
@@ -128,9 +142,19 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:stock.opening-balance')->name('opening-balance');
         Route::get('/adjustments', \App\Livewire\Inventory\Adjustments\Index::class)
             ->middleware('permission:adjustments.view')->name('adjustments.index');
-        Route::get('/counts',      \App\Livewire\Inventory\Counts\Index::class)
-            ->middleware('permission:cycle-counts.view')->name('counts.index');
-        Route::get('/serials',     \App\Livewire\Inventory\Serials\Lookup::class)
+        Route::get('/adjustments/create', \App\Livewire\Inventory\Adjustments\Create::class)
+            ->middleware('permission:adjustments.create')->name('adjustments.create');
+        Route::get('/adjustments/{adjustment}', \App\Livewire\Inventory\Adjustments\Show::class)
+            ->middleware('permission:adjustments.view')->name('adjustments.show');
+        Route::get('/counts', \App\Livewire\Inventory\Counts\Index::class)
+            ->middleware('permission:counts.view')->name('counts.index');
+        Route::get('/counts/create', \App\Livewire\Inventory\Counts\Create::class)
+            ->middleware('permission:counts.create')->name('counts.create');
+        Route::get('/counts/{count}', \App\Livewire\Inventory\Counts\Show::class)
+            ->middleware('permission:counts.view')->name('counts.show');
+        Route::get('/quarantine', \App\Livewire\Inventory\Quarantine\Index::class)
+            ->middleware('permission:quarantine.manage')->name('quarantine.index');
+        Route::get('/serials', \App\Livewire\Inventory\Serials\Lookup::class)
             ->middleware('permission:serials.view')->name('serials.lookup');
     });
 
@@ -144,6 +168,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:orders.view')->name('orders.show');
         Route::get('/orders/{deliveryOrder}/edit', \App\Livewire\Outbound\Orders\Edit::class)
             ->middleware('permission:orders.create')->name('orders.edit');
+        Route::get('/orders/{deliveryOrder}/mrn/download',
+            \App\Http\Controllers\DeliveryOrderMrnController::class)
+            ->middleware('auth')->name('orders.mrn.download');
         Route::get('/pick-lists', \App\Livewire\Outbound\PickLists\Index::class)
             ->middleware('permission:picking.view')->name('pick-lists.index');
         Route::get('/dispatch', \App\Livewire\Outbound\Dispatch\Index::class)
@@ -201,6 +228,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/{item}',    \App\Livewire\Admin\Items\Show::class)->name('show');
         Route::get('/{item}/edit',\App\Livewire\Admin\Items\Edit::class)
             ->middleware('permission:items.update')->name('edit');
+        Route::get('/{item}/barcodes/{itemBarcode}/png',   [\App\Http\Controllers\ItemBarcodeController::class, 'png'])
+            ->name('barcodes.png');
+        Route::get('/{item}/barcodes/{itemBarcode}/label', [\App\Http\Controllers\ItemBarcodeController::class, 'label'])
+            ->name('barcodes.label');
     });
 
     // Master Data — Item Categories

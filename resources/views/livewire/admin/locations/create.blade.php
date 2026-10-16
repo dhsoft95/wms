@@ -113,7 +113,8 @@
                     @enderror
                 </div>
 
-                {{-- Type --}}
+                {{-- Type — only meaningful for bin-level locations --}}
+                @if ($level === 'bin')
                 <div>
                     <label class="label" for="loc-type">Type <span class="text-red-500">*</span></label>
                     <select
@@ -140,6 +141,11 @@
                         </p>
                     @endif
                 </div>
+                @else
+                <div>
+                    <p class="hint text-slate-500">Type is only set on bin-level locations. Parent levels (zone, aisle, rack, shelf) default to <em>storage</em>.</p>
+                </div>
+                @endif
 
             </div>
         </div>

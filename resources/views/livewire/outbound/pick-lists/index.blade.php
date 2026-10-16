@@ -1,3 +1,4 @@
+
 <div class="space-y-6">
     {{-- Page Header --}}
     <div class="page-header">
@@ -173,11 +174,12 @@
             <x-ui.table>
                 <thead>
                     <tr>
+                        <th class="w-8"></th>
                         <th>Pick List #</th>
                         <th>Location</th>
                         <th>Item SKU</th>
                         <th>Item Name</th>
-                        <th class="text-right">Qty to Pick</th>
+                        <th class="text-right">Qty</th>
                         <th class="text-right">Action</th>
                     </tr>
                 </thead>
@@ -191,8 +193,29 @@
                     @endphp
 
                     @forelse ($openTasks as $row)
-                        @php $task = $row['task']; $pl = $row['pl']; @endphp
-                        <tr wire:key="task-{{ $task->id }}">
+                        @php
+                            $task    = $row['task'];
+                            $pl      = $row['pl'];
+                            $isPicked = $task->status->value === 'picked';
+                        @endphp
+                        <tr wire:key="task-{{ $task->id }}" @class(['opacity-60' => $isPicked])>
+                            {{-- Checkbox --}}
+                            <td class="w-8 pr-0">
+                                @if ($isPicked)
+                                    <button wire:click="unconfirmTask({{ $task->id }})"
+                                            wire:confirm="Unconfirm this pick? Stock will be returned to the bin."
+                                            class="flex items-center justify-center w-5 h-5 rounded accent-emerald-600 cursor-pointer text-emerald-600 hover:text-amber-500"
+                                            title="Click to undo pick">
+                                        <x-ui.icon name="check-circle" class="w-5 h-5" />
+                                    </button>
+                                @else
+                                    <button wire:click="openPickTask({{ $task->id }})"
+                                            class="flex items-center justify-center w-5 h-5 rounded-md border-2 border-slate-300 dark:border-slate-600 hover:border-brand-500 transition-colors"
+                                            title="Click to pick">
+                                    </button>
+                                @endif
+                            </td>
+
                             {{-- Pick List # --}}
                             <td class="mono text-sm font-semibold text-slate-700 dark:text-slate-300">
                                 {{ $pl->number }}
@@ -213,22 +236,31 @@
                                 {{ $task->item?->name ?? $task->allocation?->item?->name ?? '—' }}
                             </td>
 
-                            {{-- Qty to Pick --}}
+                            {{-- Qty to Pick / Picked --}}
                             <td class="text-right tabular-nums text-sm font-semibold">
-                                {{ number_format((float) $task->qty_to_pick, 2) }}
+                                @if ($isPicked)
+                                    <span class="text-emerald-600">{{ number_format((float) $task->qty_picked, 2) }}</span>
+                                    <span class="text-slate-400 font-normal"> / {{ number_format((float) $task->qty_to_pick, 2) }}</span>
+                                @else
+                                    {{ number_format((float) $task->qty_to_pick, 2) }}
+                                @endif
                             </td>
 
                             {{-- Action --}}
                             <td class="text-right">
-                                <button wire:click="openPickTask({{ $task->id }})"
-                                        class="btn btn-primary btn-sm">
-                                    <x-ui.icon name="check" class="w-3.5 h-3.5" /> Pick
-                                </button>
+                                @if (! $isPicked)
+                                    <button wire:click="openPickTask({{ $task->id }})"
+                                            class="btn btn-primary btn-sm">
+                                        <x-ui.icon name="check" class="w-3.5 h-3.5" /> Pick
+                                    </button>
+                                @else
+                                    <span class="badge badge-emerald text-[11px]">Picked</span>
+                                @endif
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="!py-10 text-center text-slate-500">
+                            <td colspan="7" class="!py-10 text-center text-slate-500">
                                 No open tasks for the current pick lists.
                             </td>
                         </tr>
@@ -322,7 +354,7 @@
                  wire:click="$set('showPickModal', false)"></div>
 
             {{-- Panel --}}
-            <div class="relative z-10 w-full max-w-lg rounded-2xl bg-white dark:bg-zinc-900 shadow-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
+            <div class="relative z-10 w-full max-w-2xl rounded-2xl bg-white dark:bg-zinc-900 shadow-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
 
                 {{-- Header --}}
                 <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/[0.08]">
@@ -385,25 +417,69 @@
                                    type="number"
                                    step="0.0001"
                                    min="0.0001"
-                                   placeholder="{{ number_format((float) $task->qty_to_pick, 4) }}"
                                    class="input w-full tabular-nums @error('pickedQty') border-red-400 @enderror"
                                    autofocus />
+                            <p class="hint">Required: {{ number_format((float) $task->qty_to_pick, 2) }}</p>
                             @error('pickedQty')
                                 <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
                             @enderror
                         </div>
 
-                        {{-- Serial Number (optional) --}}
+                        {{-- Serial Numbers --}}
+                        @php
+                            $trackSerial = $task->allocation?->item?->track_serial ?? false;
+                            $qtyRequired = (int) round((float) $task->qty_to_pick);
+                        @endphp
                         <div>
-                            <label class="label" for="picked-serial">
-                                Serial Number
-                                <span class="text-slate-400 font-normal ml-1">(optional)</span>
-                            </label>
-                            <input wire:model="pickedSerial"
-                                   id="picked-serial"
-                                   type="text"
-                                   placeholder="Scan or enter serial…"
-                                   class="input w-full mono" />
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="label mb-0">
+                                    Serial Numbers
+                                    @if ($trackSerial)
+                                        <span class="text-red-500">*</span>
+                                    @else
+                                        <span class="text-slate-400 font-normal ml-1">(optional)</span>
+                                    @endif
+                                </label>
+                                @if (count($availableSerials) > 0)
+                                    <span class="text-xs tabular-nums {{ count($selectedSerials) === $qtyRequired ? 'text-green-600 dark:text-green-400' : 'text-slate-500' }}">
+                                        {{ count($selectedSerials) }}&nbsp;/&nbsp;{{ $qtyRequired }} selected
+                                    </span>
+                                @endif
+                            </div>
+
+                            @if (count($availableSerials) > 0)
+                                {{-- Checkbox list --}}
+                                <div class="max-h-64 overflow-y-auto rounded-xl border border-slate-200 dark:border-white/[0.08] p-3">
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                        @foreach ($availableSerials as $sn)
+                                            <label class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] select-none">
+                                                <input type="checkbox"
+                                                       wire:model="selectedSerials"
+                                                       value="{{ $sn }}"
+                                                       class="rounded border-slate-300 dark:border-white/20 text-blue-600 focus:ring-blue-500 h-4 w-4 shrink-0" />
+                                                <span class="mono text-xs text-slate-800 dark:text-slate-200 truncate">{{ $sn }}</span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                </div>
+                                @if (count($availableSerials) < $qtyRequired)
+                                    <p class="hint !text-amber-600 dark:!text-amber-400">
+                                        Only {{ count($availableSerials) }} serial(s) on record — {{ $qtyRequired }} required.
+                                    </p>
+                                @endif
+                            @else
+                                {{-- Manual entry fallback --}}
+                                <textarea wire:model="pickedSerial"
+                                          id="picked-serial"
+                                          rows="4"
+                                          placeholder="{{ $trackSerial ? 'One serial per line — must match qty picked' : 'One serial per line (optional)' }}"
+                                          class="input w-full mono resize-none text-sm"></textarea>
+                                <p class="hint">Enter one serial number per line.</p>
+                            @endif
+
+                            @error('pickedSerial')
+                                <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            @enderror
                         </div>
                     @else
                         <p class="text-sm text-slate-500">Loading task…</p>

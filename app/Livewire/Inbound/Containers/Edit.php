@@ -7,9 +7,12 @@ namespace App\Livewire\Inbound\Containers;
 use App\Livewire\Forms\ContainerForm;
 use App\Models\Container;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Edit extends Component
 {
+    use WithFileUploads;
+
     public ContainerForm $form;
     public Container $container;
 

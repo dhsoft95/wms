@@ -45,6 +45,8 @@ class Container extends Model
         'released_to_partner_id',
         'release_notes',
         'notes',
+        'po_number',
+        'po_file_path',
         'created_by',
     ];
 

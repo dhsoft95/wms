@@ -38,6 +38,39 @@ final class PickingService
     public function generatePickList(DeliveryOrder $do, ?User $assignedTo = null): PickList
     {
         return DB::transaction(function () use ($do, $assignedTo) {
+            // Lock the DO row to prevent concurrent generation
+            DeliveryOrder::lockForUpdate()->findOrFail($do->id);
+
+            $existing = PickList::where('delivery_order_id', $do->id)
+                ->whereIn('status', [PickListStatus::Open->value, PickListStatus::InProgress->value])
+                ->lockForUpdate()
+                ->first();
+
+            if ($existing !== null) {
+                throw new \DomainException(
+                    "Pick list {$existing->number} is already {$existing->status->label()} for this order."
+                );
+            }
+
+            // Only allocations that have no active (non-cancelled) pick task
+            $allocations = $do->lines()
+                ->with('allocations.location')
+                ->get()
+                ->flatMap(fn ($line) => $line->allocations->where('status', AllocationStatus::Reserved->value))
+                ->filter(fn ($allocation) => ! PickTask::where('delivery_order_allocation_id', $allocation->id)
+                    ->whereNotIn('status', [PickTaskStatus::Cancelled->value])
+                    ->exists()
+                )
+                ->sortBy([
+                    fn ($a) => $a->location?->pick_sequence ?? PHP_INT_MAX,
+                    fn ($a) => $a->location?->code ?? '',
+                ])
+                ->values();
+
+            if ($allocations->isEmpty()) {
+                throw new \DomainException('Nothing to pick: all allocations already have active pick tasks.');
+            }
+
             $pickList = PickList::create([
                 'number'            => DocumentNumber::next('PCK'),
                 'delivery_order_id' => $do->id,
@@ -45,17 +78,14 @@ final class PickingService
                 'assigned_to'       => $assignedTo?->id,
             ]);
 
-            $allocations = $do->lines()
-                ->with('allocations.location')
-                ->get()
-                ->flatMap(fn ($line) => $line->allocations->where('status', AllocationStatus::Reserved->value))
-                ->sortBy([
-                    fn ($a) => $a->location?->pick_sequence ?? PHP_INT_MAX,
-                    fn ($a) => $a->location?->code ?? '',
-                ])
-                ->values();
-
+            $countLock = app(\App\Services\Inventory\CycleCountWorkflow::class);
             foreach ($allocations as $i => $allocation) {
+                if ($countLock->isLocationLocked($allocation->location_id)) {
+                    throw new \DomainException(
+                        "Location ID {$allocation->location_id} is locked under an active cycle count and cannot be picked."
+                    );
+                }
+
                 PickTask::create([
                     'pick_list_id'                 => $pickList->id,
                     'delivery_order_allocation_id' => $allocation->id,
@@ -70,6 +100,46 @@ final class PickingService
             }
 
             return $pickList;
+        });
+    }
+
+    public function cancelPickList(PickList $pickList): void
+    {
+        DB::transaction(function () use ($pickList) {
+            $pickList = PickList::lockForUpdate()->findOrFail($pickList->id);
+
+            if (! in_array($pickList->status, [PickListStatus::Open, PickListStatus::InProgress], true)) {
+                throw new \DomainException(
+                    "Pick list {$pickList->number} cannot be cancelled (status: {$pickList->status->label()})."
+                );
+            }
+
+            $hasPicked = $pickList->tasks()
+                ->whereIn('status', [PickTaskStatus::Picked->value, PickTaskStatus::Short->value])
+                ->exists();
+
+            if ($hasPicked) {
+                throw new \DomainException(
+                    "Cannot cancel pick list {$pickList->number}: some tasks have already been picked."
+                );
+            }
+
+            $pickList->tasks()->where('status', PickTaskStatus::Open->value)
+                ->update(['status' => PickTaskStatus::Cancelled->value]);
+
+            $pickList->status = PickListStatus::Cancelled;
+            $pickList->save();
+
+            // If the DO moved to Picking but no active pick lists remain, revert to Allocated
+            $do = $pickList->deliveryOrder;
+            $hasActive = $do->pickLists()
+                ->whereIn('status', [PickListStatus::Open->value, PickListStatus::InProgress->value])
+                ->exists();
+
+            if (! $hasActive && $do->status === DeliveryOrderStatus::Picking) {
+                $do->status = DeliveryOrderStatus::Allocated;
+                $do->save();
+            }
         });
     }
 
@@ -121,7 +191,7 @@ final class PickingService
                         reservationId:      $allocation->stock_reservation_id,
                         serials:            $serials,
                     ),
-                    // Credit to staging
+                    // Credit to staging — serials follow to staging so their location stays accurate
                     new StockLine(
                         itemId:             $task->item_id,
                         locationId:         $staging->id,
@@ -131,6 +201,7 @@ final class PickingService
                         enteredUomId:       $allocation->line->uom_id,
                         batchId:            $task->batch_id,
                         lpnId:              $task->lpn_id,
+                        serials:            $serials,
                     ),
                 ],
                 idempotencyKey: $requestId,
@@ -169,6 +240,63 @@ final class PickingService
             $this->syncDoStatus($do->fresh());
 
             return $task->fresh();
+        });
+    }
+
+    public function unconfirmTask(PickTask $task, ?User $by): void
+    {
+        if ($task->status !== PickTaskStatus::Picked) {
+            throw new \DomainException('Only picked tasks can be unconfirmed.');
+        }
+
+        $allocation = $task->allocation()->with('line.deliveryOrder', 'stockBalance')->firstOrFail();
+        $do         = $allocation->line->deliveryOrder;
+
+        if ($do->status === DeliveryOrderStatus::Dispatched || $do->status === DeliveryOrderStatus::Delivered) {
+            throw new \DomainException('Cannot unconfirm a task on a dispatched or delivered order.');
+        }
+
+        DB::transaction(function () use ($task, $allocation, $do, $by) {
+            // Reverse the pick transaction
+            if ($task->stockTransaction) {
+                $this->ledger->reverse($task->stockTransaction, 'Pick task unconfirmed');
+            }
+
+            // Re-create a reservation for this allocation
+            $balance  = $allocation->stockBalance;
+            $newReservation = $this->reservations->reserve(
+                $balance,
+                (string) $task->qty_picked,
+                'delivery_order_allocation',
+                $allocation->id,
+            );
+
+            // Update allocation
+            $allocation->status               = AllocationStatus::Reserved;
+            $allocation->stock_reservation_id = $newReservation->id;
+            $allocation->save();
+
+            // Update line picked_qty
+            $line             = $allocation->line;
+            $line->picked_qty = bcsub((string) $line->picked_qty, (string) $task->qty_picked, 4);
+            if (bccomp($line->picked_qty, '0', 4) < 0) {
+                $line->picked_qty = '0.0000';
+            }
+            $line->save();
+
+            // Detach serials
+            $task->serials()->detach();
+
+            // Reset task
+            $task->status               = PickTaskStatus::Open;
+            $task->qty_picked           = '0.0000';
+            $task->picked_by            = null;
+            $task->picked_at            = null;
+            $task->stock_transaction_id = null;
+            $task->save();
+
+            $this->syncPickListStatus($task->pickList->fresh());
+            $this->syncDoStatus($do->fresh());
         });
     }
 
@@ -213,7 +341,7 @@ final class PickingService
                 // Add new pick tasks for any new allocations
                 $newAllocations = $line->allocations()
                     ->where('status', AllocationStatus::Reserved->value)
-                    ->whereDoesntHave('pickTask')
+                    ->whereDoesntHave('pickTask', fn ($q) => $q->whereNotIn('status', [PickTaskStatus::Cancelled->value]))
                     ->with('location')
                     ->get()
                     ->sortBy([
@@ -250,6 +378,7 @@ final class PickingService
 
         if ($allDone) {
             $pickList->status       = PickListStatus::Completed;
+            $pickList->started_at ??= now();
             $pickList->completed_at = now();
         } elseif ($anyProgress) {
             $pickList->status     = PickListStatus::InProgress;

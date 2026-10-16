@@ -31,9 +31,10 @@ class Receive extends Component
     public string $receiptUomId     = '';
     public string $receiptBatchNo   = '';
     public string $receiptExpiry    = '';
-    public string $receiptCondition = 'good';
-    public string $receiptLpnId     = '';
-    public string $receiptSerials   = '';  // one serial per line, for track_serial items
+    public string $receiptCondition      = 'good';
+    public string $receiptLpnId          = '';
+    public string $receiptSerials        = '';  // one serial per line, for track_serial items
+    public bool   $receiptSerialsMissing = false;
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -153,22 +154,27 @@ class Receive extends Component
 
     public function addReceipt(): void
     {
-        $trackSerial = (bool) ($this->activeGrnLine?->item?->track_serial);
+        $item        = $this->activeGrnLine?->item;
+        $trackSerial = (bool) ($item?->track_serial);
+        $trackBatch  = (bool) ($item?->track_batch);
+        $trackExpiry = (bool) ($item?->track_expiry);
+
+        $serialsRequired = $trackSerial && ! $this->receiptSerialsMissing;
 
         $this->validate([
             'activeLine'       => ['required', 'exists:grn_lines,id'],
             'receiptQty'       => ['required', 'numeric', 'min:0.0001'],
             'receiptUomId'     => ['required', 'exists:units_of_measure,id'],
-            'receiptBatchNo'   => ['nullable', 'string', 'max:100'],
-            'receiptExpiry'    => ['nullable', 'date'],
+            'receiptBatchNo'   => $trackBatch     ? ['required', 'string', 'max:100'] : ['nullable', 'string', 'max:100'],
+            'receiptExpiry'    => $trackExpiry    ? ['required', 'date']              : ['nullable', 'date'],
             'receiptCondition' => ['required', 'in:good,damaged'],
             'receiptLpnId'     => ['nullable', 'exists:lpns,id'],
-            'receiptSerials'   => $trackSerial ? ['required', 'string'] : ['nullable'],
+            'receiptSerials'   => $serialsRequired ? ['required', 'string']           : ['nullable'],
         ]);
 
         // Parse serials — one per line, deduplicated, non-empty
         $serialNos = null;
-        if ($trackSerial) {
+        if ($trackSerial && ! $this->receiptSerialsMissing) {
             $parsed = array_values(array_unique(array_filter(
                 array_map('trim', preg_split('/[\r\n,]+/', $this->receiptSerials)),
                 fn ($s) => $s !== ''
@@ -196,11 +202,12 @@ class Receive extends Component
 
         GrnLine::find($this->activeLine)?->recalculateTotals();
 
-        $this->receiptQty     = '';
-        $this->receiptBatchNo = '';
-        $this->receiptExpiry  = '';
-        $this->receiptLpnId   = '';
-        $this->receiptSerials = '';
+        $this->receiptQty           = '';
+        $this->receiptBatchNo       = '';
+        $this->receiptExpiry        = '';
+        $this->receiptLpnId         = '';
+        $this->receiptSerials       = '';
+        $this->receiptSerialsMissing = false;
 
         $this->dispatch('toast', message: 'Receipt recorded.', type: 'success');
     }

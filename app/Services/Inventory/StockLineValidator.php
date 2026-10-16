@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Inventory;
 
+use App\Enums\LocationLevel;
 use App\Enums\LocationStatus;
 use App\Models\Inventory\Batch;
 use App\Models\Item;
@@ -37,6 +38,10 @@ final class StockLineValidator
 
         if (! $item->is_active) {
             $errors[] = ['column' => 'sku', 'message' => "Item '{$item->sku}' is inactive."];
+        }
+
+        if ($location->level !== LocationLevel::Bin) {
+            $errors[] = ['column' => 'location_code', 'message' => "Location '{$location->code}' is a {$location->level->label()}, not a bin. Choose a bin location."];
         }
 
         if ($location->status === LocationStatus::Blocked) {

@@ -207,6 +207,122 @@ final class StockLedger
         ));
     }
 
+    /**
+     * Attach serial numbers to an existing stock balance without changing qty.
+     * Used when serials were not captured at receiving time (serials_missing flow).
+     */
+    public function attachSerials(StockKey $key, array $serials, StockReference $ref, ?User $user = null, ?string $idempotencyKey = null): StockTransaction
+    {
+        if (empty($serials)) {
+            throw new \InvalidArgumentException('At least one serial number must be provided.');
+        }
+
+        return DB::transaction(function () use ($key, $serials, $ref, $user, $idempotencyKey) {
+            if ($idempotencyKey !== null) {
+                $existing = StockTransaction::where('idempotency_key', $idempotencyKey)->first();
+                if ($existing !== null) {
+                    return $existing;
+                }
+            }
+
+            $item = Item::findOrFail($key->itemId);
+            if (! $item->track_serial) {
+                throw new \InvalidArgumentException("Item {$item->sku} does not use serial tracking.");
+            }
+
+            $normalized = [];
+            foreach ($serials as $rawSerial) {
+                $s = SerialNumber::normalize((string) $rawSerial);
+                if ($s === '') {
+                    throw new \InvalidArgumentException("Serial number '{$rawSerial}' is invalid.");
+                }
+                $normalized[] = $s;
+            }
+            if (count($normalized) !== count(array_unique($normalized))) {
+                throw new \InvalidArgumentException("Duplicate serial numbers in submission for item {$item->sku}.");
+            }
+
+            // Check none already in stock
+            $conflicts = SerialNumber::where('item_id', $item->id)
+                ->whereIn('serial_no', $normalized)
+                ->where('status', SerialStatus::InStock)
+                ->pluck('serial_no')
+                ->all();
+            if (! empty($conflicts)) {
+                throw new \InvalidArgumentException('Serial(s) already in stock: ' . implode(', ', $conflicts));
+            }
+
+            $number = DocumentNumber::next('STK');
+            $transaction = StockTransaction::create([
+                'number'          => $number,
+                'type'            => MovementType::SerialCapture,
+                'reference_type'  => $ref->referenceType,
+                'reference_id'    => $ref->referenceId,
+                'reference_no'    => $ref->referenceNo,
+                'idempotency_key' => $idempotencyKey,
+                'notes'           => null,
+                'posted_by'       => $user?->id,
+                'posted_at'       => now(),
+            ]);
+
+            // Zero-qty movement record — audit trail only
+            $movement = StockMovement::create([
+                'stock_transaction_id' => $transaction->id,
+                'item_id'              => $key->itemId,
+                'batch_id'             => $key->batchId,
+                'lpn_id'               => $key->lpnId,
+                'location_id'          => $key->locationId,
+                'virtual_warehouse_id' => $key->virtualWarehouseId,
+                'stock_status'         => $key->stockStatus,
+                'qty'                  => '0.0000',
+                'entered_qty'          => '0.0000',
+                'entered_uom_id'       => $item->base_uom_id,
+            ]);
+
+            $now = now();
+            $insertRows = array_map(fn ($sn) => [
+                'item_id'              => $item->id,
+                'serial_no'            => $sn,
+                'batch_id'             => $key->batchId,
+                'location_id'          => $key->locationId,
+                'virtual_warehouse_id' => $key->virtualWarehouseId,
+                'lpn_id'               => $key->lpnId,
+                'stock_status'         => $key->stockStatus->value,
+                'status'               => SerialStatus::InStock->value,
+                'last_transaction_id'  => $transaction->id,
+                'created_at'           => $now,
+                'updated_at'           => $now,
+            ], $normalized);
+
+            DB::table('serial_numbers')->upsert(
+                $insertRows,
+                ['item_id', 'serial_no'],
+                ['batch_id', 'location_id', 'virtual_warehouse_id', 'lpn_id', 'stock_status', 'status', 'last_transaction_id', 'updated_at']
+            );
+            DB::table('serial_numbers')
+                ->where('item_id', $item->id)
+                ->whereIn('serial_no', $normalized)
+                ->whereNull('first_received_at')
+                ->update(['first_received_at' => $now]);
+
+            $serialIds = SerialNumber::where('item_id', $item->id)
+                ->whereIn('serial_no', $normalized)
+                ->pluck('id')
+                ->all();
+
+            DB::table('stock_movement_serials')->insert(
+                array_map(fn ($id) => [
+                    'stock_movement_id' => $movement->id,
+                    'serial_number_id'  => $id,
+                ], $serialIds)
+            );
+
+            event(new StockPosted($transaction));
+
+            return $transaction;
+        });
+    }
+
     public function reverse(StockTransaction $tx, string $reason): StockTransaction
     {
         if ($tx->reversed_by_transaction_id !== null) {
@@ -340,8 +456,8 @@ final class StockLedger
                 $location,
                 $vw,
                 $existingBatch,
-                $line->batchNo,
-                $line->expiryDate?->toDateString(),
+                $batch?->batch_no ?? $line->batchNo,
+                $line->expiryDate?->toDateString() ?? $batch?->expiry_date?->toDateString(),
                 $baseQty,
             );
 

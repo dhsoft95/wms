@@ -9,12 +9,13 @@ use App\Models\Inventory\Lpn;
 use App\Services\Inbound\LpnService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Gate;
 
 class LpnPrintController extends Controller
 {
     public function __invoke(Request $request, Grn $grn): Response
     {
-        $this->authorize('lpn.print');
+        Gate::authorize('lpn.print');
 
         $lpnIds = $request->input('lpns');
         if (! is_array($lpnIds)) {

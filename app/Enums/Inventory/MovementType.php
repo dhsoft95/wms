@@ -18,6 +18,7 @@ enum MovementType: string
     case Hold              = 'hold';
     case Release           = 'release';
     case Reversal          = 'reversal';
+    case SerialCapture     = 'serial_capture';
 
     public function label(): string
     {
@@ -34,6 +35,7 @@ enum MovementType: string
             self::Hold              => 'Hold',
             self::Release           => 'Release',
             self::Reversal          => 'Reversal',
+            self::SerialCapture     => 'Serial Capture',
         };
     }
 

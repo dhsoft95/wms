@@ -125,6 +125,40 @@
                 </div>
             </div>
 
+            {{-- MRN / Supporting Document --}}
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">MRN / Supporting Document</h3>
+                </div>
+                <div class="card-body grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <div>
+                        <label class="label">MRN Number</label>
+                        <input wire:model="mrnNumber" type="text" placeholder="e.g. MRN-2026-00123" class="input" @disabled(! $this->isDraft)>
+                        @error('mrnNumber') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
+                        <label class="label">MRN Document <span class="text-xs text-slate-400">(PDF / image, max 10 MB)</span></label>
+                        @if ($deliveryOrder->mrn_file_path)
+                            <div class="mb-2 flex items-center gap-2 text-sm">
+                                <x-ui.icon name="paperclip" class="w-3.5 h-3.5 text-slate-400" />
+                                <a href="{{ route('outbound.orders.mrn.download', $deliveryOrder) }}"
+                                   target="_blank"
+                                   class="text-brand hover:underline truncate">
+                                    View current MRN file
+                                </a>
+                            </div>
+                        @endif
+                        @if ($this->isDraft)
+                            <input wire:model="mrnFile" type="file" accept=".pdf,.jpg,.jpeg,.png" class="input text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-slate-100 dark:file:bg-slate-700">
+                            @error('mrnFile') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @endif
+                    </div>
+
+                </div>
+            </div>
+
             {{-- Order Lines --}}
             <div class="card">
                 <div class="card-header">

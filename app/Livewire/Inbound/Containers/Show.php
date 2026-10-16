@@ -130,6 +130,7 @@ class Show extends Component
             ->pluck('yard_location_id');
 
         return Location::where('type', 'yard_slot')
+            ->where('level', 'bin')
             ->where('status', 'active')
             ->whereNotIn('id', $occupiedIds)
             ->orderBy('code')
@@ -414,18 +415,35 @@ class Show extends Component
     {
         $this->authorize('update', $this->container);
         $this->validate([
-            'plFile' => 'required|file|mimes:xlsx,xls,csv|max:20480',
+            'plFile' => [
+                'required', 'file', 'max:20480',
+                function ($attribute, $value, $fail) {
+                    $ext = strtolower($value->getClientOriginalExtension());
+                    if (!in_array($ext, ['xlsx', 'xls', 'csv'], true)) {
+                        $fail('Only .xlsx, .xls, or .csv files are accepted.');
+                    }
+                },
+            ],
         ]);
 
-        $name = now()->format('Ymd_His') . '_' . $this->plFile->getClientOriginalName();
-        $path = $this->plFile->storeAs('packing-lists', $name, 'local');
-        $this->plStoredPath   = $path;
-        $fullPath             = storage_path('app/' . $path);
-        $this->plSampleRows   = $parser->readRawRows($fullPath, 15);
-        $this->plHeaderRowIdx = $parser->detectHeaderRow($this->plSampleRows);
+        try {
+            $name = now()->format('Ymd_His') . '_' . $this->plFile->getClientOriginalName();
+            $path = $this->plFile->storeAs('packing-lists', $name, 'local');
+            $this->plStoredPath   = $path;
+            $fullPath             = Storage::disk('local')->path($path);
+            $this->plSampleRows   = $parser->readRawRows($fullPath, 15);
+            $this->plHeaderRowIdx = $parser->detectHeaderRow($this->plSampleRows);
 
-        $this->plApplyHeaderAndMap($parser);
-        $this->plStep = 3;
+            if (empty($this->plSampleRows)) {
+                $this->dispatch('toast', message: 'Could not read the file. Please check it is a valid spreadsheet or CSV.', type: 'error');
+                return;
+            }
+
+            $this->plApplyHeaderAndMap($parser);
+            $this->plStep = 3;
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: 'Upload failed: ' . $e->getMessage(), type: 'error');
+        }
     }
 
     /** Step 2 → 3: called when user manually picks a different header row. */
@@ -500,7 +518,7 @@ class Show extends Component
             );
         }
 
-        $fullPath   = storage_path('app/' . $this->plStoredPath);
+        $fullPath   = Storage::disk('local')->path($this->plStoredPath);
         $parsedRows = $parser->parseDataRows($fullPath, $this->plHeaderRowIdx, $this->plMapping);
         $this->plRows  = array_map(fn ($r) => $parser->resolveRow($r), $parsedRows);
         $this->plItemOverrides = [];

@@ -136,7 +136,12 @@ class Index extends Component
             'notes'                   => $this->dispatchNotes ?: null,
         ];
 
-        $dispatch = app(DispatchService::class)->confirmDispatch($do, $data, auth()->user());
+        try {
+            $dispatch = app(DispatchService::class)->confirmDispatch($do, $data, auth()->user());
+        } catch (\DomainException $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+            return;
+        }
 
         $this->showDispatchModal = false;
         $this->actionDoId        = null;
@@ -148,10 +153,15 @@ class Index extends Component
     public function verifyGateExit(int $gatePassId): void
     {
         $this->authorize('gate.verify');
-        app(DispatchService::class)->verifyGateExit(
-            \App\Models\GatePass::findOrFail($gatePassId),
-            auth()->user()
-        );
+        try {
+            app(DispatchService::class)->verifyGateExit(
+                \App\Models\GatePass::findOrFail($gatePassId),
+                auth()->user()
+            );
+        } catch (\DomainException $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+            return;
+        }
         $this->dispatch('toast', message: 'Gate exit verified.', type: 'success');
         unset($this->recentDispatches);
     }

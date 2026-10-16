@@ -101,6 +101,16 @@ class Location extends Model
         return $query->where('is_pickable', true)->where('status', LocationStatus::Active);
     }
 
+    public function scopeBin($query): mixed
+    {
+        return $query->where('level', LocationLevel::Bin);
+    }
+
+    public function isBin(): bool
+    {
+        return $this->level === LocationLevel::Bin;
+    }
+
     // ─── Activity Log ─────────────────────────────────────────────────────────
 
     public function getActivitylogOptions(): LogOptions

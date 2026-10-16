@@ -87,7 +87,7 @@ class Index extends Component
     #[Computed]
     public function users(): \Illuminate\Database\Eloquent\Collection
     {
-        return User::active()
+        return User::where('status', 'active')
             ->whereHas('roles', fn ($q) => $q->whereIn('name', ['storekeeper', 'scanner-operator', 'warehouse-manager']))
             ->orderBy('name')
             ->get();
@@ -115,6 +115,27 @@ class Index extends Component
         }
 
         return $task->suggestedLocation;
+    }
+
+    #[Computed]
+    public function binSearchResults(): array
+    {
+        $q = trim($this->scanDestination);
+        if ($q === '' || $this->destinationId !== '') {
+            return [];
+        }
+
+        return Location::where(function ($query) use ($q) {
+                $query->where('code', 'like', '%' . $q . '%')
+                      ->orWhere('barcode', 'like', '%' . $q . '%');
+            })
+            ->where('level', 'bin')
+            ->where('type', 'storage')
+            ->where('status', 'active')
+            ->orderBy('code')
+            ->limit(10)
+            ->get(['id', 'code', 'barcode'])
+            ->toArray();
     }
 
     // ─── Bulk Assign ──────────────────────────────────────────────────────────
@@ -164,6 +185,13 @@ class Index extends Component
         $this->destinationId    = '';
     }
 
+    public function selectBin(int $locationId, string $locationCode): void
+    {
+        $this->destinationId   = (string) $locationId;
+        $this->scanDestination = $locationCode;
+        unset($this->binSearchResults);
+    }
+
     public function resolveDestination(): void
     {
         $code = trim($this->scanDestination);
@@ -171,8 +199,10 @@ class Index extends Component
             return;
         }
 
-        $location = Location::where('code', $code)
-            ->orWhere('barcode', $code)
+        $location = Location::where(function ($q) use ($code) {
+                $q->where('code', $code)->orWhere('barcode', $code);
+            })
+            ->where('level', 'bin')
             ->where('type', 'storage')
             ->where('status', 'active')
             ->first();
@@ -180,7 +210,7 @@ class Index extends Component
         if ($location) {
             $this->destinationId   = (string) $location->id;
             $this->scanDestination = $location->code;
-            $this->dispatch('toast', message: "Location found: {$location->code}", type: 'info');
+            unset($this->binSearchResults);
         } else {
             $this->dispatch('toast', message: "Location not found: {$code}", type: 'error');
         }

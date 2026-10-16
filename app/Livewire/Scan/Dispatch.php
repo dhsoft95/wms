@@ -55,17 +55,22 @@ class Dispatch extends Component
 
         $do = DeliveryOrder::findOrFail($this->doId);
 
-        $dispatch = app(DispatchService::class)->confirmDispatch(
-            $do,
-            [
-                'vehicle_no'   => $this->vehicleNo,
-                'driver_name'  => $this->driverName,
-                'driver_phone' => $this->driverPhone ?: null,
-                'seal_no'      => $this->sealNo ?: null,
-            ],
-            auth()->user(),
-            "scan:dispatch:{$do->id}"
-        );
+        try {
+            $dispatch = app(DispatchService::class)->confirmDispatch(
+                $do,
+                [
+                    'vehicle_no'   => $this->vehicleNo,
+                    'driver_name'  => $this->driverName,
+                    'driver_phone' => $this->driverPhone ?: null,
+                    'seal_no'      => $this->sealNo ?: null,
+                ],
+                auth()->user(),
+                "scan:dispatch:{$do->id}"
+            );
+        } catch (\DomainException $e) {
+            $this->addError('vehicleNo', $e->getMessage());
+            return;
+        }
 
         $this->dispatchNumber = $dispatch->number;
         $this->gatePassNumber = $dispatch->gatePass?->number;

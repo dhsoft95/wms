@@ -2,73 +2,72 @@
     <div class="page-header">
         <div>
             <h2 class="page-title">Internal Movements</h2>
-            <p class="page-sub">Move stock between bins within the same warehouse.</p>
+            <p class="page-sub">Bin-to-bin stock moves within the same virtual warehouse.</p>
+        </div>
+        @can('create', \App\Models\InternalMovement::class)
+            <a href="{{ route('warehouse.movements.create') }}" wire:navigate class="btn btn-primary">
+                <x-ui.icon name="plus" class="w-4 h-4" /> New Movement
+            </a>
+        @endcan
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <div class="flex gap-3 flex-wrap">
+                <input wire:model.live.debounce.300ms="search" type="text" placeholder="Search number…" class="input w-56">
+                <select wire:model.live="status" class="input w-44">
+                    <option value="">All statuses</option>
+                    @foreach(\App\Enums\MovementStatus::cases() as $s)
+                        <option value="{{ $s->value }}">{{ $s->label() }}</option>
+                    @endforeach
+                </select>
+            </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <form wire:submit="save" class="lg:col-span-2 card">
-            <div class="card-body space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="label">SKU code *</label>
-                        <input wire:model="form.skuCode" type="text" required placeholder="SKU-AZ-001" class="input font-mono">
-                        @error('form.skuCode') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                    </div>
-                    <div>
-                        <label class="label">Quantity to move *</label>
-                        <input wire:model="form.quantity" type="number" required min="1" placeholder="50" class="input tabular-nums">
-                        @error('form.quantity') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-end">
-                    <div>
-                        <label class="label">Source bin *</label>
-                        <input wire:model="form.sourceBin" type="text" required placeholder="DAR-A-01-01-A" class="input font-mono uppercase">
-                        @error('form.sourceBin') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                    </div>
-                    <div class="hidden md:flex items-center justify-center h-[38px] w-10 text-slate-400">
-                        <x-ui.icon name="arrow-right" class="w-5 h-5" />
-                    </div>
-                    <div>
-                        <label class="label">Target bin *</label>
-                        <input wire:model="form.targetBin" type="text" required placeholder="DAR-A-03-02-B" class="input font-mono uppercase">
-                        @error('form.targetBin') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                    </div>
-                </div>
-                <div>
-                    <label class="label">Movement reason *</label>
-                    <select wire:model="form.movementReason" class="input">
-                        <option>Replenishment to pick face</option>
-                        <option>Consolidation</option>
-                        <option>Re-slotting</option>
-                        <option>Damaged stock quarantine</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="label">Notes</label>
-                    <textarea wire:model="form.notes" rows="2" class="input" placeholder="Optional"></textarea>
-                </div>
-            </div>
-            <div class="card-footer">
-                <button type="button" wire:click="$refresh" class="btn btn-secondary">Clear</button>
-                <button type="submit" class="btn btn-primary">Execute Movement</button>
-            </div>
-        </form>
-
-        <div class="card self-start">
-            <div class="card-header"><h3 class="card-title">Recent Movements</h3></div>
-            <ul>
-                @foreach ($recent as $item)
-                    <li class="list-row">
-                        <div>
-                            <p class="text-sm font-semibold mono">{{ $item['ref'] }}</p>
-                            <p class="text-xs text-slate-500 mono">{{ $item['from'] }} to {{ $item['to'] }}</p>
-                        </div>
-                        <span class="text-sm font-semibold tabular-nums">{{ number_format($item['qty']) }}</span>
-                    </li>
-                @endforeach
-            </ul>
-        </div>
+    <div class="card">
+        <x-ui.table>
+            <thead>
+                <tr>
+                    <th>Number</th>
+                    <th>Virtual Warehouse</th>
+                    <th>Lines</th>
+                    <th>Created By</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($movements as $movement)
+                    <tr wire:key="mov-{{ $movement->id }}">
+                        <td>
+                            <a href="{{ route('warehouse.movements.show', $movement) }}" wire:navigate
+                               class="mono font-semibold text-simba-600 dark:text-simba-400 hover:underline">
+                                {{ $movement->number }}
+                            </a>
+                        </td>
+                        <td class="text-sm">{{ $movement->virtualWarehouse?->name ?? '—' }}</td>
+                        <td class="tabular-nums text-slate-500">{{ $movement->lines_count }}</td>
+                        <td class="text-sm">{{ $movement->createdBy?->name ?? '—' }}</td>
+                        <td>
+                            <span class="badge {{ $movement->status->badge() }}">
+                                <span class="dot"></span>{{ $movement->status->label() }}
+                            </span>
+                        </td>
+                        <td class="text-meta tabular-nums">{{ $movement->created_at->format('d M Y') }}</td>
+                        <td class="text-right">
+                            <a href="{{ route('warehouse.movements.show', $movement) }}" wire:navigate
+                               class="btn btn-sm btn-ghost">
+                                <x-ui.icon name="eye" class="w-3.5 h-3.5" />
+                            </a>
+                        </td>
+                    </tr>
+                @empty
+                    <x-ui.empty-state title="No movements found." :cols="7" />
+                @endforelse
+            </tbody>
+        </x-ui.table>
+        <div class="card-footer">{{ $movements->links() }}</div>
     </div>
 </div>

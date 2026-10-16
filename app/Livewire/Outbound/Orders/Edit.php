@@ -18,9 +18,11 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Edit extends Component
 {
+    use WithFileUploads;
     // ─── Route Model Binding ──────────────────────────────────────────────────
 
     public DeliveryOrder $deliveryOrder;
@@ -36,6 +38,8 @@ class Edit extends Component
     public string $priority            = 'normal';
     public string $allocationRule      = 'fefo';
     public string $remarks             = '';
+    public string $mrnNumber           = '';
+    public mixed  $mrnFile             = null;
     public array  $lines               = [];
     public bool   $autoSubmit          = false;
 
@@ -58,6 +62,7 @@ class Edit extends Component
         $this->priority           = $deliveryOrder->priority?->value ?? 'normal';
         $this->allocationRule     = $deliveryOrder->allocation_rule?->value ?? 'fefo';
         $this->remarks            = $deliveryOrder->remarks ?? '';
+        $this->mrnNumber          = $deliveryOrder->mrn_number ?? '';
 
         $this->lines = $deliveryOrder->lines()
             ->with('item.baseUom', 'uom')
@@ -193,11 +198,21 @@ class Edit extends Component
             'requiredDate'         => ['required', 'date', 'after_or_equal:today'],
             'priority'             => ['required', Rule::in(array_column(DeliveryOrderPriority::cases(), 'value'))],
             'allocationRule'       => ['required', Rule::in(array_column(AllocationRule::cases(), 'value'))],
+            'mrnNumber'            => ['nullable', 'string', 'max:100'],
+            'mrnFile'              => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
             'lines'                => ['required', 'array', 'min:1'],
             'lines.*.item_id'      => ['required', 'exists:items,id'],
             'lines.*.qty'          => ['required', 'numeric', 'min:0.0001'],
             'lines.*.uom_id'       => ['required', 'exists:units_of_measure,id'],
         ]);
+
+        $mrnFilePath = $this->deliveryOrder->mrn_file_path;
+        if ($this->mrnFile) {
+            if ($mrnFilePath) {
+                \Illuminate\Support\Facades\Storage::disk('local')->delete($mrnFilePath);
+            }
+            $mrnFilePath = $this->mrnFile->store('delivery_orders/mrn', 'local');
+        }
 
         $do = app(UpdateDeliveryOrderAction::class)->execute(
             $this->deliveryOrder,
@@ -211,6 +226,8 @@ class Edit extends Component
                 'priority'             => $this->priority,
                 'allocation_rule'      => $this->allocationRule,
                 'remarks'              => $this->remarks,
+                'mrn_number'           => $this->mrnNumber ?: null,
+                'mrn_file_path'        => $mrnFilePath,
                 'lines'                => $this->lines,
             ],
         );

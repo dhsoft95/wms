@@ -6,10 +6,12 @@ namespace App\Services\Inbound;
 
 use App\Data\Inventory\StockKey;
 use App\Data\Inventory\StockReference;
+use App\Enums\LocationLevel;
 use App\Enums\LocationStatus;
 use App\Enums\LocationType;
 use App\Enums\PutawayTaskStatus;
 use App\Models\Inventory\Lpn;
+use App\Models\Inventory\SerialNumber;
 use App\Models\Inventory\StockBalance;
 use App\Models\Location;
 use App\Models\PutawayTask;
@@ -29,12 +31,15 @@ final class PutawayEngine
     {
         $task->load('item.preferredZone', 'fromLocation');
 
-        // 1. Item has a preferred zone configured
+        // 1. Item has a preferred zone configured — search bins inside that zone
         $item = $task->item;
         if ($item?->preferred_zone_id) {
-            $bin = Location::where('parent_id', $item->preferred_zone_id)
+            $bin = Location::where('warehouse_id', $task->fromLocation?->warehouse_id)
+                ->where('level', LocationLevel::Bin->value)
                 ->where('type', LocationType::Storage->value)
                 ->where('status', LocationStatus::Active->value)
+                ->whereHas('parent', fn ($q) => $q->where('id', $item->preferred_zone_id)
+                    ->orWhereHas('parent', fn ($q2) => $q2->where('id', $item->preferred_zone_id)))
                 ->first();
             if ($bin) {
                 return $bin;
@@ -45,6 +50,7 @@ final class PutawayEngine
         $warehouseId = $task->fromLocation?->warehouse_id;
         if ($warehouseId) {
             $bin = Location::where('warehouse_id', $warehouseId)
+                ->where('level', LocationLevel::Bin->value)
                 ->where('type', LocationType::Storage->value)
                 ->where('status', LocationStatus::Active->value)
                 ->first();
@@ -80,6 +86,18 @@ final class PutawayEngine
      */
     public function execute(PutawayTask $task, Location $destination, User $user): PutawayTask
     {
+        if (! $destination->isBin()) {
+            throw new \DomainException(
+                "Destination '{$destination->code}' is a {$destination->level->label()}, not a bin. Choose a bin location."
+            );
+        }
+
+        if (app(\App\Services\Inventory\CycleCountWorkflow::class)->isLocationLocked($destination->id)) {
+            throw new \DomainException(
+                "Bin '{$destination->code}' is locked under an active cycle count and cannot receive stock."
+            );
+        }
+
         return DB::transaction(function () use ($task, $destination, $user) {
             $task = PutawayTask::where('id', $task->id)->lockForUpdate()->firstOrFail();
 
@@ -113,12 +131,30 @@ final class PutawayEngine
             $item    = $task->item;
             $uomId   = $item->base_uom_id;
 
+            // For serial-tracked items, fetch the in-stock serials at the source location
+            $serials = [];
+            if ($item->track_serial) {
+                $serialQuery = SerialNumber::where('item_id', $task->item_id)
+                    ->where('location_id', $task->from_location_id)
+                    ->where('status', \App\Enums\Inventory\SerialStatus::InStock);
+
+                if ($task->batch_id) {
+                    $serialQuery->where('batch_id', $task->batch_id);
+                }
+                if ($task->lpn_id) {
+                    $serialQuery->where('lpn_id', $task->lpn_id);
+                }
+
+                $serials = $serialQuery->pluck('serial_no')->all();
+            }
+
             $stockTx = $this->ledger->move(
                 from:          $fromKey,
                 toLocationId:  $destination->id,
                 qty:           (string) $task->qty,
                 uomId:         $uomId,
                 ref:           $ref,
+                serials:        $serials,
                 idempotencyKey: "putaway:{$task->id}:execute",
             );
 

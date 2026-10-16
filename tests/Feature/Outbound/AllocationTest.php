@@ -241,12 +241,9 @@ test('test_allocation_skips_expired_stock', function () {
     ]);
 
     $service = app(AllocationService::class);
-    $service->allocate($do);
 
-    $do->refresh();
-
-    // Expired batch is invisible to the allocator → remains Approved (no stock allocated)
-    expect($do->status)->toBe(DeliveryOrderStatus::Approved);
+    // Expired batch is invisible to the allocator → throws with no-stock message
+    expect(fn () => $service->allocate($do))->toThrow(\DomainException::class);
 
     $allocations = DeliveryOrderAllocation::where('delivery_order_line_id', $line->id)->count();
     expect($allocations)->toBe(0);

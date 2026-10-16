@@ -1,4 +1,4 @@
-<div class="max-w-3xl mx-auto space-y-6">
+<div class="space-y-3">
     <div class="page-header">
         <div>
             <a href="{{ route('inbound.containers.show', $container) }}" wire:navigate class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-simba-600 mb-2">
@@ -27,7 +27,7 @@
         </div>
     @endif
 
-    <form wire:submit="save" class="space-y-6">
+    <form wire:submit="save" class="space-y-3">
         @include('livewire.inbound.containers._form', ['container' => $container])
 
         <div class="flex justify-end gap-2 pt-2">

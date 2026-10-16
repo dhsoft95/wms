@@ -2,6 +2,7 @@
 declare(strict_types=1);
 namespace App\Livewire\Scan;
 
+use App\Enums\LocationLevel;
 use App\Enums\PutawayTaskStatus;
 use App\Enums\ScanResultType;
 use App\Models\Inventory\Lpn;
@@ -127,6 +128,11 @@ class Putaway extends Component
         $loc = $result->record;
         if ($loc->status !== 'active') {
             $this->dispatch('toast', message: 'Location is not active.', type: 'error');
+            $this->dispatch('scan-error');
+            return;
+        }
+        if ($loc->level !== LocationLevel::Bin) {
+            $this->dispatch('toast', message: "Choose a bin, not a {$loc->level->label()}.", type: 'error');
             $this->dispatch('scan-error');
             return;
         }

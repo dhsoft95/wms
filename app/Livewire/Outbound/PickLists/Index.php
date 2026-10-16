@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Outbound\PickLists;
 
 use App\Enums\Outbound\PickListStatus;
+use App\Models\Inventory\SerialNumber;
 use App\Models\PickList;
 use App\Models\PickTask;
 use App\Models\User;
@@ -28,10 +29,12 @@ class Index extends Component
     public string $assignUserId     = '';
 
     // Execute task modal (desktop picking)
-    public bool   $showPickModal    = false;
-    public ?int   $activeTaskId     = null;
-    public string $pickedQty        = '';
-    public string $pickedSerial     = '';
+    public bool   $showPickModal     = false;
+    public ?int   $activeTaskId      = null;
+    public string $pickedQty         = '';
+    public array  $availableSerials  = [];
+    public array  $selectedSerials   = [];
+    public string $pickedSerial      = '';  // fallback when no serials in system
 
     public function updatedSearch(): void       { $this->resetPage(); }
     public function updatedStatusFilter(): void { $this->resetPage(); }
@@ -93,7 +96,7 @@ class Index extends Component
     #[Computed]
     public function pickerUsers(): \Illuminate\Database\Eloquent\Collection
     {
-        return User::where('is_active', true)
+        return User::where('status', 'active')
             ->orderBy('name')
             ->get();
     }
@@ -126,9 +129,33 @@ class Index extends Component
 
     public function openPickTask(int $taskId): void
     {
-        $this->activeTaskId  = $taskId;
-        $this->pickedQty     = '';
-        $this->pickedSerial  = '';
+        $task = PickTask::with(['allocation.item', 'allocation.location'])->find($taskId);
+
+        $this->activeTaskId     = $taskId;
+        $this->pickedQty        = $task ? number_format((float) $task->qty_to_pick, 4, '.', '') : '';
+        $this->pickedSerial     = '';
+        $this->availableSerials = [];
+        $this->selectedSerials  = [];
+
+        if ($task && $task->allocation?->item?->track_serial && $task->allocation->location_id) {
+            $alloc = $task->allocation;
+            $qty   = (int) round((float) $task->qty_to_pick);
+
+            $serialQuery = SerialNumber::where('item_id', $alloc->item_id)
+                ->where('location_id', $alloc->location_id)
+                ->where('status', 'in_stock');
+
+            if ($alloc->lpn_id) {
+                $serialQuery->where('lpn_id', $alloc->lpn_id);
+            }
+            if ($alloc->batch_id) {
+                $serialQuery->where('batch_id', $alloc->batch_id);
+            }
+
+            $this->availableSerials = $serialQuery->pluck('serial_no')->all();
+            $this->selectedSerials  = array_slice($this->availableSerials, 0, $qty);
+        }
+
         $this->showPickModal = true;
     }
 
@@ -138,15 +165,44 @@ class Index extends Component
             'pickedQty' => ['required', 'numeric', 'min:0.0001'],
         ]);
 
-        $task    = PickTask::with(['pickList.deliveryOrder', 'allocation'])->findOrFail($this->activeTaskId);
-        $by      = auth()->user();
-        $serials = $this->pickedSerial !== '' ? [$this->pickedSerial] : [];
+        $task = PickTask::with(['pickList.deliveryOrder', 'allocation.item'])->findOrFail($this->activeTaskId);
+        $by   = auth()->user();
 
-        app(PickingService::class)->executeTask($task, (float) $this->pickedQty, $by, $serials);
+        if (count($this->availableSerials) > 0) {
+            $serials = array_values(array_filter($this->selectedSerials, fn ($s) => $s !== ''));
+        } else {
+            $serials = array_values(array_filter(
+                array_map('trim', preg_split('/[\r\n,]+/', $this->pickedSerial)),
+                fn ($s) => $s !== ''
+            ));
+        }
+
+        if ($task->allocation?->item?->track_serial && count($serials) === 0) {
+            $this->addError('pickedSerial', 'Serial numbers are required for this item.');
+            return;
+        }
+
+        if ($task->allocation?->item?->track_serial) {
+            $expected = (int) round((float) $this->pickedQty);
+            if (count($serials) !== $expected) {
+                $this->addError('pickedSerial', "Expected {$expected} serial(s) for qty {$expected}, got " . count($serials) . '.');
+                return;
+            }
+        }
+
+        app(PickingService::class)->executeTask($task, number_format((float) $this->pickedQty, 4, '.', ''), $by, $serials);
 
         $this->showPickModal = false;
         $this->activeTaskId  = null;
         $this->dispatch('toast', message: 'Task picked successfully.', type: 'success');
+        unset($this->pickLists);
+    }
+
+    public function unconfirmTask(int $taskId): void
+    {
+        $task = PickTask::with(['pickList.deliveryOrder', 'stockTransaction', 'allocation.stockBalance'])->findOrFail($taskId);
+        app(PickingService::class)->unconfirmTask($task, auth()->user());
+        $this->dispatch('toast', message: 'Task unconfirmed and stock returned to bin.', type: 'info');
         unset($this->pickLists);
     }
 

@@ -27,6 +27,8 @@ class GrnLine extends Model
         'variance_reason_code_id',
         'remarks',
         'is_unexpected',
+        'serials_missing',
+        'serials_missing_qty',
     ];
 
     protected function casts(): array
@@ -36,8 +38,10 @@ class GrnLine extends Model
             'received_good_qty'   => 'decimal:4',
             'received_damaged_qty'=> 'decimal:4',
             'variance_qty'        => 'decimal:4',
-            'variance_type'       => GrnVarianceType::class,
-            'is_unexpected'       => 'boolean',
+            'variance_type'        => GrnVarianceType::class,
+            'is_unexpected'        => 'boolean',
+            'serials_missing'      => 'boolean',
+            'serials_missing_qty'  => 'decimal:4',
         ];
     }
 
@@ -114,6 +118,13 @@ class GrnLine extends Model
         $this->received_damaged_qty = $damagedQty;
         $this->variance_qty         = $varianceQty;
         $this->variance_type        = $varianceType;
+
+        // Track missing serials: receipts with null serial_nos on serial-tracked items
+        if ($this->item?->track_serial) {
+            $missingQty = (string) $this->receipts()->whereNull('serial_nos')->sum('qty');
+            $this->serials_missing     = bccomp($missingQty, '0', 4) > 0;
+            $this->serials_missing_qty = $missingQty;
+        }
 
         $this->saveQuietly();
     }

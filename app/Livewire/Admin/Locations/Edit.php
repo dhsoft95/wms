@@ -128,17 +128,23 @@ class Edit extends Component
 
     public function save(): void
     {
+        $isBin = $this->level === 'bin';
+
         $this->validate([
             'warehouseId' => ['required', 'exists:warehouses,id'],
             'parentId'    => ['nullable', 'exists:locations,id'],
             'level'       => ['required', 'in:zone,aisle,rack,shelf_level,bin'],
             'segmentCode' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9]+$/'],
-            'type'         => ['required', 'in:yard_slot,receiving_dock,storage,staging,quarantine'],
+            'type'        => $isBin ? ['required', 'in:yard_slot,receiving_dock,storage,staging,quarantine'] : [],
             'pickSequence' => ['nullable', 'integer', 'min:0'],
             'maxPallets'   => ['nullable', 'integer', 'min:1'],
             'maxWeightKg'  => ['nullable', 'numeric', 'min:0'],
             'barcode'      => ['nullable', 'string', 'max:100'],
         ]);
+
+        if (! $isBin) {
+            $this->type = 'storage';
+        }
 
         UpdateLocationAction::execute($this->location, [
             'warehouse_id'  => $this->warehouseId,
