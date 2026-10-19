@@ -4,11 +4,6 @@
             <h2 class="page-title">Containers</h2>
             <p class="page-sub">Track inbound shipping containers from arrival through unloading and release.</p>
         </div>
-        @can('create', \App\Models\Container::class)
-            <a href="{{ route('inbound.containers.create') }}" wire:navigate class="btn btn-primary">
-                <x-ui.icon name="plus" class="w-4 h-4" /> Register Container
-            </a>
-        @endcan
     </div>
 
     <div class="card overflow-hidden">

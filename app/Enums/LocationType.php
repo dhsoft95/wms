@@ -9,6 +9,7 @@ enum LocationType: string
     case Storage      = 'storage';
     case Staging      = 'staging';
     case Quarantine   = 'quarantine';
+    case Transit      = 'transit';
 
     public function label(): string
     {
@@ -18,14 +19,15 @@ enum LocationType: string
             self::Storage       => 'Storage',
             self::Staging       => 'Staging',
             self::Quarantine    => 'Quarantine',
+            self::Transit       => 'In-Transit',
         };
     }
 
     public function isPickable(): bool
     {
         return match($this) {
-            self::YardSlot, self::ReceivingDock, self::Quarantine => false,
-            self::Storage, self::Staging                          => true,
+            self::YardSlot, self::ReceivingDock, self::Quarantine, self::Transit => false,
+            self::Storage, self::Staging                                          => true,
         };
     }
 }

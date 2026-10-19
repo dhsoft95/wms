@@ -11,11 +11,11 @@
             </div>
         </div>
         <div class="flex gap-2 flex-wrap">
-            @if($movement->status === \App\Enums\MovementStatus::Draft)
-                @can('post', $movement)
-                    <button wire:click="post" wire:loading.attr="disabled" wire:confirm="Post this movement? Stock will be moved and this cannot be undone." class="btn btn-success">
-                        <span wire:loading.remove wire:target="post"><x-ui.icon name="check" class="w-4 h-4" /> Confirm & Post</span>
-                        <span wire:loading wire:target="post">Posting…</span>
+            @if(in_array($movement->status, [\App\Enums\MovementStatus::Draft, \App\Enums\MovementStatus::Submitted]))
+                @can('execute', $movement)
+                    <button wire:click="execute" wire:loading.attr="disabled" wire:confirm="Execute this movement? Stock will be moved and this cannot be undone." class="btn btn-success">
+                        <span wire:loading.remove wire:target="execute"><x-ui.icon name="check" class="w-4 h-4" /> Execute Movement</span>
+                        <span wire:loading wire:target="execute">Executing…</span>
                     </button>
                 @endcan
                 @can('cancel', $movement)

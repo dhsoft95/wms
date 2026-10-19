@@ -253,8 +253,8 @@ it('auto-posts on submit when qty is below threshold', function () {
     expect($adj->threshold_exceeded)->toBeFalse();
 });
 
-// 4. Above threshold stays submitted
-it('stays submitted when qty exceeds threshold and needs approval', function () {
+// 4. Item with adjustment_approval=required stays submitted awaiting approval
+it('stays submitted when item requires approval', function () {
     $uom  = icUom();
     $wh   = icWarehouse();
     $vw   = icVw(icDept($wh));
@@ -262,9 +262,10 @@ it('stays submitted when qty exceeds threshold and needs approval', function () 
     $item = icItem($uom);
     $rc   = icReasonCode();
 
-    icSeedStock($item, $bin, $vw, $uom, '500.0000');
+    // Force this item to always require adjustment approval
+    $item->update(['adjustment_approval' => 'required']);
 
-    Setting::set('adj_qty_threshold', 10.0);
+    icSeedStock($item, $bin, $vw, $uom, '500.0000');
 
     $workflow = app(AdjustmentWorkflow::class);
 
@@ -472,7 +473,7 @@ it('renders transfers index with all column headers', function () {
     Livewire::actingAs($this->manager)
         ->test(\App\Livewire\Warehouse\Transfers\Index::class)
         ->assertSee('Number')
-        ->assertSee('From')
+        ->assertSee('Department')
         ->assertSee('To')
         ->assertSee('Created By')
         ->assertSee('Status')

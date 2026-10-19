@@ -3,15 +3,67 @@
     <div class="page-header">
         <div>
             <h2 class="page-title">Approvals Inbox</h2>
-            <p class="page-sub">Delivery orders awaiting your approval before stock is allocated.</p>
+            <p class="page-sub">Documents awaiting your review and approval.</p>
         </div>
         @if ($this->totalPendingCount > 0)
             <span class="badge badge-simba !text-sm !px-3 !py-1">{{ $this->totalPendingCount }} pending</span>
         @endif
     </div>
 
+    {{-- Purchase Orders section --}}
+    @if ($this->pendingPoApprovals->isNotEmpty())
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Purchase Orders</h3>
+                <span class="badge badge-amber ml-2">{{ $this->pendingPoApprovals->count() }}</span>
+            </div>
+            <x-ui.table>
+                <thead>
+                    <tr>
+                        <th>PO Number</th>
+                        <th>Department</th>
+                        <th>Warehouse</th>
+                        <th>Requested By</th>
+                        <th>Submitted</th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($this->pendingPoApprovals as $po)
+                        <tr wire:key="po-{{ $po->id }}">
+                            <td>
+                                <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate
+                                   class="mono font-semibold text-simba-600 dark:text-simba-400 hover:underline">
+                                    {{ $po->number }}
+                                </a>
+                            </td>
+                            <td class="text-sm text-slate-600 dark:text-slate-400">{{ $po->department?->name ?? '—' }}</td>
+                            <td class="text-sm text-slate-600 dark:text-slate-400">{{ $po->warehouse?->name ?? '—' }}</td>
+                            <td class="text-sm text-slate-600 dark:text-slate-400">{{ $po->requestedBy?->name ?? '—' }}</td>
+                            <td class="text-xs text-slate-500">{{ $po->submitted_at?->format('d M Y') ?? '—' }}</td>
+                            <td class="text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <button wire:click="openPoReturnModal({{ $po->id }})" class="btn btn-ghost btn-sm text-slate-500">
+                                        Return
+                                    </button>
+                                    <button wire:click="openPoRejectModal({{ $po->id }})" class="btn btn-ghost btn-sm text-red-500">
+                                        Reject
+                                    </button>
+                                    <button wire:click="approvePo({{ $po->id }})" wire:loading.attr="disabled" class="btn btn-primary btn-sm">
+                                        <span wire:loading.remove wire:target="approvePo({{ $po->id }})">Approve</span>
+                                        <span wire:loading wire:target="approvePo({{ $po->id }})">…</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </x-ui.table>
+        </div>
+    @endif
+
     {{-- Empty state --}}
-    @if ($this->pendingDoApprovals->isEmpty())
+    @if ($this->pendingPoApprovals->isEmpty() && $this->pendingDoApprovals->isEmpty())
         <div class="card p-12 flex flex-col items-center justify-center text-center space-y-3">
             <div class="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                 <x-ui.icon name="check" class="w-7 h-7 text-emerald-600" />
@@ -136,4 +188,54 @@
             </div>
         </div>
     @endif
+
+    {{-- PO Return modal --}}
+    @if ($showPoReturnModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4"
+             x-data wire:click.self="closePoReturnModal">
+            <div class="card w-full max-w-md p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-900 dark:text-white">Return for Correction</h3>
+                    <button wire:click="closePoReturnModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
+                </div>
+                <div>
+                    <label class="label">Comment <span class="text-red-500">*</span></label>
+                    <textarea wire:model="poComment" rows="3" class="input resize-none"
+                              placeholder="What needs to be corrected…"></textarea>
+                    @error('poComment') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button wire:click="closePoReturnModal" class="btn btn-ghost">Cancel</button>
+                    <button wire:click="returnPo" wire:loading.attr="disabled" class="btn btn-secondary">Return</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- PO Reject modal --}}
+    @if ($showPoRejectModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4"
+             x-data wire:click.self="closePoRejectModal">
+            <div class="card w-full max-w-md p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <x-ui.icon name="x-circle" class="w-5 h-5 text-red-500" />
+                        <h3 class="font-bold text-slate-900 dark:text-white">Reject Purchase Order</h3>
+                    </div>
+                    <button wire:click="closePoRejectModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
+                </div>
+                <div>
+                    <label class="label">Reason <span class="text-red-500">*</span></label>
+                    <textarea wire:model="poRejectReason" rows="3" class="input resize-none"
+                              placeholder="Explain why this PO is being rejected…"></textarea>
+                    @error('poRejectReason') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button wire:click="closePoRejectModal" class="btn btn-ghost">Cancel</button>
+                    <button wire:click="rejectPo" wire:loading.attr="disabled" class="btn btn-primary !bg-red-600 hover:!bg-red-700">Reject</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
 </div>

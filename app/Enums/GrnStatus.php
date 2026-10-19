@@ -18,7 +18,7 @@ enum GrnStatus: string
     public function canTransitionTo(self $new): bool
     {
         return match($this) {
-            self::Draft                   => in_array($new, [self::Receiving, self::Cancelled], true),
+            self::Draft                   => in_array($new, [self::Receiving, self::Received, self::Cancelled], true),
             self::Receiving               => in_array($new, [self::PendingVarianceApproval, self::Received, self::Cancelled], true),
             self::PendingVarianceApproval => in_array($new, [self::Receiving, self::Received, self::Cancelled], true),
             self::Received                => $new === self::PutawayInProgress,

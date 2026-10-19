@@ -2,8 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToCategoryUser;
 use App\Models\Concerns\BelongsToVirtualWarehouse;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,12 +16,13 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Item extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity, BelongsToVirtualWarehouse;
+    use HasFactory, SoftDeletes, LogsActivity, BelongsToVirtualWarehouse, BelongsToCategoryUser;
 
     protected string $virtualWarehouseColumn = 'default_virtual_warehouse_id';
 
     protected $fillable = [
         'sku',
+        'part_number',
         'name',
         'description',
         'category_id',
@@ -35,21 +39,32 @@ class Item extends Model
         'default_virtual_warehouse_id',
         'preferred_zone_id',
         'is_active',
+        'allocation_rules',
+        'variance_threshold_pct',
+        'variance_threshold_qty',
+        'dispatch_requires_approval',
+        'dispatch_approval_qty',
+        'adjustment_approval',
     ];
 
     protected function casts(): array
     {
         return [
-            'track_batch'   => 'boolean',
-            'track_expiry'  => 'boolean',
-            'track_serial'  => 'boolean',
-            'is_active'     => 'boolean',
-            'length'        => 'decimal:3',
-            'width'         => 'decimal:3',
-            'height'        => 'decimal:3',
-            'weight'        => 'decimal:3',
-            'min_stock'     => 'decimal:4',
-            'max_stock'     => 'decimal:4',
+            'track_batch'                => 'boolean',
+            'track_expiry'               => 'boolean',
+            'track_serial'               => 'boolean',
+            'is_active'                  => 'boolean',
+            'length'                     => 'decimal:3',
+            'width'                      => 'decimal:3',
+            'height'                     => 'decimal:3',
+            'weight'                     => 'decimal:3',
+            'min_stock'                  => 'decimal:4',
+            'max_stock'                  => 'decimal:4',
+            'allocation_rules'           => 'array',
+            'variance_threshold_pct'     => 'decimal:2',
+            'variance_threshold_qty'     => 'decimal:4',
+            'dispatch_requires_approval' => 'boolean',
+            'dispatch_approval_qty'      => 'decimal:4',
         ];
     }
 
@@ -103,6 +118,15 @@ class Item extends Model
     public function scopeActive($query): mixed
     {
         return $query->where('is_active', true);
+    }
+
+    // ─── Category user scope ─────────────────────────────────────────────────
+
+    public static function applyCategoryUserScope(Builder $builder, Collection $categoryIds, Collection $warehouseIds): void
+    {
+        // Items are not tied to a warehouse; filter by category only.
+        // Items with no category are invisible to users with category assignments.
+        $builder->whereIn('category_id', $categoryIds);
     }
 
     // ─── Activity Log ─────────────────────────────────────────────────────────

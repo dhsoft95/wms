@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             FoundationDefaultsSeeder::class,
             DepartmentSeeder::class,
             AdminUserSeeder::class,
+            DemoUsersSeeder::class,
             TestMasterDataSeeder::class,
 //            FoundationDemoSeeder::class,
 //            StockDemoSeeder::class,

@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Livewire\Approvals;
 
+use App\Enums\Inbound\PurchaseOrderStatus;
 use App\Models\DeliveryOrderApproval;
+use App\Models\PurchaseOrder;
+use App\Services\Inbound\ApprovalChainService;
+use App\Services\Inbound\PurchaseOrderWorkflow;
 use App\Services\Outbound\DeliveryOrderWorkflow;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
@@ -12,12 +16,37 @@ use Livewire\Component;
 
 class Index extends Component
 {
-    public string $typeFilter = 'all';    // all | do_approval | adjustment
+    public string $typeFilter = 'all';
 
     // DO approval state
     public bool   $showDoRejectModal = false;
     public ?int   $rejectApprovalId  = null;
     public string $rejectNotes       = '';
+
+    // PO action state
+    public bool   $showPoReturnModal = false;
+    public bool   $showPoRejectModal = false;
+    public ?int   $actingPoId        = null;
+    public string $poComment         = '';
+    public string $poRejectReason    = '';
+
+    // ─── Computed ─────────────────────────────────────────────────────────────
+
+    #[Computed]
+    public function pendingPoApprovals(): \Illuminate\Database\Eloquent\Collection
+    {
+        $user    = auth()->user();
+        $service = app(ApprovalChainService::class);
+
+        return PurchaseOrder::with(['warehouse', 'department', 'requestedBy', 'lines.item.category'])
+            ->where('status', PurchaseOrderStatus::PendingApproval)
+            ->get()
+            ->filter(fn ($po) =>
+                $service->canActAtCurrentLevel($po, $user) ||
+                $service->canActOnCategoryLevel($po, $user)
+            )
+            ->values();
+    }
 
     #[Computed]
     public function pendingDoApprovals(): \Illuminate\Database\Eloquent\Collection
@@ -28,13 +57,11 @@ class Index extends Component
 
         $user = auth()->user();
 
-        // Only show approvals relevant to this user's role
         if ($user->hasRole('department-manager') || $user->hasRole('department-head')) {
             $query->where('approver_role', 'department');
         } elseif ($user->hasRole('warehouse-manager') || $user->hasRole('warehouse-supervisor')) {
             $query->where('approver_role', 'warehouse');
         }
-        // system-admin sees all via Gate::before
 
         return $query->orderBy('created_at')->get();
     }
@@ -42,10 +69,78 @@ class Index extends Component
     #[Computed]
     public function totalPendingCount(): int
     {
-        return $this->pendingDoApprovals->count();
+        return $this->pendingPoApprovals->count() + $this->pendingDoApprovals->count();
     }
 
-    // ─── Actions ──────────────────────────────────────────────────────────────
+    // ─── PO approval actions ──────────────────────────────────────────────────
+
+    public function approvePo(int $poId): void
+    {
+        $po = PurchaseOrder::findOrFail($poId);
+        $this->authorize('approve', $po);
+
+        try {
+            app(PurchaseOrderWorkflow::class)->approveAtLevel($po, auth()->user());
+            $this->dispatch('toast', message: "PO {$po->number} approved.", type: 'success');
+            unset($this->pendingPoApprovals, $this->totalPendingCount);
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function openPoReturnModal(int $poId): void
+    {
+        $this->actingPoId        = $poId;
+        $this->poComment         = '';
+        $this->showPoReturnModal = true;
+    }
+
+    public function closePoReturnModal(): void { $this->showPoReturnModal = false; }
+
+    public function returnPo(): void
+    {
+        $this->validate(['poComment' => ['required', 'string', 'min:5']]);
+
+        $po = PurchaseOrder::findOrFail($this->actingPoId);
+        $this->authorize('approve', $po);
+
+        try {
+            app(PurchaseOrderWorkflow::class)->returnForCorrection($po, auth()->user(), $this->poComment);
+            $this->showPoReturnModal = false;
+            $this->dispatch('toast', message: "PO {$po->number} returned for correction.", type: 'info');
+            unset($this->pendingPoApprovals, $this->totalPendingCount);
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function openPoRejectModal(int $poId): void
+    {
+        $this->actingPoId        = $poId;
+        $this->poRejectReason    = '';
+        $this->showPoRejectModal = true;
+    }
+
+    public function closePoRejectModal(): void { $this->showPoRejectModal = false; }
+
+    public function rejectPo(): void
+    {
+        $this->validate(['poRejectReason' => ['required', 'string', 'min:5']]);
+
+        $po = PurchaseOrder::findOrFail($this->actingPoId);
+        $this->authorize('approve', $po);
+
+        try {
+            app(PurchaseOrderWorkflow::class)->reject($po, auth()->user(), $this->poRejectReason);
+            $this->showPoRejectModal = false;
+            $this->dispatch('toast', message: "PO {$po->number} rejected.", type: 'info');
+            unset($this->pendingPoApprovals, $this->totalPendingCount);
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    // ─── DO approval actions ──────────────────────────────────────────────────
 
     public function approveOrder(int $approvalId): void
     {

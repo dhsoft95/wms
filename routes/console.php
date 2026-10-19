@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote')->hourly();
 
 Schedule::command('containers:check-dwell')->daily();
+Schedule::command('wms:po:remind-approvers')->dailyAt('08:00');

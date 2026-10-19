@@ -40,30 +40,66 @@ final class DeliveryOrderWorkflow
 
             activity()->performedOn($do)->causedBy($by)->log('Submitted for approval');
 
-            $mode = $this->settings->get('outbound.approval_mode', 'none');
+            // Determine if approval required based on item-level settings
+            $do->load('lines.item');
 
-            if ($mode === 'none') {
+            // Stock availability check on each line
+            foreach ($do->lines as $line) {
+                $available = \App\Models\Inventory\StockBalance::where('item_id', $line->item_id)
+                    ->where('virtual_warehouse_id', $do->virtual_warehouse_id)
+                    ->where('stock_status', \App\Enums\Inventory\StockStatus::Available->value)
+                    ->get()
+                    ->sum(fn ($b) => (float) $b->qtyAvailable());
+
+                $sku = $line->item?->sku ?? "line {$line->line_no}";
+
+                if (bccomp((string) $available, '0', 4) <= 0) {
+                    throw new \DomainException("No stock available for {$sku}.");
+                }
+                if (bccomp((string) $available, (string) $line->requested_qty_base, 4) < 0) {
+                    throw new \DomainException("Only {$available} available for {$sku} (requested {$line->requested_qty_base}).");
+                }
+            }
+
+            $requiresApproval = false;
+
+            foreach ($do->lines as $line) {
+                $item = $line->item;
+                if ($item === null || ! $item->dispatch_requires_approval) {
+                    continue;
+                }
+                // null dispatch_approval_qty = always require approval
+                if ($item->dispatch_approval_qty === null
+                    || bccomp((string) $line->requested_qty_base, (string) $item->dispatch_approval_qty, 4) > 0
+                ) {
+                    $requiresApproval = true;
+                    break;
+                }
+            }
+
+            if (! $requiresApproval) {
                 $this->doApprove($do, $by);
                 return;
             }
 
-            // Create approval records
-            $levels = match($mode) {
-                'department_head'   => [['level' => 1, 'role' => 'department_head']],
-                'warehouse_manager' => [['level' => 1, 'role' => 'warehouse_manager']],
-                'both'              => [
-                    ['level' => 1, 'role' => 'department_head'],
-                    ['level' => 2, 'role' => 'warehouse_manager'],
-                ],
-                default => [],
-            };
+            DeliveryOrderApproval::create([
+                'delivery_order_id' => $do->id,
+                'level'             => 1,
+                'approver_role'     => 'warehouse_manager',
+            ]);
 
-            foreach ($levels as $lvl) {
-                DeliveryOrderApproval::create([
-                    'delivery_order_id' => $do->id,
-                    'level'             => $lvl['level'],
-                    'approver_role'     => $lvl['role'],
-                ]);
+            // Notify category responsible users
+            $categoryIds = $do->lines->pluck('item.category_id')->filter()->unique();
+            $notifyUsers = \App\Models\ItemCategoryUser::whereIn('item_category_id', $categoryIds)
+                ->where('warehouse_id', $do->warehouse_id)
+                ->with('user')
+                ->get()
+                ->pluck('user')
+                ->filter();
+            foreach ($notifyUsers as $notifyUser) {
+                $notifyUser->notify(new \App\Notifications\CategoryApprovalNeeded(
+                    'delivery_order', $do->id, $do->number
+                ));
             }
         });
     }

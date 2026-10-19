@@ -33,7 +33,7 @@ abstract class BaseImport
 
     public function validate(): void
     {
-        $path   = storage_path('app/' . $this->import->stored_path);
+        $path   = \Illuminate\Support\Facades\Storage::disk('local')->path($this->import->stored_path);
         $reader = SimpleExcelReader::create($path)->getRows();
 
         $totalRows  = 0;
@@ -76,7 +76,7 @@ abstract class BaseImport
 
     public function import(): void
     {
-        $path    = storage_path('app/' . $this->import->stored_path);
+        $path    = \Illuminate\Support\Facades\Storage::disk('local')->path($this->import->stored_path);
         $reader  = SimpleExcelReader::create($path)->getRows();
         $created = 0;
         $updated = 0;

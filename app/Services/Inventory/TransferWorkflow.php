@@ -6,9 +6,11 @@ namespace App\Services\Inventory;
 
 use App\Data\Inventory\StockKey;
 use App\Data\Inventory\StockReference;
+use App\Enums\Inventory\SerialStatus;
 use App\Enums\Inventory\StockStatus;
 use App\Enums\TransferStatus;
 use App\Exceptions\InvalidTransitionException;
+use App\Models\Inventory\SerialNumber;
 use App\Models\Inventory\StockBalance;
 use App\Models\Inventory\StockReservation;
 use App\Models\StockTransfer;
@@ -26,9 +28,10 @@ final class TransferWorkflow
     {
         return DB::transaction(function () use ($data, $user) {
             $transfer = StockTransfer::create([
-                'number'                    => DocumentNumber::next('TRF'),
+                'number'                    => DocumentNumber::next('STN'),
                 'from_virtual_warehouse_id' => $data['from_virtual_warehouse_id'],
                 'to_virtual_warehouse_id'   => $data['to_virtual_warehouse_id'],
+                'is_physical'               => $data['is_physical'] ?? false,
                 'created_by'                => $user->id,
                 'status'                    => TransferStatus::Draft,
                 'notes'                     => $data['notes'] ?? null,
@@ -43,6 +46,7 @@ final class TransferWorkflow
                     'lpn_id'            => $line['lpn_id'] ?? null,
                     'qty'               => $line['qty'],
                     'uom_id'            => $line['uom_id'],
+                    'to_location_id'    => $line['to_location_id'] ?? null,
                 ]);
             }
 
@@ -88,17 +92,41 @@ final class TransferWorkflow
         });
     }
 
-    public function approve(StockTransfer $transfer, User $user): StockTransfer
+    /**
+     * Accept a submitted transfer.
+     *
+     * For virtual (is_physical=false) transfers, acceptance immediately posts
+     * the ownership change and transitions to Posted.
+     *
+     * For physical (is_physical=true) transfers, acceptance only sets the
+     * Accepted status — posting is deferred until post() is called explicitly.
+     */
+    public function accept(StockTransfer $transfer, User $user): StockTransfer
     {
         return DB::transaction(function () use ($transfer, $user) {
-            $transfer->status      = $transfer->status->transitionTo(TransferStatus::Approved);
-            $transfer->approved_by = $user->id;
+            $transfer->status      = $transfer->status->transitionTo(TransferStatus::Accepted);
+            $transfer->accepted_by = $user->id;
+            $transfer->accepted_at = now();
             $transfer->save();
 
-            activity()->performedOn($transfer)->causedBy($user)->log('Transfer approved');
+            activity()->performedOn($transfer)->causedBy($user)->log('Transfer accepted');
 
-            return $this->post($transfer, $user);
+            if (! $transfer->is_physical) {
+                return $this->post($transfer, $user);
+            }
+
+            return $transfer;
         });
+    }
+
+    /**
+     * Backward-compatible alias for accept().
+     *
+     * @deprecated Use accept() instead.
+     */
+    public function approve(StockTransfer $transfer, User $user): StockTransfer
+    {
+        return $this->accept($transfer, $user);
     }
 
     public function reject(StockTransfer $transfer, User $user, string $reason): StockTransfer
@@ -114,6 +142,13 @@ final class TransferWorkflow
         });
     }
 
+    /**
+     * Post (execute) the stock ownership change for an accepted transfer.
+     *
+     * For virtual transfers this is called automatically by accept().
+     * For physical transfers it must be called explicitly after physical
+     * movement of goods has been confirmed.
+     */
     public function post(StockTransfer $transfer, User $user): StockTransfer
     {
         return DB::transaction(function () use ($transfer, $user) {
@@ -121,11 +156,23 @@ final class TransferWorkflow
                 return $transfer;
             }
 
-            if ($transfer->status !== TransferStatus::Approved) {
+            // Accept both Accepted (new) and Approved (legacy) statuses
+            $acceptedStatuses = [TransferStatus::Accepted, TransferStatus::Approved];
+
+            if (! in_array($transfer->status, $acceptedStatuses, true)) {
                 throw new InvalidTransitionException($transfer->status->value, TransferStatus::Posted->value);
             }
 
             $transfer->load('lines.item');
+
+            // Validate physical transfer lines have destination locations
+            if ($transfer->is_physical) {
+                foreach ($transfer->lines as $line) {
+                    if ($line->to_location_id === null) {
+                        throw new \DomainException("Line {$line->id}: destination location required for physical transfer.");
+                    }
+                }
+            }
 
             $iKey = "trf:{$transfer->id}:post";
 
@@ -145,19 +192,61 @@ final class TransferWorkflow
                     stockStatus:        StockStatus::Available,
                 );
 
+                // For serial-tracked items, look up the serial numbers at the source key
+                $serials = [];
+                if ($line->item->track_serial) {
+                    $serials = SerialNumber::where('item_id', $line->item_id)
+                        ->where('location_id', $line->location_id)
+                        ->where('virtual_warehouse_id', $transfer->from_virtual_warehouse_id)
+                        ->where('status', SerialStatus::InStock)
+                        ->when($line->batch_id, fn ($q) => $q->where('batch_id', $line->batch_id))
+                        ->when($line->lpn_id, fn ($q) => $q->where('lpn_id', $line->lpn_id))
+                        ->pluck('serial_no')
+                        ->all();
+
+                    if (empty($serials)) {
+                        throw new \DomainException(
+                            "Item {$line->item->sku} is serial-tracked but no serial numbers are registered at the source location. Attach serials to the stock before transferring."
+                        );
+                    }
+                }
+
+                // Change ownership from source VW to target VW (at the same location)
                 $this->ledger->changeOwner(
                     $key,
                     $transfer->to_virtual_warehouse_id,
                     (string) $line->qty,
                     $line->uom_id,
                     $ref,
-                    [],
-                    "{$iKey}:line:{$line->id}",
+                    $serials,
+                    "{$iKey}:line:{$line->id}:owner",
                 );
+
+                // For physical transfers: also relocate to the destination bin (now in target VW)
+                if ($transfer->is_physical && $line->to_location_id !== null) {
+                    $destKey = new StockKey(
+                        itemId:             $line->item_id,
+                        batchId:            $line->batch_id,
+                        lpnId:              $line->lpn_id,
+                        locationId:         $line->location_id,
+                        virtualWarehouseId: $transfer->to_virtual_warehouse_id,
+                        stockStatus:        StockStatus::Available,
+                    );
+
+                    $this->ledger->move(
+                        $destKey,
+                        $line->to_location_id,
+                        (string) $line->qty,
+                        $line->uom_id,
+                        $ref,
+                        $serials,
+                        "{$iKey}:line:{$line->id}:move",
+                    );
+                }
             }
 
-            $transfer->status        = TransferStatus::Posted;
-            $transfer->posted_at     = now();
+            $transfer->status          = TransferStatus::Posted;
+            $transfer->posted_at       = now();
             $transfer->idempotency_key = $iKey;
             $transfer->save();
 

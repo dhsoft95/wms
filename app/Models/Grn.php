@@ -30,6 +30,7 @@ class Grn extends Model
         'customer_partner_id',
         'warehouse_id',
         'delivery_order_id',
+        'purchase_order_id',
         'receiving_dock_location_id',
         'status',
         'received_by',
@@ -39,16 +40,34 @@ class Grn extends Model
         'notes',
         'delivery_note_ref',
         'expected_date',
+        // Vehicle / transport
+        'vehicle_type',
+        'vehicle_plate',
+        'driver_name',
+        'driver_phone',
+        'driver_licence',
+        'transporter_name',
+        // Seal check
+        'seal_check_result',
+        'seal_mismatch_reason',
+        'seal_mismatch_acknowledged_by',
+        'seal_mismatch_acknowledged_at',
+        // Delivery metadata
+        'delivery_type',
+        'arrival_datetime',
+        'grn_delivery_no',
     ];
 
     protected function casts(): array
     {
         return [
-            'source'        => GrnSource::class,
-            'status'        => GrnStatus::class,
-            'confirmed_at'  => 'datetime',
-            'closed_at'     => 'datetime',
-            'expected_date' => 'date',
+            'source'                         => GrnSource::class,
+            'status'                         => GrnStatus::class,
+            'confirmed_at'                   => 'datetime',
+            'closed_at'                      => 'datetime',
+            'expected_date'                  => 'date',
+            'arrival_datetime'               => 'datetime',
+            'seal_mismatch_acknowledged_at'  => 'datetime',
         ];
     }
 
@@ -57,6 +76,11 @@ class Grn extends Model
     public function deliveryOrder(): BelongsTo
     {
         return $this->belongsTo(DeliveryOrder::class);
+    }
+
+    public function purchaseOrder(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(\App\Models\PurchaseOrder::class);
     }
 
     public function container(): BelongsTo
@@ -82,6 +106,19 @@ class Grn extends Model
     public function receivingDock(): BelongsTo
     {
         return $this->belongsTo(Location::class, 'receiving_dock_location_id');
+    }
+
+    public function sealMismatchAcknowledgedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'seal_mismatch_acknowledged_by');
+    }
+
+    public static function isDockBusy(int $locationId): bool
+    {
+        return static::where('receiving_dock_location_id', $locationId)
+            ->where('status', GrnStatus::Draft->value)
+            ->whereNull('number')
+            ->exists();
     }
 
     public function receivedBy(): BelongsTo

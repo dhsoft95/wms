@@ -48,9 +48,14 @@
         <div class="card">
             <div class="card-header flex items-center justify-between">
                 <h3 class="text-card-title">Lines</h3>
-                <button type="button" wire:click="addLine" class="btn btn-sm btn-secondary">
-                    <x-ui.icon name="plus" class="w-4 h-4" /> Add Line
-                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" wire:click="$set('blkOpen', true)" class="btn btn-sm btn-ghost">
+                        <x-ui.icon name="upload" class="w-4 h-4" /> Bulk Upload
+                    </button>
+                    <button type="button" wire:click="addLine" class="btn btn-sm btn-secondary">
+                        <x-ui.icon name="plus" class="w-4 h-4" /> Add Line
+                    </button>
+                </div>
             </div>
             <div class="card-body space-y-4">
                 @foreach($lines as $i => $line)
@@ -114,4 +119,6 @@
             </div>
         </div>
     </form>
+
+    @include('components.bulk-line-upload')
 </div>

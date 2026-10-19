@@ -631,12 +631,19 @@ final class StockLedger
             DB::table('stock_movement_serials')->insert($linkRows);
         }
 
-        // 5k. Update balance qty_on_hand
+        // 5k. Update balance qty_on_hand; set received_at on first inbound posting
         $newQtyOnHand = bcadd((string) $balance->qty_on_hand, $baseQty, 4);
         DB::table('stock_balances')->where('id', $balance->id)->update([
             'qty_on_hand' => $newQtyOnHand,
             'updated_at'  => now(),
         ]);
+
+        if (bccomp($baseQty, '0', 4) > 0) {
+            DB::table('stock_balances')
+                ->where('id', $balance->id)
+                ->whereNull('received_at')
+                ->update(['received_at' => now()]);
+        }
 
         // 5l. Consume reservation if provided
         if ($line->reservationId !== null) {

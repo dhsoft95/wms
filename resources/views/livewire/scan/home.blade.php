@@ -35,15 +35,7 @@
     </a>
     @endif
 
-    @if(auth()->user()->can('scan.move'))
-    <a href="{{ route('scan.move') }}" wire:navigate class="scan-btn scan-btn-secondary">
-        <x-ui.icon name="arrows" class="w-7 h-7 text-simba-600" />
-        <div class="text-left">
-            <p class="font-bold">Move</p>
-            <p class="text-sm text-slate-400 font-normal">Relocate pallet or items</p>
-        </div>
-    </a>
-    @endif
+    {{-- Scanner quick-move hidden: use internal movement workflow from Orders instead --}}
 
     @if(auth()->user()->can('scan.lookup'))
     <a href="{{ route('scan.lookup') }}" wire:navigate class="scan-btn scan-btn-secondary">

@@ -4,11 +4,6 @@
             <h2 class="page-title">Internal Movements</h2>
             <p class="page-sub">Bin-to-bin stock moves within the same virtual warehouse.</p>
         </div>
-        @can('create', \App\Models\InternalMovement::class)
-            <a href="{{ route('warehouse.movements.create') }}" wire:navigate class="btn btn-primary">
-                <x-ui.icon name="plus" class="w-4 h-4" /> New Movement
-            </a>
-        @endcan
     </div>
 
     <div class="card">

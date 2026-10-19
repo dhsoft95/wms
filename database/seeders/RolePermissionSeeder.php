@@ -31,8 +31,9 @@ class RolePermissionSeeder extends Seeder
 
         // Warehouse
         'putaway.view', 'putaway.execute', 'putaway.assign',
-        'movements.view',  'movements.create',  'movements.approve',
+        'movements.view',  'movements.create',  'movements.approve',  'movements.execute',
         'transfers.view',  'transfers.create',  'transfers.approve',
+        'transfers.accept', 'transfers.execute',
 
         // Stock Ledger (Module 2)
         'stock.view', 'stock.movements.view', 'stock.opening-balance', 'stock.reverse', 'stock.verify',
@@ -106,6 +107,11 @@ class RolePermissionSeeder extends Seeder
         'scanner-devices.manage',
         'scan.move',
         'scan.lookup',
+
+        // Purchase Orders (Module 10 — Inbound Workflow)
+        'po.view', 'po.create', 'po.approve', 'po.accept', 'po.assign',
+        'po.receive', 'po.validate', 'po.verify',
+        'po.excess.approve', 'po.close.short',
     ];
 
     // Role → permission mapping
@@ -124,8 +130,8 @@ class RolePermissionSeeder extends Seeder
             'lpn.print',
             'inspections.view', 'inspections.create', 'inspections.approve',
             'putaway.view', 'putaway.execute', 'putaway.assign',
-            'movements.view', 'movements.create', 'movements.approve',
-            'transfers.view', 'transfers.create', 'transfers.approve',
+            'movements.view', 'movements.create', 'movements.approve', 'movements.execute',
+            'transfers.view', 'transfers.create', 'transfers.accept', 'transfers.execute',
             'inventory.view', 'inventory.create', 'inventory.update', 'inventory.delete',
             'adjustments.view', 'adjustments.create', 'adjustments.approve',
             'cycle-counts.view', 'cycle-counts.execute', 'cycle-counts.approve',
@@ -149,6 +155,30 @@ class RolePermissionSeeder extends Seeder
             'serials.view', 'imports.manage',
             'labels.templates.manage', 'labels.print', 'labels.reprint', 'labels.log.view',
             'printers.manage', 'scanner-devices.manage', 'scan.move', 'scan.lookup',
+            // PO workflow
+            'po.view', 'po.accept', 'po.assign', 'po.receive',
+            'po.validate', 'po.excess.approve', 'po.close.short',
+        ],
+
+        'warehouse-supervisor' => [
+            'containers.view',
+            'grn.view', 'grn.receive', 'grn.confirm',
+            'putaway.view', 'putaway.execute', 'putaway.assign',
+            'movements.view', 'movements.execute',
+            'transfers.view', 'transfers.execute',
+            'inventory.view',
+            'adjustments.view', 'adjustments.create',
+            'cycle-counts.view', 'cycle-counts.execute',
+            'counts.view', 'counts.count',
+            'items.view',
+            'partners.view',
+            'locations.view',
+            'virtual-warehouses.view',
+            'stock.view', 'stock.movements.view',
+            'serials.view',
+            'labels.print', 'labels.log.view', 'scan.move', 'scan.lookup',
+            // PO workflow
+            'po.view', 'po.assign', 'po.receive', 'po.validate',
         ],
 
         'department-user' => [
@@ -159,6 +189,10 @@ class RolePermissionSeeder extends Seeder
             'virtual-warehouses.view',
             'stock.view', 'stock.movements.view',
             'serials.view',
+            'transfers.view', 'transfers.create',
+            'movements.view', 'movements.create',
+            // PO workflow
+            'po.view', 'po.create', 'po.approve',
         ],
 
         'storekeeper' => [
@@ -166,10 +200,13 @@ class RolePermissionSeeder extends Seeder
             'containers.documents', 'containers.discrepancies',
             'grn.view', 'grn.create', 'grn.receive', 'grn.confirm',
             'grn.cancel',
+            // PO workflow
+            'po.view', 'po.receive',
             'lpn.print',
             'inspections.view', 'inspections.create',
             'putaway.view', 'putaway.execute', 'putaway.assign',
-            'movements.view', 'movements.create',
+            'movements.view', 'movements.execute',
+            'transfers.view', 'transfers.execute',
             'inventory.view',
             'adjustments.view', 'adjustments.create',
             'cycle-counts.view', 'cycle-counts.execute',
@@ -208,6 +245,7 @@ class RolePermissionSeeder extends Seeder
         ],
 
         'viewer-auditor' => [
+            'po.view', 'po.approve', 'po.verify',
             'containers.view',
             'grn.view',
             'inspections.view',
@@ -233,6 +271,53 @@ class RolePermissionSeeder extends Seeder
             'serials.view',
             'labels.log.view',
         ],
+
+        // Department approvers — can approve/reject DOs at department level
+        'department-manager' => [
+            'orders.view', 'orders.create', 'orders.update', 'orders.submit',
+            'orders.approve.department',
+            'approvals.view', 'approvals.approve',
+            'po.view', 'po.approve',
+            'inventory.view',
+            'items.view',
+            'virtual-warehouses.view',
+            'stock.view', 'stock.movements.view',
+            'transfers.view', 'transfers.create',
+        ],
+
+        'department-head' => [
+            'orders.view', 'orders.create', 'orders.update', 'orders.submit',
+            'orders.approve.department',
+            'approvals.view', 'approvals.approve',
+            'po.view', 'po.approve',
+            'inventory.view',
+            'items.view',
+            'virtual-warehouses.view',
+            'stock.view', 'stock.movements.view',
+            'transfers.view', 'transfers.create',
+        ],
+
+        // Read-only analytics role
+        'data-analyst' => [
+            'po.view',
+            'containers.view',
+            'grn.view',
+            'movements.view',
+            'transfers.view',
+            'inventory.view',
+            'adjustments.view',
+            'counts.view',
+            'orders.view',
+            'dispatch.view',
+            'reports.view', 'reports.export',
+            'items.view',
+            'partners.view',
+            'locations.view',
+            'virtual-warehouses.view',
+            'stock.view', 'stock.movements.view',
+            'serials.view',
+            'labels.log.view',
+        ],
     ];
 
     public function run(): void
@@ -249,7 +334,6 @@ class RolePermissionSeeder extends Seeder
         foreach (self::PERMISSIONS as $name) {
             Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
-
         // Create roles and assign permissions
         foreach (self::ROLE_PERMISSIONS as $roleName => $permNames) {
             $role = Role::firstOrCreate(['name' => $roleName, 'guard_name' => 'web']);
@@ -263,6 +347,10 @@ class RolePermissionSeeder extends Seeder
         foreach (['orders.approve', 'pod.view', 'pod.create'] as $old) {
             Permission::where('name', $old)->where('guard_name', 'web')->delete();
         }
+
+        // Remove the old transfers.approve permission (replaced by transfers.accept)
+        Permission::where('name', 'transfers.approve')->where('guard_name', 'web')->delete();
+
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
     }
 }

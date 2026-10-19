@@ -22,6 +22,9 @@ class GrnReceipt extends Model
         'batch_no',
         'expiry_date',
         'condition',
+        'currency',
+        'unit_price',
+        'line_total',
         'lpn_id',
         'serial_nos',
         'received_by',
@@ -32,6 +35,8 @@ class GrnReceipt extends Model
     {
         return [
             'qty'         => 'decimal:4',
+            'unit_price'  => 'decimal:4',
+            'line_total'  => 'decimal:4',
             'expiry_date' => 'date',
             'condition'   => ReceiptCondition::class,
             'serial_nos'  => 'array',

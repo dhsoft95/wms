@@ -12,7 +12,6 @@ use App\Enums\Inventory\SerialStatus;
 use App\Enums\Inventory\StockStatus;
 use App\Exceptions\InvalidTransitionException;
 use App\Models\ReasonCode;
-use App\Models\Setting;
 use App\Models\StockAdjustment;
 use App\Models\StockAdjustmentLine;
 use App\Models\User;
@@ -60,19 +59,23 @@ final class AdjustmentWorkflow
         return DB::transaction(function () use ($adj, $user) {
             $adj->status = $adj->status->transitionTo(AdjustmentStatus::Submitted);
 
-            $threshold        = (float) Setting::get('adj_qty_threshold', 0);
+            $adj->load('lines.item.category');
             $exceedsThreshold = false;
 
-            if ($threshold > 0) {
-                $adj->load('lines');
-                foreach ($adj->lines as $line) {
-                    if (abs((float) $line->qty) > $threshold) {
-                        $exceedsThreshold = true;
-                        break;
-                    }
+            foreach ($adj->lines as $line) {
+                $item = $line->item;
+                if ($item === null) {
+                    continue;
                 }
-            } else {
-                $exceedsThreshold = true;
+                $needsApproval = match ($item->adjustment_approval) {
+                    'required'     => true,
+                    'not_required' => false,
+                    default        => (bool) optional($item->category)->adjustment_requires_approval,
+                };
+                if ($needsApproval) {
+                    $exceedsThreshold = true;
+                    break;
+                }
             }
 
             $adj->threshold_exceeded = $exceedsThreshold;
@@ -82,6 +85,22 @@ final class AdjustmentWorkflow
 
             if (! $exceedsThreshold) {
                 return $this->post($adj, $user);
+            }
+
+            // Notify category responsible users that approval is needed
+            $adj->load('lines.location');
+            $categoryIds  = $adj->lines->pluck('item.category_id')->filter()->unique();
+            $warehouseIds = $adj->lines->pluck('location.warehouse_id')->filter()->unique();
+            $notifyUsers  = \App\Models\ItemCategoryUser::whereIn('item_category_id', $categoryIds)
+                ->whereIn('warehouse_id', $warehouseIds)
+                ->with('user')
+                ->get()
+                ->pluck('user')
+                ->filter();
+            foreach ($notifyUsers as $notifyUser) {
+                $notifyUser->notify(new \App\Notifications\CategoryApprovalNeeded(
+                    'stock_adjustment', $adj->id, $adj->number
+                ));
             }
 
             return $adj;

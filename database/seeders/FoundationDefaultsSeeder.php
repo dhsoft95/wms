@@ -41,8 +41,7 @@ class FoundationDefaultsSeeder extends Seeder
             ['prefix' => 'CTR', 'include_year' => true, 'padding' => 4, 'reset_yearly' => true, 'next_number' => 1]
         );
 
-        // Outbound sequences — updateOrCreate so sandbox can gain these without duplicating
-        // next_number intentionally absent: DB default=1 on first insert, counter preserved on re-run
+        // Outbound sequences
         foreach ([
             ['type' => 'PCK', 'prefix' => 'PCK', 'include_year' => true, 'padding' => 4, 'reset_yearly' => true],
             ['type' => 'DSP', 'prefix' => 'DSP', 'include_year' => true, 'padding' => 4, 'reset_yearly' => true],
@@ -53,14 +52,53 @@ class FoundationDefaultsSeeder extends Seeder
                 ['prefix' => $seq['prefix'], 'include_year' => $seq['include_year'], 'padding' => $seq['padding'], 'reset_yearly' => $seq['reset_yearly']]
             );
         }
+
+        // Phase A — PO, MRN, RCN, DN
+        foreach ([
+            ['type' => 'PO',  'prefix' => 'PO',  'include_year' => true, 'padding' => 4, 'reset_yearly' => true],
+            ['type' => 'MRN', 'prefix' => 'MRN', 'include_year' => true, 'padding' => 4, 'reset_yearly' => true],
+            ['type' => 'RCN', 'prefix' => 'RCN', 'include_year' => true, 'padding' => 4, 'reset_yearly' => true],
+            ['type' => 'DN',  'prefix' => 'DN',  'include_year' => true, 'padding' => 4, 'reset_yearly' => true],
+        ] as $seq) {
+            DocumentSequence::updateOrCreate(
+                ['type' => $seq['type']],
+                ['prefix' => $seq['prefix'], 'include_year' => $seq['include_year'], 'padding' => $seq['padding'], 'reset_yearly' => $seq['reset_yearly']]
+            );
+        }
     }
 
     private function seedUnitOfMeasures(): void
     {
-        \App\Models\UnitOfMeasure::firstOrCreate(
-            ['code' => 'EA'],
-            ['name' => 'Each', 'type' => 'count', 'is_active' => true]
-        );
+        $uoms = [
+            ['code' => 'EA',   'name' => 'Each',         'type' => 'count'],
+            ['code' => 'PCS',  'name' => 'Pieces',       'type' => 'count'],
+            ['code' => 'CTN',  'name' => 'Carton',       'type' => 'count'],
+            ['code' => 'BOX',  'name' => 'Box',          'type' => 'count'],
+            ['code' => 'PLT',  'name' => 'Pallet',       'type' => 'count'],
+            ['code' => 'KG',   'name' => 'Kilogram',     'type' => 'weight'],
+            ['code' => 'G',    'name' => 'Gram',         'type' => 'weight'],
+            ['code' => 'TON',  'name' => 'Metric Tonne', 'type' => 'weight'],
+            ['code' => 'L',    'name' => 'Litre',        'type' => 'volume'],
+            ['code' => 'ML',   'name' => 'Millilitre',   'type' => 'volume'],
+            ['code' => 'M',    'name' => 'Metre',        'type' => 'length'],
+            ['code' => 'CM',   'name' => 'Centimetre',   'type' => 'length'],
+            ['code' => 'ROLL', 'name' => 'Roll',         'type' => 'count'],
+            ['code' => 'SET',  'name' => 'Set',          'type' => 'count'],
+            ['code' => 'PAIR', 'name' => 'Pair',         'type' => 'count'],
+            ['code' => 'DRUM', 'name' => 'Drum',         'type' => 'count'],
+            ['code' => 'BAG',  'name' => 'Bag',          'type' => 'count'],
+            ['code' => 'PACK', 'name' => 'Pack',         'type' => 'count'],
+            ['code' => 'CAN',  'name' => 'Can',          'type' => 'count'],
+            ['code' => 'BTL',  'name' => 'Bottle',       'type' => 'count'],
+            ['code' => 'DOZ',  'name' => 'Dozen',        'type' => 'count'],
+        ];
+
+        foreach ($uoms as $uom) {
+            \App\Models\UnitOfMeasure::firstOrCreate(
+                ['code' => $uom['code']],
+                array_merge($uom, ['is_active' => true])
+            );
+        }
     }
 
     private function seedReasonCodes(): void

@@ -219,15 +219,22 @@
                         </td>
 
                         {{-- Row actions --}}
-                        <td class="px-4 py-3.5 w-14">
-                            @if ($balance->item?->track_serial)
-                                <button type="button"
-                                        wire:click="viewSerials({{ $balance->id }})"
-                                        title="View Serials"
-                                        class="flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:text-simba-600 hover:bg-simba-50 dark:hover:bg-simba-900/20 transition">
-                                    <x-ui.icon name="list" class="h-4 w-4" />
-                                </button>
-                            @endif
+                        <td class="px-4 py-3.5 w-20">
+                            <div class="flex items-center gap-1">
+                                <a href="{{ route('inventory.stock.show', $balance) }}" wire:navigate
+                                   title="View Details"
+                                   class="flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:text-simba-600 hover:bg-simba-50 dark:hover:bg-simba-900/20 transition">
+                                    <x-ui.icon name="eye" class="h-4 w-4" />
+                                </a>
+                                @if ($balance->item?->track_serial)
+                                    <button type="button"
+                                            wire:click="viewSerials({{ $balance->id }})"
+                                            title="View Serials"
+                                            class="flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:text-simba-600 hover:bg-simba-50 dark:hover:bg-simba-900/20 transition">
+                                        <x-ui.icon name="list" class="h-4 w-4" />
+                                    </button>
+                                @endif
+                            </div>
                         </td>
 
                     </tr>

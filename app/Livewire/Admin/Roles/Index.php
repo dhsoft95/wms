@@ -15,6 +15,12 @@ class Index extends Component
     /** @var array<int, string> */
     public array $selectedPermissions = [];
 
+    public bool   $showCreateModal       = false;
+    public string $newRoleName           = '';
+    public array  $newRolePermissions    = [];
+
+    public ?string $confirmDeleteRole    = null;
+
     public function mount(): void
     {
         abort_unless(auth()->user()->can('roles.manage'), 403);
@@ -43,6 +49,46 @@ class Index extends Component
     }
 
     // ─── Actions ──────────────────────────────────────────────────────────────
+
+    public function openCreate(): void
+    {
+        $this->newRoleName        = '';
+        $this->newRolePermissions = [];
+        $this->showCreateModal    = true;
+    }
+
+    public function closeCreate(): void
+    {
+        $this->showCreateModal    = false;
+        $this->newRoleName        = '';
+        $this->newRolePermissions = [];
+    }
+
+    public function createRole(): void
+    {
+        $this->validate([
+            'newRoleName' => [
+                'required', 'string', 'max:64',
+                'regex:/^[a-z0-9\-]+$/',
+                'unique:roles,name',
+            ],
+            'newRolePermissions'   => 'array',
+            'newRolePermissions.*' => 'string|exists:permissions,name',
+        ], [
+            'newRoleName.regex'  => 'Role name must be lowercase letters, numbers, and hyphens only.',
+            'newRoleName.unique' => 'A role with this name already exists.',
+        ]);
+
+        $role = Role::create(['name' => $this->newRoleName, 'guard_name' => 'web']);
+
+        if (! empty($this->newRolePermissions)) {
+            $role->syncPermissions($this->newRolePermissions);
+        }
+
+        unset($this->roles);
+        $this->dispatch('toast', message: "Role \"{$this->newRoleName}\" created.", type: 'success');
+        $this->closeCreate();
+    }
 
     public function startEdit(string $roleName): void
     {
@@ -81,6 +127,45 @@ class Index extends Component
     {
         $this->editingRole         = null;
         $this->selectedPermissions = [];
+    }
+
+    public function confirmDelete(string $roleName): void
+    {
+        if ($roleName === 'system-admin') {
+            $this->dispatch('toast', message: 'system-admin cannot be deleted.', type: 'error');
+            return;
+        }
+
+        $this->confirmDeleteRole = $roleName;
+    }
+
+    public function deleteRole(): void
+    {
+        if (! $this->confirmDeleteRole || $this->confirmDeleteRole === 'system-admin') {
+            return;
+        }
+
+        $role = Role::where('name', $this->confirmDeleteRole)->first();
+
+        if ($role) {
+            if ($role->users()->count() > 0) {
+                $this->dispatch('toast', message: "Cannot delete \"{$this->confirmDeleteRole}\" — it has assigned users.", type: 'error');
+                $this->confirmDeleteRole = null;
+                return;
+            }
+
+            $role->delete();
+        }
+
+        $deleted = $this->confirmDeleteRole;
+        $this->confirmDeleteRole = null;
+        unset($this->roles);
+        $this->dispatch('toast', message: "Role \"{$deleted}\" deleted.", type: 'success');
+    }
+
+    public function cancelDelete(): void
+    {
+        $this->confirmDeleteRole = null;
     }
 
     // ─── Render ───────────────────────────────────────────────────────────────

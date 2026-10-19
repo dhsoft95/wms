@@ -4,11 +4,6 @@
             <h2 class="page-title">Department Transfers</h2>
             <p class="page-sub">Move stock ownership between virtual warehouses.</p>
         </div>
-        @can('create', \App\Models\StockTransfer::class)
-            <a href="{{ route('warehouse.transfers.create') }}" wire:navigate class="btn btn-primary">
-                <x-ui.icon name="plus" class="w-4 h-4" /> New Transfer
-            </a>
-        @endcan
     </div>
 
     <div class="card">
@@ -30,7 +25,7 @@
             <thead>
                 <tr>
                     <th>Number</th>
-                    <th>From</th>
+                    <th>Department</th>
                     <th>To</th>
                     <th>Created By</th>
                     <th>Status</th>

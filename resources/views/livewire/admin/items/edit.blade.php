@@ -27,6 +27,7 @@
                 'barcodes' => 'Barcodes',
                 'tracking' => 'Tracking',
                 'stock'    => 'Stock Levels',
+                'rules'    => 'Rules & Approvals',
             ] as $tab => $label)
                 <button type="button"
                         wire:click="$set('activeTab', '{{ $tab }}')"
@@ -474,6 +475,125 @@
         </div>
         @endif
 
+        {{-- ── RULES & APPROVALS TAB ──────────────────────────────────────── --}}
+        @if ($activeTab === 'rules')
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+
+            {{-- Left: Allocation & Variance --}}
+            <div class="space-y-6">
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <x-ui.icon name="adjustments" class="w-4 h-4" />
+                            Allocation Rules
+                        </h3>
+                    </div>
+                    <div class="card-body space-y-3">
+                        <p class="hint">Select one or more. FIFO and LIFO cannot be combined. Leave empty to use the global warehouse default.</p>
+                        @foreach (['fifo' => 'FIFO — First In, First Out', 'fefo' => 'FEFO — First Expired, First Out', 'lifo' => 'LIFO — Last In, First Out'] as $rule => $ruleLabel)
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox"
+                                       wire:model="allocationRules"
+                                       value="{{ $rule }}"
+                                       class="rounded border-slate-300 dark:border-slate-600 text-simba-600 focus:ring-simba-600 dark:bg-zinc-800" />
+                                <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ $ruleLabel }}</span>
+                            </label>
+                        @endforeach
+                        @error('allocationRules') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <x-ui.icon name="clipboard" class="w-4 h-4" />
+                            Variance Thresholds
+                        </h3>
+                    </div>
+                    <div class="card-body space-y-5">
+                        <div>
+                            <label class="label" for="varianceThresholdPct">Variance Threshold (%)</label>
+                            <div class="flex items-center gap-2">
+                                <input wire:model="varianceThresholdPct" id="varianceThresholdPct"
+                                       type="number" step="0.01" min="0" max="100" placeholder="e.g. 5.00"
+                                       class="input font-mono @error('varianceThresholdPct') border-red-400 @enderror" />
+                                <span class="shrink-0 text-sm text-slate-500 dark:text-slate-400">%</span>
+                            </div>
+                            @error('varianceThresholdPct') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                            <p class="hint mt-1">GRN variance above this percentage requires approval.</p>
+                        </div>
+                        <div>
+                            <label class="label" for="varianceThresholdQty">Variance Threshold (Qty)</label>
+                            <input wire:model="varianceThresholdQty" id="varianceThresholdQty"
+                                   type="number" step="0.0001" min="0" placeholder="e.g. 10"
+                                   class="input font-mono @error('varianceThresholdQty') border-red-400 @enderror" />
+                            @error('varianceThresholdQty') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                            <p class="hint mt-1">GRN variance above this absolute quantity requires approval.</p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            {{-- Right: Dispatch & Adjustment Approval --}}
+            <div class="space-y-6">
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <x-ui.icon name="truck" class="w-4 h-4" />
+                            Dispatch Approval
+                        </h3>
+                    </div>
+                    <div class="card-body space-y-5">
+                        <label class="flex items-start gap-3 cursor-pointer">
+                            <div class="pt-0.5">
+                                <input wire:model.live="dispatchRequiresApproval" type="checkbox"
+                                       class="rounded border-slate-300 dark:border-slate-600 text-simba-600 focus:ring-simba-600 dark:bg-zinc-800" />
+                            </div>
+                            <div>
+                                <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Require Dispatch Approval</span>
+                                <p class="hint mt-0.5">Delivery orders containing this item will require warehouse manager approval before dispatch.</p>
+                            </div>
+                        </label>
+                        @if ($dispatchRequiresApproval)
+                        <div wire:transition>
+                            <label class="label" for="dispatchApprovalQty">Approval Threshold (Qty)</label>
+                            <input wire:model="dispatchApprovalQty" id="dispatchApprovalQty"
+                                   type="number" step="0.0001" min="0" placeholder="Leave blank to always require"
+                                   class="input font-mono @error('dispatchApprovalQty') border-red-400 @enderror" />
+                            @error('dispatchApprovalQty') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                            <p class="hint mt-1">Only require approval when line quantity exceeds this threshold. Leave blank to always require approval.</p>
+                        </div>
+                        @endif
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <x-ui.icon name="shield" class="w-4 h-4" />
+                            Adjustment Approval
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <label class="label" for="adjustmentApproval">Approval Requirement</label>
+                        <select wire:model="adjustmentApproval" id="adjustmentApproval"
+                                class="input @error('adjustmentApproval') border-red-400 @enderror">
+                            <option value="inherit">Inherit from Category</option>
+                            <option value="required">Always Require Approval</option>
+                            <option value="not_required">Never Require Approval</option>
+                        </select>
+                        @error('adjustmentApproval') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                        <p class="hint mt-1">Overrides the category-level adjustment approval setting for this specific item.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        @endif
+
         {{-- Footer Actions + Tab Navigation --}}
         <div class="flex flex-col-reverse gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between
                     border-t border-white/40 dark:border-white/[0.08]">
@@ -481,7 +601,7 @@
             {{-- Prev / Next --}}
             <div class="flex gap-2">
                 @php
-                    $tabs = ['general', 'uoms', 'barcodes', 'tracking', 'stock'];
+                    $tabs = ['general', 'uoms', 'barcodes', 'tracking', 'stock', 'rules'];
                     $currentIndex = array_search($activeTab, $tabs);
                 @endphp
 

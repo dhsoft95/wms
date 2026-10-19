@@ -9,14 +9,16 @@ use App\Exceptions\InvalidTransitionException;
 enum MovementStatus: string
 {
     case Draft     = 'draft';
+    case Submitted = 'submitted';
     case Completed = 'completed';
     case Cancelled = 'cancelled';
 
     public function canTransitionTo(self $new): bool
     {
         return match ($this) {
-            self::Draft => in_array($new, [self::Completed, self::Cancelled], true),
-            default     => false,
+            self::Draft     => in_array($new, [self::Submitted, self::Completed, self::Cancelled], true),
+            self::Submitted => in_array($new, [self::Completed, self::Cancelled], true),
+            default         => false,
         };
     }
 
@@ -33,6 +35,7 @@ enum MovementStatus: string
     {
         return match ($this) {
             self::Draft     => 'Draft',
+            self::Submitted => 'Submitted',
             self::Completed => 'Completed',
             self::Cancelled => 'Cancelled',
         };
@@ -42,6 +45,7 @@ enum MovementStatus: string
     {
         return match ($this) {
             self::Draft     => 'badge-slate',
+            self::Submitted => 'badge-amber',
             self::Completed => 'badge-green',
             self::Cancelled => 'badge-red',
         };

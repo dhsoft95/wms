@@ -56,7 +56,6 @@
                     <th>Item</th>
                     <th>Qty</th>
                     <th>From</th>
-                    <th>Suggested</th>
                     <th>Location</th>
                     <th>Assigned To</th>
                     <th>Status</th>
@@ -78,7 +77,6 @@
                         </td>
                         <td class="tabular-nums">{{ number_format((float)$task->qty, 2) }}</td>
                         <td class="mono text-xs">{{ $task->fromLocation?->code }}</td>
-                        <td class="mono text-xs">{{ $task->suggestedLocation?->code ?? '—' }}</td>
                         <td class="mono text-xs">
                             @if ($task->actualLocation)
                                 <span class="font-semibold text-emerald-600 dark:text-emerald-400">
@@ -107,7 +105,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="10" class="!py-12 text-center text-slate-500">No putaway tasks found.</td>
+                        <td colspan="9" class="!py-12 text-center text-slate-500">No putaway tasks found.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -170,14 +168,6 @@
                     <span class="text-slate-500">From</span>
                     <span class="mono">{{ $this->executingTask->fromLocation?->code }}</span>
                 </div>
-                @if ($this->executingTask->suggestedLocation)
-                <div class="flex justify-between text-sm">
-                    <span class="text-slate-500">Suggested</span>
-                    <span class="mono font-semibold text-simba-600 dark:text-simba-400">
-                        {{ $this->executingTask->suggestedLocation?->code }}
-                    </span>
-                </div>
-                @endif
             </div>
 
             {{-- Scan / Search Destination Bin --}}
@@ -232,15 +222,8 @@
                 @error('destinationId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
             </div>
 
-            @if ($destinationId !== '' && $this->suggestedLocation)
-                <div class="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 px-4 py-3">
-                    <p class="text-sm text-emerald-800 dark:text-emerald-300 font-medium">
-                        Destination confirmed: {{ $this->suggestedLocation->code }}
-                    </p>
-                </div>
-            @endif
 
-            <div class="flex justify-end gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
+<div class="flex justify-end gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
                 <button wire:click="closeExecute" class="btn btn-secondary">Cancel</button>
                 <button wire:click="executeTask" class="btn btn-primary"
                         @disabled($destinationId === '')>

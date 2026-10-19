@@ -183,12 +183,6 @@
                     {{ $this->do->created_at->format('d M Y H:i') }}
                 </p>
             </div>
-            <div>
-                <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Allocation Rule</p>
-                <p class="mt-0.5 font-medium text-slate-800 dark:text-slate-200">
-                    {{ $this->do->allocation_rule?->label() ?? '—' }}
-                </p>
-            </div>
             @if ($this->do->remarks)
                 <div class="col-span-2 md:col-span-4">
                     <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Remarks</p>

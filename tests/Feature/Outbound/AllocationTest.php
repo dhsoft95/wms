@@ -185,10 +185,9 @@ test('test_allocation_creates_reservation_and_allocation_record', function () {
 test('test_allocation_respects_fefo_ordering', function () {
     $wh   = allocWarehouse();
     $vw   = allocVw($wh);
-    $item = allocItem(['track_batch' => true, 'track_expiry' => true]);
+    $item = allocItem(['track_batch' => true, 'track_expiry' => true, 'allocation_rules' => ['fefo']]);
     $loc  = allocBinLocation($wh);
     $do   = makeApprovedDo($wh, $vw, $this->actor);
-    $do->update(['allocation_rule' => AllocationRule::Fefo]);
 
     $soonerExpiry = now()->addDays(30);
     $laterExpiry  = now()->addDays(90);

@@ -19,13 +19,22 @@
                     </button>
                 @endcan
             @elseif($transfer->status === \App\Enums\TransferStatus::Submitted)
-                @can('approve', $transfer)
-                    <button wire:click="approve" wire:loading.attr="disabled" class="btn btn-success">
-                        <span wire:loading.remove wire:target="approve"><x-ui.icon name="check" class="w-4 h-4" /> Approve & Post</span>
-                        <span wire:loading wire:target="approve">Posting…</span>
+                @can('accept', $transfer)
+                    <button wire:click="accept" wire:loading.attr="disabled" class="btn btn-success">
+                        <span wire:loading.remove wire:target="accept"><x-ui.icon name="check" class="w-4 h-4" /> Accept</span>
+                        <span wire:loading wire:target="accept">Accepting…</span>
                     </button>
                     <button wire:click="openRejectModal" class="btn btn-secondary text-red-600 dark:text-red-400">
                         <x-ui.icon name="x" class="w-4 h-4" /> Reject
+                    </button>
+                @endcan
+            @elseif($transfer->status === \App\Enums\TransferStatus::Accepted && $transfer->is_physical)
+                @can('execute', $transfer)
+                    <button wire:click="execute" wire:loading.attr="disabled"
+                            wire:confirm="Execute this transfer? Stock will move and this cannot be undone."
+                            class="btn btn-success">
+                        <span wire:loading.remove wire:target="execute"><x-ui.icon name="check" class="w-4 h-4" /> Execute Transfer</span>
+                        <span wire:loading wire:target="execute">Executing…</span>
                     </button>
                 @endcan
             @endif
@@ -88,10 +97,10 @@
                         <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Created</p>
                         <p class="mt-0.5 text-sm tabular-nums text-slate-800 dark:text-slate-200">{{ $transfer->created_at->format('d M Y H:i') }}</p>
                     </div>
-                    @if($transfer->approvedBy)
+                    @if($transfer->acceptedBy)
                         <div class="py-2 first:pt-0 last:pb-0">
-                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Approved By</p>
-                            <p class="mt-0.5 text-sm font-medium text-slate-800 dark:text-slate-200">{{ $transfer->approvedBy->name }}</p>
+                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Accepted By</p>
+                            <p class="mt-0.5 text-sm font-medium text-slate-800 dark:text-slate-200">{{ $transfer->acceptedBy->name }}</p>
                         </div>
                     @endif
                     @if($transfer->posted_at)

@@ -29,6 +29,11 @@ class Department extends Model
         return $this->hasMany(VirtualWarehouse::class);
     }
 
+    public function approvalChains(): HasMany
+    {
+        return $this->hasMany(ApprovalChain::class);
+    }
+
     public function head(): BelongsTo
     {
         return $this->belongsTo(User::class, 'head_user_id');

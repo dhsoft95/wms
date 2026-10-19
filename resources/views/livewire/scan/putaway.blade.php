@@ -42,11 +42,6 @@
                                     <p class="font-bold text-sm">{{ $task->lpn?->code ?? 'No LPN' }}</p>
                                     <p class="text-xs text-slate-400 mt-0.5">{{ $task->item?->sku }} &middot; {{ $task->item?->name }}</p>
                                 </div>
-                                @if ($task->suggestedLocation)
-                                    <span class="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-1 rounded-lg font-mono font-semibold">
-                                        {{ $task->suggestedLocation->code }}
-                                    </span>
-                                @endif
                             </div>
                         </button>
                     @endforeach

@@ -2,25 +2,28 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class ItemCategory extends Model
 {
-    use LogsActivity;
+    use HasFactory, LogsActivity;
 
     protected $table = 'item_categories';
 
-    protected $fillable = ['name', 'parent_id', 'is_active'];
+    protected $fillable = ['name', 'parent_id', 'is_active', 'adjustment_requires_approval'];
 
     protected function casts(): array
     {
         return [
-            'is_active' => 'boolean',
-            'parent_id' => 'integer',
+            'is_active'                     => 'boolean',
+            'parent_id'                     => 'integer',
+            'adjustment_requires_approval'  => 'boolean',
         ];
     }
 
@@ -39,6 +42,11 @@ class ItemCategory extends Model
     public function items(): HasMany
     {
         return $this->hasMany(Item::class, 'category_id');
+    }
+
+    public function categoryUsers(): HasMany
+    {
+        return $this->hasMany(ItemCategoryUser::class, 'item_category_id');
     }
 
     // ─── Scopes ───────────────────────────────────────────────────────────────

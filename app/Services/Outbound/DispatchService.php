@@ -49,11 +49,12 @@ final class DispatchService
                 throw new \DomainException('Can only dispatch a picked delivery order.');
             }
 
-            // All allocated qty must be picked before dispatch
+            // Full ordered qty must be picked before dispatch
             foreach ($do->lines as $line) {
-                if (bccomp((string) $line->picked_qty, (string) $line->allocated_qty, 4) !== 0) {
+                if (bccomp((string) $line->picked_qty, (string) $line->requested_qty_base, 4) !== 0) {
+                    $missing = bcsub((string) $line->requested_qty_base, (string) $line->picked_qty, 4);
                     throw new \DomainException(
-                        "Line {$line->line_no} ({$line->item->sku}): picked qty {$line->picked_qty} does not match allocated qty {$line->allocated_qty}. Dispatch blocked."
+                        "Line {$line->line_no} ({$line->item->sku}): picked {$line->picked_qty} of {$line->requested_qty_base} ordered (short {$missing}). Dispatch blocked."
                     );
                 }
             }
@@ -76,6 +77,8 @@ final class DispatchService
                 'notes'                  => $data['notes'] ?? null,
                 'dispatched_by'          => $by->id,
                 'dispatched_at'          => now(),
+                'dn_number'              => \App\Services\Foundation\DocumentNumber::next('DN'),
+                'rcn_number'             => \App\Services\Foundation\DocumentNumber::next('RCN'),
             ]);
 
             // Gather picked tasks to build dispatch lines

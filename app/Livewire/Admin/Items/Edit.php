@@ -7,6 +7,7 @@ use App\Models\Item;
 use App\Models\ItemCategory;
 use App\Models\UnitOfMeasure;
 use App\Models\VirtualWarehouse;
+use App\Rules\NoConflictingAllocationRules;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -49,6 +50,14 @@ class Edit extends Component
     public string $minStock = '';
     public string $maxStock = '';
 
+    // Rules & Approvals tab
+    public array  $allocationRules          = [];
+    public string $varianceThresholdPct     = '';
+    public string $varianceThresholdQty     = '';
+    public bool   $dispatchRequiresApproval = true;
+    public string $dispatchApprovalQty      = '';
+    public string $adjustmentApproval       = 'inherit';
+
     // ─── Mount ────────────────────────────────────────────────────────────────
 
     public function mount(Item $item): void
@@ -75,6 +84,13 @@ class Edit extends Component
 
         $this->minStock = (string) ($item->min_stock ?? '');
         $this->maxStock = (string) ($item->max_stock ?? '');
+
+        $this->allocationRules          = $item->allocation_rules ?? [];
+        $this->varianceThresholdPct     = (string) ($item->variance_threshold_pct ?? '');
+        $this->varianceThresholdQty     = (string) ($item->variance_threshold_qty ?? '');
+        $this->dispatchRequiresApproval = (bool) $item->dispatch_requires_approval;
+        $this->dispatchApprovalQty      = (string) ($item->dispatch_approval_qty ?? '');
+        $this->adjustmentApproval       = $item->adjustment_approval ?? 'inherit';
 
         // Populate UoMs — exclude the base UoM row (shown separately as locked)
         $this->uoms = $item->uoms
@@ -200,6 +216,12 @@ class Edit extends Component
                 'min_stock'                    => $this->minStock ?: null,
                 'max_stock'                    => $this->maxStock ?: null,
                 'is_active'                    => $this->isActive,
+                'allocation_rules'             => $this->allocationRules ?: null,
+                'variance_threshold_pct'       => $this->varianceThresholdPct ?: null,
+                'variance_threshold_qty'       => $this->varianceThresholdQty ?: null,
+                'dispatch_requires_approval'   => $this->dispatchRequiresApproval,
+                'dispatch_approval_qty'        => $this->dispatchApprovalQty ?: null,
+                'adjustment_approval'          => $this->adjustmentApproval,
             ],
             uoms: $this->uoms,
             barcodes: $this->barcodes,
@@ -228,8 +250,15 @@ class Edit extends Component
             'maxStock'                 => ['nullable', 'numeric', 'min:0'],
             'uoms.*.uom_id'            => ['nullable', 'exists:units_of_measure,id'],
             'uoms.*.factor_to_base'    => ['required_with:uoms.*.uom_id', 'nullable', 'numeric', 'min:0.0001'],
-            'barcodes.*.barcode'       => ['required', 'string'],
-            'barcodes.*.uom_id'        => ['required', 'exists:units_of_measure,id'],
+            'barcodes.*.barcode'         => ['required', 'string'],
+            'barcodes.*.uom_id'          => ['required', 'exists:units_of_measure,id'],
+            'allocationRules'            => ['nullable', 'array', new NoConflictingAllocationRules()],
+            'allocationRules.*'          => ['string', 'in:fifo,fefo,lifo'],
+            'varianceThresholdPct'       => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'varianceThresholdQty'       => ['nullable', 'numeric', 'min:0'],
+            'dispatchRequiresApproval'   => ['boolean'],
+            'dispatchApprovalQty'        => ['nullable', 'numeric', 'min:0'],
+            'adjustmentApproval'         => ['required', 'in:inherit,required,not_required'],
         ];
     }
 

@@ -5,11 +5,6 @@
             <h2 class="page-title">Goods Receipt Notes</h2>
             <p class="page-sub">Receiving records for every container and supplier delivery.</p>
         </div>
-        @can('create', \App\Models\Grn::class)
-        <a href="{{ route('inbound.grn.create') }}" wire:navigate class="btn btn-primary">
-            <x-ui.icon name="plus" class="w-4 h-4" /> New GRN
-        </a>
-        @endcan
     </div>
 
     <div class="card">
@@ -53,6 +48,7 @@
             <thead>
                 <tr>
                     <th>GRN Number</th>
+                    <th>PO Number</th>
                     <th>Source</th>
                     <th>Container / Supplier</th>
                     <th>Warehouse</th>
@@ -65,6 +61,16 @@
                 @forelse ($this->grns as $grn)
                     <tr>
                         <td class="mono font-semibold">{{ $grn->number }}</td>
+                        <td class="mono text-sm">
+                            @if ($grn->purchaseOrder)
+                                <a href="{{ route('inbound.orders.show', $grn->purchaseOrder) }}" wire:navigate
+                                   class="text-simba-600 dark:text-simba-400 hover:underline">
+                                    {{ $grn->purchaseOrder->number }}
+                                </a>
+                            @else
+                                <span class="text-slate-400">—</span>
+                            @endif
+                        </td>
                         <td>
                             <span class="badge {{ $grn->source->color() }}">
                                 <span class="dot"></span>{{ $grn->source->label() }}
@@ -101,7 +107,10 @@
                             <div class="flex items-center justify-end gap-2">
                                 <a href="{{ route('inbound.grn.show', $grn) }}" wire:navigate
                                    class="btn btn-secondary btn-sm">View</a>
-                                @if (in_array($grn->status->value, ['draft','receiving']))
+                                @if ($grn->purchase_order_id && $grn->status->value === 'draft')
+                                    <a href="{{ route('inbound.grn.tally', $grn) }}" wire:navigate
+                                       class="btn btn-primary btn-sm">Continue Tally</a>
+                                @elseif (in_array($grn->status->value, ['draft', 'receiving']) && ! $grn->purchase_order_id)
                                     <a href="{{ route('inbound.grn.receive', $grn) }}" wire:navigate
                                        class="btn btn-primary btn-sm">Receive</a>
                                 @endif

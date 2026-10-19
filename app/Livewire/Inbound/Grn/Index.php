@@ -33,7 +33,7 @@ class Index extends Component
     {
         $query = app(GrnQueryService::class)
             ->queryFor(auth()->user())
-            ->with(['warehouse', 'supplierPartner', 'container'])
+            ->with(['warehouse', 'supplierPartner', 'container', 'purchaseOrder'])
             ->withCount('lines');
 
         if ($this->search !== '') {

@@ -31,6 +31,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Dashboard
     Route::get('/dashboard', \App\Livewire\Dashboard\Overview::class)->name('dashboard');
 
+    // Unified Orders
+    Route::get('/orders', \App\Livewire\Orders\Index::class)
+        ->name('orders.index');
+
     // Approvals
     Route::get('/approvals', \App\Livewire\Approvals\Index::class)
         ->middleware('permission:approvals.view')
@@ -54,10 +58,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:grn.view')->name('grn.show');
         Route::get('/grn/{grn}/receive', \App\Livewire\Inbound\Grn\Receive::class)
             ->middleware('permission:grn.receive')->name('grn.receive');
+        Route::get('/grn/{grn}/tally',   \App\Livewire\Inbound\Grn\Tally::class)
+            ->middleware('permission:po.receive')->name('grn.tally');
         Route::get('/putaway',           \App\Livewire\Warehouse\Putaway\Index::class)
             ->middleware('permission:putaway.view')->name('putaway.index'); // inbound.putaway.index
         Route::get('/inspections',       \App\Livewire\Inbound\Inspections\Index::class)
             ->middleware('permission:inspections.view')->name('inspections.index');
+    });
+
+    // Inbound — Purchase Orders
+    Route::prefix('inbound/orders')->name('inbound.orders.')->middleware(['auth', 'permission:po.view'])->group(function () {
+        Route::get('/',        \App\Livewire\Inbound\Orders\Index::class)->name('index');
+        Route::get('/create',  \App\Livewire\Inbound\Orders\Create::class)
+            ->middleware('permission:po.create')->name('create');
+        Route::get('/{purchaseOrder}',      \App\Livewire\Inbound\Orders\Show::class)->name('show');
+        Route::get('/{purchaseOrder}/edit', \App\Livewire\Inbound\Orders\Edit::class)
+            ->middleware('permission:po.create')->name('edit');
+        Route::get('/{purchaseOrder}/document', [\App\Http\Controllers\PurchaseOrderDocumentController::class, 'download'])
+            ->name('document.download');
     });
 
     // Container document download (private, streams file)
@@ -109,6 +127,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ]);
     })->middleware('auth')->name('containers.packing-list.sample');
 
+    // Bulk line template downloads
+    Route::get('/bulk-lines/template/{type}', function (string $type) {
+        $map = [
+            'po'         => \App\Livewire\Inbound\Orders\Create::class,
+            'adjustment' => \App\Livewire\Inventory\Adjustments\Create::class,
+            'movement'   => \App\Livewire\Warehouse\Movements\Create::class,
+            'transfer'   => \App\Livewire\Warehouse\Transfers\Create::class,
+            'wtr'        => \App\Livewire\Warehouse\Wtr\Create::class,
+        ];
+        abort_unless(array_key_exists($type, $map), 404);
+        $class  = $map[$type];
+        $fields = $class::lineFields();
+        $names  = [
+            'po'         => 'Purchase Order Lines',
+            'adjustment' => 'Adjustment Lines',
+            'movement'   => 'Movement Lines',
+            'transfer'   => 'Transfer Lines',
+            'wtr'        => 'WH Transfer Lines',
+        ];
+        return app(\App\Services\BulkLineImportService::class)->buildTemplate($fields, $names[$type]);
+    })->middleware('auth')->name('bulk-lines.template');
+
     // Warehouse
     Route::prefix('warehouse')->name('warehouse.')->group(function () {
         // putaway.index kept as alias for backward-compat
@@ -126,6 +166,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:transfers.create')->name('transfers.create');
         Route::get('/transfers/{transfer}', \App\Livewire\Warehouse\Transfers\Show::class)
             ->middleware('permission:transfers.view')->name('transfers.show');
+        Route::get('/wtr', \App\Livewire\Warehouse\Wtr\Index::class)
+            ->middleware('permission:transfers.view')->name('wtr.index');
+        Route::get('/wtr/create', \App\Livewire\Warehouse\Wtr\Create::class)
+            ->middleware('permission:transfers.create')->name('wtr.create');
+        Route::get('/wtr/{wtr}', \App\Livewire\Warehouse\Wtr\Show::class)
+            ->middleware('permission:transfers.view')->name('wtr.show');
     });
 
     // LPN Print
@@ -136,6 +182,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Inventory
     Route::prefix('inventory')->name('inventory.')->middleware('permission:stock.view')->group(function () {
         Route::get('/stock',          \App\Livewire\Inventory\Stock\Index::class)->name('stock.index');
+        Route::get('/stock/{stockBalance}', \App\Livewire\Inventory\Stock\Show::class)->name('stock.show');
         Route::get('/movements',      \App\Livewire\Inventory\Stock\Movements::class)
             ->middleware('permission:stock.movements.view')->name('movements.index');
         Route::get('/opening-balance', \App\Livewire\Inventory\Stock\OpeningBalance::class)
@@ -171,6 +218,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/orders/{deliveryOrder}/mrn/download',
             \App\Http\Controllers\DeliveryOrderMrnController::class)
             ->middleware('auth')->name('orders.mrn.download');
+        Route::get('/dispatch/{dispatch}/dn/download',
+            [\App\Http\Controllers\DispatchDocumentController::class, 'dn'])
+            ->middleware('permission:dispatch.view')->name('dispatch.dn.download');
+        Route::get('/dispatch/{dispatch}/rcn/download',
+            [\App\Http\Controllers\DispatchDocumentController::class, 'rcn'])
+            ->middleware('permission:dispatch.view')->name('dispatch.rcn.download');
         Route::get('/pick-lists', \App\Livewire\Outbound\PickLists\Index::class)
             ->middleware('permission:picking.view')->name('pick-lists.index');
         Route::get('/dispatch', \App\Livewire\Outbound\Dispatch\Index::class)
@@ -204,6 +257,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/admin/departments', \App\Livewire\Admin\Departments\Index::class)
         ->middleware(['auth', 'verified', 'permission:departments.manage'])
         ->name('admin.departments.index');
+
+    Route::get('/admin/approval-chains', \App\Livewire\Admin\ApprovalChains\Index::class)
+        ->middleware(['auth', 'verified', 'permission:settings.manage'])
+        ->name('admin.approval-chains.index');
 
     // Settings — System Admin only
     Route::get('/admin/settings', \App\Livewire\Admin\Settings\Index::class)

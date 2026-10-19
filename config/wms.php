@@ -10,6 +10,7 @@ return [
     'vw_unrestricted_roles' => [
         'system-admin',
         'warehouse-manager',
+        'warehouse-supervisor',
         'viewer-auditor',
         'storekeeper',
         'scanner-operator',
@@ -17,6 +18,16 @@ return [
 
     // Email OTP expiry in minutes
     'otp_expiry_minutes' => env('WMS_OTP_EXPIRY_MINUTES', 10),
+
+    // PO approver verification reminder — how many days between reminders
+    'po_approver_reminder_days' => env('WMS_PO_APPROVER_REMINDER_DAYS', 2),
+
+    // Default values pre-filled on new items (copied from old global settings)
+    'item_defaults' => [
+        'variance_threshold_pct'     => env('WMS_VARIANCE_THRESHOLD_PCT', null),
+        'variance_threshold_qty'     => env('WMS_VARIANCE_THRESHOLD_QTY', null),
+        'dispatch_requires_approval' => env('WMS_DISPATCH_REQUIRES_APPROVAL', true),
+    ],
 
     // Branding — override via .env or a child config to white-label the product
     'branding' => [

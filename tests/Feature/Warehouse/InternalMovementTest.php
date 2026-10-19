@@ -45,7 +45,7 @@ beforeEach(function () {
     $this->vw        = VirtualWarehouse::factory()->create(['is_active' => true]);
 
     // UoM
-    $this->uom = UnitOfMeasure::factory()->create(['code' => 'PCS', 'name' => 'Pieces']);
+    $this->uom = UnitOfMeasure::firstOrCreate(['code' => 'PCS'], ['name' => 'Pieces', 'type' => 'count', 'is_active' => true]);
 
     // Bins
     $this->binA = Location::factory()->create([

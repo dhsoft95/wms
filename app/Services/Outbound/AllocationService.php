@@ -187,20 +187,47 @@ final class AllocationService
 
     private function sortCandidates(Collection $balances, DeliveryOrder $do, DeliveryOrderLine $line): Collection
     {
-        $useFefo = $do->allocation_rule === AllocationRule::Fefo
-            || ($do->allocation_rule === AllocationRule::Default && optional($line->item)->track_expiry);
+        // Resolve rules: item rules first, fall back to global default as single rule.
+        $itemRules = $line->item?->allocation_rules ?? [];
+        if (empty($itemRules)) {
+            $global    = $this->settings->get('operations.allocation_rule', 'fifo');
+            $itemRules = [$global];
+        }
 
-        return $balances->sortBy([
-            function ($balance) use ($useFefo) {
-                if ($useFefo && $balance->batch?->expiry_date) {
-                    return $balance->batch->expiry_date->timestamp;
+        // Build comparator list from the ordered rules array.
+        $comparators = [];
+        foreach ($itemRules as $rule) {
+            $comparators[] = match ($rule) {
+                'lifo' => fn ($a, $b) => ($b->received_at?->timestamp ?? 0) <=> ($a->received_at?->timestamp ?? 0),
+                'fefo' => function ($a, $b) {
+                    $aExp = $a->batch?->expiry_date?->timestamp;
+                    $bExp = $b->batch?->expiry_date?->timestamp;
+                    if ($aExp === null && $bExp === null) return 0;
+                    if ($aExp === null) return 1;   // nulls last
+                    if ($bExp === null) return -1;
+                    return $aExp <=> $bExp;
+                },
+                default => function ($a, $b) {        // fifo
+                    $aRec = $a->received_at?->timestamp ?? PHP_INT_MAX;
+                    $bRec = $b->received_at?->timestamp ?? PHP_INT_MAX;
+                    return $aRec <=> $bRec;
+                },
+            };
+        }
+
+        // Tiebreaker: pick_sequence then location code
+        $comparators[] = fn ($a, $b) => ($a->location?->pick_sequence ?? PHP_INT_MAX) <=> ($b->location?->pick_sequence ?? PHP_INT_MAX);
+        $comparators[] = fn ($a, $b) => ($a->location?->code ?? '') <=> ($b->location?->code ?? '');
+
+        return $balances->sort(function ($a, $b) use ($comparators) {
+            foreach ($comparators as $cmp) {
+                $result = $cmp($a, $b);
+                if ($result !== 0) {
+                    return $result;
                 }
-                return $balance->batch?->created_at?->timestamp ?? PHP_INT_MAX;
-            },
-            fn ($balance) => $balance->created_at?->timestamp ?? PHP_INT_MAX,
-            fn ($balance) => $balance->location?->pick_sequence ?? PHP_INT_MAX,
-            fn ($balance) => $balance->location?->code ?? '',
-        ]);
+            }
+            return 0;
+        })->values();
     }
 
     private function handleBackorder(DeliveryOrder $do): void

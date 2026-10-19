@@ -14,13 +14,13 @@ class Show extends Component
 {
     public InternalMovement $movement;
 
-    public function post(MovementWorkflow $workflow): void
+    public function execute(MovementWorkflow $workflow): void
     {
-        $this->authorize('post', $this->movement);
+        $this->authorize('execute', $this->movement);
 
         try {
-            $this->movement = $workflow->post($this->movement, auth()->user());
-            $this->dispatch('toast', message: "{$this->movement->number} posted successfully.", type: 'success');
+            $this->movement = $workflow->execute($this->movement, auth()->user());
+            $this->dispatch('toast', message: "{$this->movement->number} executed successfully.", type: 'success');
         } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }

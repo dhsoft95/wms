@@ -96,13 +96,17 @@ class Create extends Component
     #[Computed]
     public function totalQty(): int|float
     {
-        return array_sum(array_column($this->lines, 'qty'));
+        return array_sum(array_map('floatval', array_column($this->lines, 'qty')));
     }
 
     // ─── Line Management ──────────────────────────────────────────────────────
 
-    public function updatedLines(mixed $value, string $key): void
+    public function updatedLines(mixed $value, ?string $key): void
     {
+        if ($key === null) {
+            return;
+        }
+
         if (str_ends_with($key, '.item_sku')) {
             $index = (int) explode('.', $key)[0];
             $query = trim((string) $value);
@@ -186,31 +190,29 @@ class Create extends Component
             'requiredDate'         => ['required', 'date', 'after_or_equal:today'],
             'priority'             => ['required', Rule::in(array_column(DeliveryOrderPriority::cases(), 'value'))],
             'allocationRule'       => ['required', Rule::in(array_column(AllocationRule::cases(), 'value'))],
-            'mrnNumber'            => [$this->autoSubmit ? 'required' : 'nullable', 'string', 'max:100'],
-            'mrnFile'              => [$this->autoSubmit ? 'required' : 'nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'mrnNumber'            => ['required', 'string', 'max:100'],
+            'mrnFile'              => ['required', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
             'lines'                => ['required', 'array', 'min:1'],
             'lines.*.item_id'      => ['required', 'exists:items,id'],
             'lines.*.qty'          => ['required', 'numeric', 'min:0.0001'],
             'lines.*.uom_id'       => ['required', 'exists:units_of_measure,id'],
         ]);
 
-        // Stock check only on submit (draft can be saved with no stock yet)
-        if ($this->autoSubmit) {
-            foreach ($this->lines as $i => $line) {
-                $available = StockBalance::where('item_id', $line['item_id'])
-                    ->where('virtual_warehouse_id', $this->virtualWarehouseId)
-                    ->where('stock_status', \App\Enums\Inventory\StockStatus::Available->value)
-                    ->get()
-                    ->sum(fn ($b) => (float) $b->qtyAvailable());
+        // Stock availability check on every save
+        foreach ($this->lines as $i => $line) {
+            $available = StockBalance::where('item_id', $line['item_id'])
+                ->where('virtual_warehouse_id', $this->virtualWarehouseId)
+                ->where('stock_status', \App\Enums\Inventory\StockStatus::Available->value)
+                ->get()
+                ->sum(fn ($b) => (float) $b->qtyAvailable());
 
-                if ($available <= 0) {
-                    $this->addError("lines.{$i}.qty", "No stock available for {$line['item_sku']}.");
-                    return;
-                }
-                if ((float) $line['qty'] > $available) {
-                    $this->addError("lines.{$i}.qty", "Qty exceeds available stock ({$available} {$line['uom_code']}) for {$line['item_sku']}.");
-                    return;
-                }
+            if ($available <= 0) {
+                $this->addError("lines.{$i}.qty", "No stock available for {$line['item_sku']}.");
+                return;
+            }
+            if ((float) $line['qty'] > $available) {
+                $this->addError("lines.{$i}.qty", "Qty exceeds available stock ({$available} {$line['uom_code']}) for {$line['item_sku']}.");
+                return;
             }
         }
 

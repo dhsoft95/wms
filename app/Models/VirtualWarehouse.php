@@ -13,7 +13,7 @@ class VirtualWarehouse extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['code', 'name', 'department_id', 'is_active'];
+    protected $fillable = ['code', 'name', 'department_id', 'warehouse_id', 'is_active'];
 
     protected function casts(): array
     {
@@ -25,6 +25,11 @@ class VirtualWarehouse extends Model
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);
+    }
+
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function users(): BelongsToMany

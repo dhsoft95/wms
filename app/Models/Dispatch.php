@@ -19,7 +19,7 @@ class Dispatch extends Model
     protected $fillable = [
         'number', 'delivery_order_id', 'vehicle_no', 'driver_name', 'driver_phone',
         'driver_id_no', 'transporter_partner_id', 'seal_no', 'dispatched_at',
-        'dispatched_by', 'stock_transaction_id', 'notes',
+        'dispatched_by', 'stock_transaction_id', 'notes', 'dn_number', 'rcn_number',
     ];
 
     protected function casts(): array

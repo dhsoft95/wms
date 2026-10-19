@@ -34,11 +34,10 @@ class Index extends Component
     public $logo;
 
     // ─── Operations Tab ───────────────────────────────────────────────────────
+    // Approval thresholds moved to per-item settings. Only global fallback
+    // allocation rule (used when an item has no explicit rules) remains.
 
-    public string $allocationRule                 = 'fifo';
-    public string $varianceApprovalThresholdPct   = '';
-    public string $varianceApprovalThresholdQty   = '';
-    public string $adjustmentApprovalThreshold    = '';
+    public string $allocationRule = 'fifo';
 
     // ─── Reason Codes Tab ─────────────────────────────────────────────────────
 
@@ -57,13 +56,16 @@ class Index extends Component
     public string $uomName    = '';
     public string $uomType    = '';
 
-    // ─── Outbound Tab ─────────────────────────────────────────────────────────────
+    // ─── Approval Tab (formerly Outbound) ────────────────────────────────────────
 
-    public string $outboundApprovalMode       = 'none';
     public bool   $outboundAllowPartial       = true;
     public bool   $outboundAutoBackorder      = true;
     public string $outboundMinShelfLifeDays   = '0';
     public string $outboundShortPickBehaviour = 'leave_short';
+
+    // ─── Vehicle Types Tab ────────────────────────────────────────────────────
+
+    public string $vehicleTypes = '';
 
     // ─── Document Sequences (mutable state for inline editing) ───────────────
 
@@ -80,16 +82,14 @@ class Index extends Component
         $this->companyEmail   = SettingsService::get('company.email', '');
         $this->companyTin     = SettingsService::get('company.tin', '');
 
-        $this->allocationRule               = SettingsService::get('operations.allocation_rule', 'fifo');
-        $this->varianceApprovalThresholdPct = (string) SettingsService::get('operations.variance_approval_threshold_pct', '');
-        $this->varianceApprovalThresholdQty = (string) SettingsService::get('operations.variance_approval_threshold_qty', '');
-        $this->adjustmentApprovalThreshold  = (string) SettingsService::get('operations.adjustment_approval_threshold', '');
+        $this->allocationRule = SettingsService::get('operations.allocation_rule', 'fifo');
 
-        $this->outboundApprovalMode       = SettingsService::get('outbound.approval_mode', 'none');
         $this->outboundAllowPartial       = (bool) SettingsService::get('outbound.allow_partial_allocation', true);
         $this->outboundAutoBackorder      = (bool) SettingsService::get('outbound.auto_backorder', true);
         $this->outboundMinShelfLifeDays   = (string) SettingsService::get('outbound.min_shelf_life_days', '0');
         $this->outboundShortPickBehaviour = SettingsService::get('outbound.short_pick_behaviour', 'leave_short');
+
+        $this->vehicleTypes = SettingsService::get('vehicle_types', 'Truck,Van,Pickup,Trailer,Other');
 
         // Pre-populate sequence data for wire:model binding
         foreach (DocumentSequence::orderBy('type')->get() as $seq) {
@@ -135,39 +135,44 @@ class Index extends Component
     public function saveOperations(): void
     {
         $this->validate([
-            'allocationRule'               => 'required|string|in:fifo,fefo',
-            'varianceApprovalThresholdPct' => 'nullable|numeric|min:0|max:100',
-            'varianceApprovalThresholdQty' => 'nullable|numeric|min:0',
-            'adjustmentApprovalThreshold'  => 'nullable|numeric|min:0',
+            'allocationRule' => 'required|string|in:fifo,fefo,lifo',
         ]);
 
-        SettingsService::set('operations.allocation_rule',               $this->allocationRule);
-        SettingsService::set('operations.variance_approval_threshold_pct', $this->varianceApprovalThresholdPct);
-        SettingsService::set('operations.variance_approval_threshold_qty', $this->varianceApprovalThresholdQty);
-        SettingsService::set('operations.adjustment_approval_threshold',   $this->adjustmentApprovalThreshold);
+        SettingsService::set('operations.allocation_rule', $this->allocationRule);
 
         $this->dispatch('toast', message: 'Operations settings saved.', type: 'success');
     }
 
-    // ─── Outbound ─────────────────────────────────────────────────────────────────
+    // ─── Approval (formerly Outbound) ─────────────────────────────────────────────
 
     public function saveOutbound(): void
     {
         $this->validate([
-            'outboundApprovalMode'       => 'required|string|in:none,department_head,warehouse_manager,both',
             'outboundAllowPartial'       => 'boolean',
             'outboundAutoBackorder'      => 'boolean',
             'outboundMinShelfLifeDays'   => 'nullable|integer|min:0|max:365',
             'outboundShortPickBehaviour' => 'required|string|in:reallocate,leave_short',
         ]);
 
-        SettingsService::set('outbound.approval_mode',            $this->outboundApprovalMode);
         SettingsService::set('outbound.allow_partial_allocation', $this->outboundAllowPartial ? '1' : '0', 'boolean');
         SettingsService::set('outbound.auto_backorder',           $this->outboundAutoBackorder ? '1' : '0', 'boolean');
         SettingsService::set('outbound.min_shelf_life_days',      $this->outboundMinShelfLifeDays ?: '0', 'integer');
         SettingsService::set('outbound.short_pick_behaviour',     $this->outboundShortPickBehaviour);
 
         $this->dispatch('toast', message: 'Outbound settings saved.', type: 'success');
+    }
+
+    // ─── Vehicle Types ────────────────────────────────────────────────────────
+
+    public function saveVehicleTypes(): void
+    {
+        $this->validate([
+            'vehicleTypes' => 'nullable|string|max:500',
+        ]);
+
+        SettingsService::set('vehicle_types', $this->vehicleTypes);
+
+        $this->dispatch('toast', message: 'Vehicle types saved.', type: 'success');
     }
 
     // ─── Document Sequences ───────────────────────────────────────────────────

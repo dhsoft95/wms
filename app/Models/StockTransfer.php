@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\TransferStatus;
+use App\Models\Warehouse;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,26 +16,32 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class StockTransfer extends Model
 {
-    use LogsActivity, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'number',
         'from_virtual_warehouse_id',
         'to_virtual_warehouse_id',
+        'to_warehouse_id',
         'created_by',
         'approved_by',
+        'accepted_by',
         'status',
+        'is_physical',
         'notes',
         'rejection_reason',
         'posted_at',
+        'accepted_at',
         'idempotency_key',
     ];
 
     protected function casts(): array
     {
         return [
-            'status'    => TransferStatus::class,
-            'posted_at' => 'datetime',
+            'status'      => TransferStatus::class,
+            'is_physical' => 'boolean',
+            'posted_at'   => 'datetime',
+            'accepted_at' => 'datetime',
         ];
     }
 
@@ -62,6 +70,16 @@ class StockTransfer extends Model
     public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'approved_by');
+    }
+
+    public function acceptedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'accepted_by');
+    }
+
+    public function toWarehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class, 'to_warehouse_id');
     }
 
     // ─── Scopes ───────────────────────────────────────────────────────────────

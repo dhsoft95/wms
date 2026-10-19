@@ -51,7 +51,7 @@ class Show extends Component
             $byRow[(int) $e['row']][] = "[{$e['column']}] {$e['message']}";
         }
 
-        $path = storage_path('app/' . $this->import->stored_path);
+        $path = \Illuminate\Support\Facades\Storage::disk('local')->path($this->import->stored_path);
 
         return response()->streamDownload(function () use ($path, $byRow) {
             $out = fopen('php://output', 'w');
@@ -93,7 +93,7 @@ class Show extends Component
     #[Computed]
     public function previewRows(): array
     {
-        $path = storage_path('app/' . $this->import->stored_path);
+        $path = \Illuminate\Support\Facades\Storage::disk('local')->path($this->import->stored_path);
         if (! file_exists($path)) {
             return [];
         }

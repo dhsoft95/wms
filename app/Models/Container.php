@@ -47,6 +47,7 @@ class Container extends Model
         'notes',
         'po_number',
         'po_file_path',
+        'purchase_order_id',
         'created_by',
     ];
 
@@ -66,6 +67,11 @@ class Container extends Model
     }
 
     // ─── Relationships ────────────────────────────────────────────────────────
+
+    public function purchaseOrder(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(\App\Models\PurchaseOrder::class);
+    }
 
     public function shipperPartner(): BelongsTo
     {

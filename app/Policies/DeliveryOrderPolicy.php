@@ -85,7 +85,33 @@ class DeliveryOrderPolicy
 
     public function approveWarehouse(User $user, DeliveryOrder $do): bool
     {
-        return $user->can('orders.approve.warehouse');
+        if (! $user->can('orders.approve.warehouse')) {
+            return false;
+        }
+
+        // Managers/admins bypass the category check
+        if ($user->hasAnyRole(['system-admin', 'warehouse-manager'])) {
+            return true;
+        }
+
+        // Category users: ALL lines must be in their assigned categories for this warehouse
+        // Use DB query to avoid global Eloquent scopes filtering out items/lines
+        $lineCategoryIds = \DB::table('delivery_order_lines')
+            ->join('items', 'delivery_order_lines.item_id', '=', 'items.id')
+            ->where('delivery_order_lines.delivery_order_id', $do->id)
+            ->pluck('items.category_id')
+            ->filter()
+            ->unique();
+
+        if ($lineCategoryIds->isEmpty()) {
+            return false;
+        }
+
+        $assignedCategoryIds = \App\Models\ItemCategoryUser::where('user_id', $user->id)
+            ->where('warehouse_id', $do->warehouse_id)
+            ->pluck('item_category_id');
+
+        return $lineCategoryIds->diff($assignedCategoryIds)->isEmpty();
     }
 
     public function allocate(User $user, DeliveryOrder $do): bool

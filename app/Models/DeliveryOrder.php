@@ -7,18 +7,21 @@ namespace App\Models;
 use App\Enums\Outbound\AllocationRule;
 use App\Enums\Outbound\DeliveryOrderPriority;
 use App\Enums\Outbound\DeliveryOrderStatus;
+use App\Models\Concerns\BelongsToCategoryUser;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class DeliveryOrder extends Model
 {
-    use HasFactory, SoftDeletes, LogsActivity;
+    use HasFactory, SoftDeletes, LogsActivity, BelongsToCategoryUser;
 
     protected $fillable = [
         'number', 'virtual_warehouse_id', 'warehouse_id', 'department_id',
@@ -113,6 +116,12 @@ class DeliveryOrder extends Model
                 DeliveryOrderStatus::Delivered,
                 DeliveryOrderStatus::Cancelled,
             ], true);
+    }
+
+    public static function applyCategoryUserScope(Builder $builder, Collection $categoryIds, Collection $warehouseIds): void
+    {
+        $builder->whereIn('warehouse_id', $warehouseIds)
+            ->whereHas('lines', fn ($q) => $q->whereHas('item', fn ($q2) => $q2->whereIn('category_id', $categoryIds)));
     }
 
     public function getActivitylogOptions(): LogOptions

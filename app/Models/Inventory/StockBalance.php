@@ -5,15 +5,21 @@ declare(strict_types=1);
 namespace App\Models\Inventory;
 
 use App\Enums\Inventory\StockStatus;
+use App\Models\Concerns\BelongsToCategoryUser;
 use App\Models\Item;
 use App\Models\Location;
 use App\Models\VirtualWarehouse;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 class StockBalance extends Model
 {
+    use HasFactory, BelongsToCategoryUser;
+
     const CREATED_AT = null;
     const UPDATED_AT = 'updated_at';
 
@@ -27,6 +33,7 @@ class StockBalance extends Model
         'key_hash',
         'qty_on_hand',
         'qty_allocated',
+        'received_at',
     ];
 
     protected function casts(): array
@@ -35,6 +42,7 @@ class StockBalance extends Model
             'stock_status'  => StockStatus::class,
             'qty_on_hand'   => 'decimal:4',
             'qty_allocated' => 'decimal:4',
+            'received_at'   => 'datetime',
         ];
     }
 
@@ -80,5 +88,11 @@ class StockBalance extends Model
             '.',
             ''
         );
+    }
+
+    public static function applyCategoryUserScope(Builder $builder, Collection $categoryIds, Collection $warehouseIds): void
+    {
+        $builder->whereHas('location', fn ($q) => $q->whereIn('warehouse_id', $warehouseIds))
+            ->whereHas('item', fn ($q) => $q->whereIn('category_id', $categoryIds));
     }
 }

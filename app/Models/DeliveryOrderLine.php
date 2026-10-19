@@ -6,12 +6,14 @@ namespace App\Models;
 
 use App\Enums\Outbound\DoLineStatus;
 use App\Models\Inventory\Batch;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class DeliveryOrderLine extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'delivery_order_id', 'line_no', 'item_id', 'uom_id',
         'requested_qty', 'requested_qty_base', 'requested_batch_id',

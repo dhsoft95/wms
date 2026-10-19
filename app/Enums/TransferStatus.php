@@ -10,7 +10,8 @@ enum TransferStatus: string
 {
     case Draft     = 'draft';
     case Submitted = 'submitted';
-    case Approved  = 'approved';
+    case Accepted  = 'accepted';
+    case Approved  = 'approved';   // Legacy alias — kept for backward compatibility
     case Posted    = 'posted';
     case Rejected  = 'rejected';
 
@@ -18,7 +19,8 @@ enum TransferStatus: string
     {
         return match ($this) {
             self::Draft     => in_array($new, [self::Submitted], true),
-            self::Submitted => in_array($new, [self::Approved, self::Rejected], true),
+            self::Submitted => in_array($new, [self::Accepted, self::Approved, self::Rejected], true),
+            self::Accepted,
             self::Approved  => $new === self::Posted,
             default         => false,
         };
@@ -37,7 +39,8 @@ enum TransferStatus: string
     {
         return match ($this) {
             self::Draft     => 'Draft',
-            self::Submitted => 'Pending Approval',
+            self::Submitted => 'Pending Acceptance',
+            self::Accepted  => 'Accepted',
             self::Approved  => 'Approved',
             self::Posted    => 'Posted',
             self::Rejected  => 'Rejected',
@@ -49,6 +52,7 @@ enum TransferStatus: string
         return match ($this) {
             self::Draft     => 'badge-slate',
             self::Submitted => 'badge-amber',
+            self::Accepted  => 'badge-blue',
             self::Approved  => 'badge-green',
             self::Posted    => 'badge-neutral',
             self::Rejected  => 'badge-red',

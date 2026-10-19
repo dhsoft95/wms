@@ -53,18 +53,21 @@ class DepartmentUserNavTest extends TestCase
             ->assertStatus(403);
     }
 
-    public function test_dept_user_cannot_access_warehouse_movements(): void
+    public function test_dept_user_can_access_warehouse_movements(): void
     {
+        // dept-user has movements.view (they create movements from the Orders module).
+        // The nav hides the direct link; the route itself remains accessible.
         $this->actingAs($this->deptUser)
             ->get(route('warehouse.movements.index'))
-            ->assertStatus(403);
+            ->assertOk();
     }
 
-    public function test_dept_user_cannot_access_warehouse_transfers(): void
+    public function test_dept_user_can_access_warehouse_transfers(): void
     {
+        // Department-user has transfers.view and transfers.create — they create transfers
         $this->actingAs($this->deptUser)
             ->get(route('warehouse.transfers.index'))
-            ->assertStatus(403);
+            ->assertOk();
     }
 
     // ─── Pages dept-user SHOULD reach ────────────────────────────────────────

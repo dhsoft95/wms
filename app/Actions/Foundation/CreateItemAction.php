@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 class CreateItemAction
 {
-    public static function execute(array $itemData, array $uoms, array $barcodes, int $baseUomId): Item
+    public static function execute(array $itemData, array $uoms, array $barcodes = [], int $baseUomId = 0): Item
     {
         return DB::transaction(function () use ($itemData, $uoms, $barcodes, $baseUomId) {
             $item = Item::create($itemData);
@@ -41,18 +41,26 @@ class CreateItemAction
                 ]);
             }
 
-            foreach ($barcodes as $row) {
-                if (empty($row['barcode'])) {
-                    continue;
-                }
-                ItemBarcode::create([
-                    'item_id'    => $item->id,
-                    'barcode'    => $row['barcode'],
-                    'uom_id'     => $row['uom_id'],
-                    'type'       => $row['type'],
-                    'is_primary' => (bool) ($row['is_primary'] ?? false),
-                ]);
+            // Auto-generate one internal Code128 barcode from the SKU.
+            // If the SKU value is already used as a barcode on another item,
+            // append -01, -02, etc. until the value is unique.
+            $barcodeValue = $item->sku;
+            $suffix       = 0;
+            while (ItemBarcode::where('barcode', $barcodeValue)
+                ->where('item_id', '!=', $item->id)
+                ->exists()
+            ) {
+                $suffix++;
+                $barcodeValue = $item->sku . '-' . str_pad((string) $suffix, 2, '0', STR_PAD_LEFT);
             }
+
+            ItemBarcode::create([
+                'item_id'    => $item->id,
+                'barcode'    => $barcodeValue,
+                'uom_id'     => $item->base_uom_id,
+                'type'       => 'internal',
+                'is_primary' => true,
+            ]);
 
             return $item;
         });

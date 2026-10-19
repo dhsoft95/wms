@@ -27,13 +27,25 @@ class Show extends Component
         }
     }
 
-    public function approve(TransferWorkflow $workflow): void
+    public function accept(TransferWorkflow $workflow): void
     {
-        $this->authorize('approve', $this->transfer);
+        $this->authorize('accept', $this->transfer);
 
         try {
-            $this->transfer = $workflow->approve($this->transfer, auth()->user());
-            $this->dispatch('toast', message: "Transfer {$this->transfer->number} approved and posted", type: 'success');
+            $this->transfer = $workflow->accept($this->transfer, auth()->user());
+            $this->dispatch('toast', message: "Transfer {$this->transfer->number} accepted", type: 'success');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function execute(TransferWorkflow $workflow): void
+    {
+        $this->authorize('execute', $this->transfer);
+
+        try {
+            $this->transfer = $workflow->post($this->transfer, auth()->user());
+            $this->dispatch('toast', message: "Transfer {$this->transfer->number} executed and posted", type: 'success');
         } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }
@@ -62,8 +74,8 @@ class Show extends Component
     public function render(): View
     {
         $this->transfer->load(
-            'lines.item', 'lines.location', 'lines.batch', 'lines.uom',
-            'createdBy', 'approvedBy', 'fromVirtualWarehouse', 'toVirtualWarehouse'
+            'lines.item', 'lines.location', 'lines.toLocation', 'lines.batch', 'lines.uom',
+            'createdBy', 'acceptedBy', 'fromVirtualWarehouse', 'toVirtualWarehouse'
         );
 
         return view('livewire.warehouse.transfers.show')

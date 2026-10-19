@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Warehouse\Transfers;
 
+use App\Livewire\Concerns\WithBulkLineUpload;
 use App\Models\Inventory\Batch;
 use App\Models\Item;
 use App\Models\Location;
@@ -13,13 +14,56 @@ use App\Services\Inventory\TransferWorkflow;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 
 class Create extends Component
 {
+    use WithFileUploads, WithBulkLineUpload;
     public int    $fromVwId = 0;
     public int    $toVwId   = 0;
     public string $notes    = '';
     public array  $lines    = [];
+
+    public static function lineFields(): array
+    {
+        return [
+            ['key' => 'item_id',     'column' => 'Item (SKU)', 'type' => 'sku',     'required' => true,  'format' => 'Item SKU code',     'example' => 'SKU-001'],
+            ['key' => 'location_id', 'column' => 'Bin',        'type' => 'bin',     'required' => true,  'format' => 'Bin location code', 'example' => 'BIN-A01'],
+            ['key' => 'uom_id',      'column' => 'Unit',       'type' => 'uom',     'required' => true,  'format' => 'UoM code',          'example' => 'EA'],
+            ['key' => 'qty',         'column' => 'Quantity',   'type' => 'decimal', 'required' => true,  'format' => 'Number > 0',        'example' => '20'],
+            ['key' => 'batch_no',    'column' => 'Batch No',   'type' => 'text',    'required' => false, 'format' => 'Text, max 100',     'example' => ''],
+        ];
+    }
+
+    protected function bulkContext(): array
+    {
+        return [
+            'virtual_warehouse_id' => $this->fromVwId,
+            'check_available'      => true,
+            'location_key'         => 'location_id',
+        ];
+    }
+
+    protected function applyBulkLines(array $rows): void
+    {
+        if ($this->blkMode === 'replace') {
+            $this->lines = [];
+        }
+
+        foreach ($rows as $row) {
+            $this->lines[] = [
+                'item_id'     => $row['item_id']     ?? '',
+                'location_id' => $row['location_id'] ?? '',
+                'batch_no'    => $row['batch_no']    ?? '',
+                'qty'         => $row['qty']         ?? '',
+                'uom_id'      => $row['uom_id']      ?? '',
+            ];
+        }
+
+        if (empty($this->lines)) {
+            $this->addLine();
+        }
+    }
 
     public function mount(): void
     {

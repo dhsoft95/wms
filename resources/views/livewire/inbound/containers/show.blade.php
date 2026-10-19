@@ -53,11 +53,6 @@
                         <x-ui.icon name="flag" class="w-4 h-4" /> Assign Yard Slot
                     </button>
                 @endcan
-                @can('startUnloading', $container)
-                    <button wire:click="startUnloading" class="btn btn-secondary">
-                        <x-ui.icon name="archive" class="w-4 h-4" /> Start Unloading
-                    </button>
-                @endcan
                 @can('update', $container)
                     <a href="{{ route('inbound.containers.edit', $container) }}" wire:navigate class="btn btn-ghost">
                         <x-ui.icon name="pencil" class="w-4 h-4" /> Edit
@@ -67,11 +62,6 @@
                 @can('moveSlot', $container)
                     <button wire:click="$set('moveModalOpen', true)" class="btn btn-secondary">
                         <x-ui.icon name="arrows" class="w-4 h-4" /> Move Slot
-                    </button>
-                @endcan
-                @can('startUnloading', $container)
-                    <button wire:click="startUnloading" class="btn btn-primary">
-                        <x-ui.icon name="archive" class="w-4 h-4" /> Start Unloading
                     </button>
                 @endcan
                 @can('update', $container)

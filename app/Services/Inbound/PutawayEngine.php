@@ -210,17 +210,24 @@ final class PutawayEngine
     {
         $grn->load('putawayTasks');
 
+        $inPutawayPhase = in_array($grn->status, [
+            \App\Enums\GrnStatus::Received,
+            \App\Enums\GrnStatus::PutawayInProgress,
+        ], true);
+
+        if (! $inPutawayPhase) {
+            return;
+        }
+
         $openTasks = $grn->putawayTasks->filter(
             fn (PutawayTask $t) => $t->status !== PutawayTaskStatus::Completed
                 && $t->status !== PutawayTaskStatus::Cancelled
         );
 
-        if ($openTasks->isEmpty() && $grn->status === \App\Enums\GrnStatus::PutawayInProgress) {
-            $grn->status = \App\Enums\GrnStatus::PutawayComplete;
-            $grn->save();
-        } elseif ($grn->status === \App\Enums\GrnStatus::Received) {
-            $grn->status = \App\Enums\GrnStatus::PutawayInProgress;
-            $grn->save();
-        }
+        $grn->status = $openTasks->isEmpty()
+            ? \App\Enums\GrnStatus::PutawayComplete
+            : \App\Enums\GrnStatus::PutawayInProgress;
+
+        $grn->save();
     }
 }

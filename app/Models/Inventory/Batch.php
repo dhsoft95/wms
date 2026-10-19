@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Models\Inventory;
 
 use App\Models\Item;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Batch extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'item_id',
         'batch_no',

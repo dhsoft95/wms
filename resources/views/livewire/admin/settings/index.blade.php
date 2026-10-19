@@ -14,12 +14,13 @@
 
             @php
                 $tabs = [
-                    'company'      => 'Company Profile',
-                    'operations'   => 'Operations',
-                    'sequences'    => 'Document Sequences',
-                    'reason-codes' => 'Reason Codes',
-                    'uom'          => 'Units of Measure',
-                    'outbound'     => 'Outbound',
+                    'company'       => 'Company Profile',
+                    'operations'    => 'Operations',
+                    'sequences'     => 'Document Sequences',
+                    'reason-codes'  => 'Reason Codes',
+                    'uom'           => 'Units of Measure',
+                    'outbound'      => 'Approval',
+                    'vehicle-types' => 'Vehicle Types',
                 ];
             @endphp
 
@@ -187,77 +188,19 @@
 
             <form wire:submit="saveOperations" class="card-body space-y-5">
 
-                {{-- Allocation Rule --}}
+                {{-- Global Fallback Allocation Rule --}}
                 <div>
-                    <label for="allocationRule" class="label">Allocation Rule</label>
+                    <label for="allocationRule" class="label">Global Allocation Rule (Fallback)</label>
                     <select id="allocationRule" wire:model="allocationRule" class="input w-full sm:max-w-xs">
                         <option value="fifo">FIFO — First In, First Out</option>
                         <option value="fefo">FEFO — First Expiry, First Out</option>
+                        <option value="lifo">LIFO — Last In, First Out</option>
                     </select>
-                    <p class="hint">Determines how stock is picked during outbound operations.</p>
+                    <p class="hint">Used for items that have no explicit allocation rules set. Per-item rules take priority.</p>
                     @error('allocationRule') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                 </div>
 
-                {{-- Variance Thresholds --}}
-                <fieldset class="rounded-xl border border-white/30 dark:border-white/[0.08] p-4 space-y-4">
-                    <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        Variance Approval Thresholds
-                    </legend>
-
-                    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                        <div>
-                            <label for="varianceApprovalThresholdPct" class="label">Percentage (%)</label>
-                            <input
-                                id="varianceApprovalThresholdPct"
-                                wire:model="varianceApprovalThresholdPct"
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                max="100"
-                                class="input w-full"
-                                placeholder="e.g. 5"
-                            />
-                            <p class="hint">Variances above this % will require approval. Leave blank to disable.</p>
-                            @error('varianceApprovalThresholdPct') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label for="varianceApprovalThresholdQty" class="label">Quantity (units)</label>
-                            <input
-                                id="varianceApprovalThresholdQty"
-                                wire:model="varianceApprovalThresholdQty"
-                                type="number"
-                                step="1"
-                                min="0"
-                                class="input w-full"
-                                placeholder="e.g. 10"
-                            />
-                            <p class="hint">Variances above this qty will require approval. Leave blank to disable.</p>
-                            @error('varianceApprovalThresholdQty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                        </div>
-                    </div>
-                </fieldset>
-
-                {{-- Adjustment Approval --}}
-                <fieldset class="rounded-xl border border-white/30 dark:border-white/[0.08] p-4">
-                    <legend class="px-2 text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        Adjustment Approval Threshold
-                    </legend>
-
-                    <div class="mt-3">
-                        <label for="adjustmentApprovalThreshold" class="label">Quantity (units)</label>
-                        <input
-                            id="adjustmentApprovalThreshold"
-                            wire:model="adjustmentApprovalThreshold"
-                            type="number"
-                            step="1"
-                            min="0"
-                            class="input w-full sm:max-w-xs"
-                            placeholder="e.g. 50"
-                        />
-                        <p class="hint">Stock adjustments exceeding this quantity will require a manager to approve. Leave blank to disable.</p>
-                        @error('adjustmentApprovalThreshold') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                    </div>
-                </fieldset>
+                <p class="hint">Variance and adjustment approval thresholds are now configured per item on the Items master data page.</p>
 
                 {{-- Save --}}
                 <div class="flex justify-end border-t border-white/30 dark:border-white/[0.06] pt-4">
@@ -732,29 +675,67 @@
     @endif
 
     {{-- ═══════════════════════════════════════════════════════════════════════ --}}
-    {{-- Tab: Outbound                                                             --}}
+    {{-- Tab: Vehicle Types                                                        --}}
+    {{-- ═══════════════════════════════════════════════════════════════════════ --}}
+
+    @if ($activeTab === 'vehicle-types')
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Vehicle Types</h3>
+            </div>
+
+            <form wire:submit="saveVehicleTypes" class="card-body space-y-5">
+
+                <div>
+                    <label for="vehicleTypes" class="label">Vehicle Types</label>
+                    <textarea
+                        id="vehicleTypes"
+                        wire:model="vehicleTypes"
+                        rows="5"
+                        class="input w-full font-mono text-sm"
+                        placeholder="Truck,Van,Pickup,Trailer,Other"
+                    ></textarea>
+                    <p class="hint">Enter vehicle types as a comma-separated list. These are used when assigning dispatch vehicles to delivery orders.</p>
+                    @error('vehicleTypes') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                {{-- Preview --}}
+                @if ($vehicleTypes)
+                    <div>
+                        <p class="label mb-2">Preview</p>
+                        <div class="flex flex-wrap gap-1.5">
+                            @foreach (array_filter(array_map('trim', explode(',', $vehicleTypes))) as $vt)
+                                <span class="badge badge-slate">{{ $vt }}</span>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Save --}}
+                <div class="flex justify-end border-t border-white/30 dark:border-white/[0.06] pt-4">
+                    <button type="submit" class="btn btn-primary" wire:loading.attr="disabled">
+                        <span wire:loading.remove wire:target="saveVehicleTypes">Save Vehicle Types</span>
+                        <span wire:loading wire:target="saveVehicleTypes">Saving…</span>
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    @endif
+
+    {{-- ═══════════════════════════════════════════════════════════════════════ --}}
+    {{-- Tab: Approval (formerly Outbound)                                         --}}
     {{-- ═══════════════════════════════════════════════════════════════════════ --}}
 
     @if ($activeTab === 'outbound')
         <div class="card">
             <div class="card-header">
-                <h3 class="card-title">Outbound Settings</h3>
+                <h3 class="card-title">Approval Settings</h3>
             </div>
 
             <form wire:submit="saveOutbound" class="card-body space-y-5">
 
-                {{-- Approval Mode --}}
-                <div>
-                    <label for="outboundApprovalMode" class="label">Approval Mode</label>
-                    <select id="outboundApprovalMode" wire:model="outboundApprovalMode" class="input w-full sm:max-w-xs">
-                        <option value="none">None — submit goes straight to allocated</option>
-                        <option value="department_head">Department Head only</option>
-                        <option value="warehouse_manager">Warehouse Manager only</option>
-                        <option value="both">Both — department head, then warehouse manager</option>
-                    </select>
-                    <p class="hint">Controls who must approve a delivery order before stock can be allocated.</p>
-                    @error('outboundApprovalMode') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                </div>
+                <p class="hint">Dispatch and adjustment approval rules are now configured per item. Configure outbound allocation behaviour below.</p>
 
                 {{-- Partial Allocation + Auto Backorder --}}
                 <fieldset class="rounded-xl border border-white/30 dark:border-white/[0.08] p-4 space-y-4">

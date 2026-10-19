@@ -19,9 +19,10 @@ class VirtualWarehouseFactory extends Factory
                 ['code' => 'DEFAULT'],
                 ['name' => 'Default Department', 'is_active' => true]
             )->id,
-            'code'      => strtoupper($this->faker->unique()->lexify('VW-???')),
-            'name'      => $this->faker->words(2, true) . ' Warehouse',
-            'is_active' => true,
+            'warehouse_id' => null,
+            'code'         => strtoupper($this->faker->unique()->lexify('VW-???')),
+            'name'         => $this->faker->words(2, true) . ' Warehouse',
+            'is_active'    => true,
         ];
     }
 }

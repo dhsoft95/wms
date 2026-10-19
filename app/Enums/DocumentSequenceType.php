@@ -16,6 +16,11 @@ enum DocumentSequenceType: string
     case Dsp = 'DSP';
     case Gp  = 'GP';
     case Mov = 'MOV';
+    case Po  = 'PO';
+    case Mrn = 'MRN';
+    case Rcn = 'RCN';
+    case Dn  = 'DN';
+    case Wtr = 'WTR';
 
     public function label(): string
     {
@@ -32,6 +37,11 @@ enum DocumentSequenceType: string
             self::Dsp => 'Dispatch',
             self::Gp  => 'Gate Pass',
             self::Mov => 'Internal Movement',
+            self::Po  => 'Purchase Order',
+            self::Mrn => 'Material Receipt Note',
+            self::Rcn => 'Reconciliation Note',
+            self::Dn  => 'Delivery Note',
+            self::Wtr => 'Warehouse Transfer',
         };
     }
 }

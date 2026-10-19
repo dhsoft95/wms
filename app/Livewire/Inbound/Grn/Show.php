@@ -3,8 +3,14 @@
 namespace App\Livewire\Inbound\Grn;
 
 use App\Enums\GrnStatus;
+use App\Enums\LocationLevel;
+use App\Enums\LocationStatus;
+use App\Enums\LocationType;
 use App\Models\Grn;
+use App\Models\Location;
+use App\Models\PutawayTask;
 use App\Services\Inbound\GrnWorkflow;
+use App\Services\Inbound\PutawayEngine;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -17,6 +23,12 @@ class Show extends Component
 
     // Variance approval inputs
     public string $approvalNotes = '';
+
+    // Putaway execute state
+    public bool    $showExecuteModal = false;
+    public ?int    $executingTaskId  = null;
+    public string  $destinationId    = '';
+    public string  $scanDestination  = '';
 
     // ─── Computed ─────────────────────────────────────────────────────────────
 
@@ -70,6 +82,38 @@ class Show extends Component
             GrnStatus::PutawayComplete,
             GrnStatus::Closed,
         ];
+    }
+
+    #[Computed]
+    public function executingTask(): ?PutawayTask
+    {
+        if ($this->executingTaskId === null) {
+            return null;
+        }
+
+        return PutawayTask::with(['item', 'fromLocation', 'suggestedLocation'])->find($this->executingTaskId);
+    }
+
+    #[Computed]
+    public function binSearchResults(): array
+    {
+        if (strlen($this->scanDestination) < 2) {
+            return [];
+        }
+
+        return Location::where('warehouse_id', $this->grn->warehouse_id)
+            ->where('level', LocationLevel::Bin->value)
+            ->where('type', LocationType::Storage->value)
+            ->where('status', LocationStatus::Active->value)
+            ->where(fn ($q) => $q
+                ->where('code', 'like', "%{$this->scanDestination}%")
+                ->orWhere('barcode', 'like', "%{$this->scanDestination}%")
+            )
+            ->orderBy('code')
+            ->limit(8)
+            ->get(['id', 'code', 'barcode'])
+            ->map(fn ($l) => ['id' => $l->id, 'code' => $l->code, 'barcode' => $l->barcode])
+            ->all();
     }
 
     // ─── Actions ──────────────────────────────────────────────────────────────
@@ -151,6 +195,71 @@ class Show extends Component
             $this->dispatch('toast', message: 'GRN closed.', type: 'success');
         } catch (\Exception $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    // ─── Putaway Execute ──────────────────────────────────────────────────────
+
+    public function openExecute(int $taskId): void
+    {
+        $this->executingTaskId = $taskId;
+        $this->destinationId   = '';
+        $this->scanDestination = '';
+        $this->showExecuteModal = true;
+        unset($this->executingTask, $this->binSearchResults);
+    }
+
+    public function closeExecute(): void
+    {
+        $this->showExecuteModal = false;
+        $this->executingTaskId  = null;
+        $this->destinationId    = '';
+        $this->scanDestination  = '';
+        unset($this->executingTask, $this->binSearchResults);
+    }
+
+    public function resolveDestination(): void
+    {
+        $loc = Location::where('warehouse_id', $this->grn->warehouse_id)
+            ->where(fn ($q) => $q
+                ->where('code', $this->scanDestination)
+                ->orWhere('barcode', $this->scanDestination)
+            )
+            ->first();
+
+        if ($loc) {
+            $this->destinationId   = (string) $loc->id;
+            $this->scanDestination = $loc->code;
+            unset($this->binSearchResults);
+        } else {
+            $this->dispatch('toast', message: "Location not found: {$this->scanDestination}", type: 'error');
+        }
+    }
+
+    public function selectBin(int $id, string $code): void
+    {
+        $this->destinationId   = (string) $id;
+        $this->scanDestination = $code;
+        unset($this->binSearchResults);
+    }
+
+    public function executeTask(): void
+    {
+        $this->validate(['destinationId' => ['required', 'exists:locations,id']]);
+
+        try {
+            $task        = PutawayTask::findOrFail($this->executingTaskId);
+            $destination = Location::findOrFail((int) $this->destinationId);
+
+            app(PutawayEngine::class)->execute($task, $destination, auth()->user());
+
+            $this->grn->refresh();
+            unset($this->putawayTasks);
+            $this->closeExecute();
+
+            $this->dispatch('toast', message: 'Putaway complete!', type: 'success');
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: 'Error: ' . $e->getMessage(), type: 'error');
         }
     }
 

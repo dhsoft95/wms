@@ -34,7 +34,7 @@ final class MovementWorkflow
                 'virtual_warehouse_id' => $data['virtual_warehouse_id'],
                 'notes'                => $data['notes'] ?? null,
                 'created_by'           => $user->id,
-                'status'               => MovementStatus::Draft,
+                'status'               => MovementStatus::Submitted,
             ]);
 
             foreach ($data['lines'] as $lineData) {
@@ -62,7 +62,10 @@ final class MovementWorkflow
         });
     }
 
-    public function post(InternalMovement $movement, User $user): InternalMovement
+    /**
+     * Execute (post) a submitted movement.
+     */
+    public function execute(InternalMovement $movement, User $user): InternalMovement
     {
         return DB::transaction(function () use ($movement, $user) {
             // Re-fetch with lock — guarantees single-post and prevents race conditions
@@ -70,8 +73,10 @@ final class MovementWorkflow
                 ->lockForUpdate()
                 ->firstOrFail();
 
-            if ($movement->status !== MovementStatus::Draft) {
-                throw new \DomainException('Movement has already been posted or cancelled.');
+            // Allow both Submitted (new default) and Draft (backward compat)
+            $allowedStatuses = [MovementStatus::Submitted, MovementStatus::Draft];
+            if (! in_array($movement->status, $allowedStatuses, true)) {
+                throw new \DomainException('Movement has already been executed or cancelled.');
             }
 
             $movement->load('lines.item', 'lines.fromLocation', 'lines.toLocation', 'lines.serials');
@@ -167,23 +172,37 @@ final class MovementWorkflow
             ));
 
             $movement->update([
-                'status'    => MovementStatus::Completed,
-                'posted_at' => now(),
+                'status'      => MovementStatus::Completed,
+                'posted_at'   => now(),
+                'executed_by' => $user->id,
+                'executed_at' => now(),
             ]);
 
             activity()
                 ->performedOn($movement)
                 ->causedBy($user)
-                ->log('Internal movement posted');
+                ->log('Internal movement executed');
 
             return $movement->fresh();
         });
     }
 
+    /**
+     * Backward-compatible alias for execute().
+     *
+     * @deprecated Use execute() instead.
+     */
+    public function post(InternalMovement $movement, User $user): InternalMovement
+    {
+        return $this->execute($movement, $user);
+    }
+
     public function cancel(InternalMovement $movement, User $user): InternalMovement
     {
-        if ($movement->status !== MovementStatus::Draft) {
-            throw new \DomainException('Only draft movements can be cancelled.');
+        // Allow cancellation of both Draft and Submitted movements
+        $cancellableStatuses = [MovementStatus::Draft, MovementStatus::Submitted];
+        if (! in_array($movement->status, $cancellableStatuses, true)) {
+            throw new \DomainException('Only draft or submitted movements can be cancelled.');
         }
 
         $movement->update(['status' => MovementStatus::Cancelled]);

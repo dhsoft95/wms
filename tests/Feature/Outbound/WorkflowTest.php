@@ -144,6 +144,17 @@ test('test_draft_order_can_be_submitted', function () {
         'status'             => DoLineStatus::Pending,
     ]);
 
+    $loc = Location::factory()->create(['warehouse_id' => $wh->id]);
+    StockBalance::create([
+        'item_id'              => $item->id,
+        'location_id'          => $loc->id,
+        'virtual_warehouse_id' => $vw->id,
+        'stock_status'         => \App\Enums\Inventory\StockStatus::Available,
+        'key_hash'             => hash('sha256', "wf-submit-{$item->id}-{$vw->id}"),
+        'qty_on_hand'          => '20.0000',
+        'qty_allocated'        => '0.0000',
+    ]);
+
     $workflow = app(DeliveryOrderWorkflow::class);
     $workflow->submit($do, $this->admin);
 

@@ -3,10 +3,10 @@
 namespace App\Livewire\Admin\Items;
 
 use App\Actions\Foundation\CreateItemAction;
-use App\Models\Item;
 use App\Models\ItemCategory;
 use App\Models\UnitOfMeasure;
 use App\Models\VirtualWarehouse;
+use App\Rules\NoConflictingAllocationRules;
 use Illuminate\Contracts\View\View;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Computed;
@@ -17,25 +17,22 @@ class Create extends Component
     public string $activeTab = 'general';
 
     // General tab
-    public string $sku = '';
-    public string $name = '';
+    public string $sku         = '';
+    public string $name        = '';
     public string $description = '';
-    public string $categoryId = '';
-    public string $baseUomId = '';
+    public string $categoryId  = '';
+    public string $baseUomId   = '';
     public string $defaultVwId = '';
-    public bool   $isActive = true;
+    public bool   $isActive    = true;
 
     // Dimensions
     public string $length = '';
-    public string $width = '';
+    public string $width  = '';
     public string $height = '';
     public string $weight = '';
 
     // UoMs tab
     public array $uoms = [];
-
-    // Barcodes tab
-    public array $barcodes = [];
 
     // Tracking tab
     public bool $trackBatch  = false;
@@ -45,6 +42,23 @@ class Create extends Component
     // Stock levels tab
     public string $minStock = '';
     public string $maxStock = '';
+
+    // Rules & Approvals tab
+    public array  $allocationRules          = [];
+    public string $varianceThresholdPct     = '';
+    public string $varianceThresholdQty     = '';
+    public bool   $dispatchRequiresApproval = true;
+    public string $dispatchApprovalQty      = '';
+    public string $adjustmentApproval       = 'inherit';
+
+    // ─── Mount ────────────────────────────────────────────────────────────────
+
+    public function mount(): void
+    {
+        $this->dispatchRequiresApproval = (bool) config('wms.item_defaults.dispatch_requires_approval', true);
+        $this->varianceThresholdPct     = (string) config('wms.item_defaults.variance_threshold_pct', '');
+        $this->varianceThresholdQty     = (string) config('wms.item_defaults.variance_threshold_qty', '');
+    }
 
     // ─── Computed ─────────────────────────────────────────────────────────────
 
@@ -84,24 +98,6 @@ class Create extends Component
         $this->uoms = array_values($this->uoms);
     }
 
-    // ─── Barcode rows ─────────────────────────────────────────────────────────
-
-    public function addBarcodeRow(): void
-    {
-        $this->barcodes[] = [
-            'barcode'    => '',
-            'uom_id'     => '',
-            'type'       => 'internal',
-            'is_primary' => false,
-        ];
-    }
-
-    public function removeBarcodeRow(int $index): void
-    {
-        unset($this->barcodes[$index]);
-        $this->barcodes = array_values($this->barcodes);
-    }
-
     // ─── Tracking logic ───────────────────────────────────────────────────────
 
     public function updatedTrackExpiry(bool $value): void
@@ -135,9 +131,15 @@ class Create extends Component
                 'min_stock'                    => $this->minStock ?: null,
                 'max_stock'                    => $this->maxStock ?: null,
                 'is_active'                    => $this->isActive,
+                'allocation_rules'             => $this->allocationRules ?: null,
+                'variance_threshold_pct'       => $this->varianceThresholdPct ?: null,
+                'variance_threshold_qty'       => $this->varianceThresholdQty ?: null,
+                'dispatch_requires_approval'   => $this->dispatchRequiresApproval,
+                'dispatch_approval_qty'        => $this->dispatchApprovalQty ?: null,
+                'adjustment_approval'          => $this->adjustmentApproval,
             ],
             uoms: $this->uoms,
-            barcodes: $this->barcodes,
+            barcodes: [],
             baseUomId: (int) $this->baseUomId,
         );
 
@@ -150,21 +152,26 @@ class Create extends Component
     protected function rules(): array
     {
         return [
-            'sku'                      => ['required', 'string', 'max:100', Rule::unique('items', 'sku')],
-            'name'                     => ['required', 'string', 'max:255'],
-            'categoryId'               => ['nullable', 'exists:item_categories,id'],
-            'baseUomId'                => ['required', 'exists:units_of_measure,id'],
-            'defaultVwId'              => ['nullable', 'exists:virtual_warehouses,id'],
-            'length'                   => ['nullable', 'numeric', 'min:0'],
-            'width'                    => ['nullable', 'numeric', 'min:0'],
-            'height'                   => ['nullable', 'numeric', 'min:0'],
-            'weight'                   => ['nullable', 'numeric', 'min:0'],
-            'minStock'                 => ['nullable', 'numeric', 'min:0'],
-            'maxStock'                 => ['nullable', 'numeric', 'min:0'],
-            'uoms.*.uom_id'            => ['nullable', 'exists:units_of_measure,id'],
-            'uoms.*.factor_to_base'    => ['required_with:uoms.*.uom_id', 'nullable', 'numeric', 'min:0.0001'],
-            'barcodes.*.barcode'       => ['required', 'string', Rule::unique('item_barcodes', 'barcode')],
-            'barcodes.*.uom_id'        => ['required', 'exists:units_of_measure,id'],
+            'sku'                        => ['required', 'string', 'max:100', Rule::unique('items', 'sku')],
+            'name'                       => ['required', 'string', 'max:255'],
+            'categoryId'                 => ['nullable', 'exists:item_categories,id'],
+            'baseUomId'                  => ['required', 'exists:units_of_measure,id'],
+            'defaultVwId'                => ['nullable', 'exists:virtual_warehouses,id'],
+            'length'                     => ['nullable', 'numeric', 'min:0'],
+            'width'                      => ['nullable', 'numeric', 'min:0'],
+            'height'                     => ['nullable', 'numeric', 'min:0'],
+            'weight'                     => ['nullable', 'numeric', 'min:0'],
+            'minStock'                   => ['nullable', 'numeric', 'min:0'],
+            'maxStock'                   => ['nullable', 'numeric', 'min:0'],
+            'uoms.*.uom_id'              => ['nullable', 'exists:units_of_measure,id'],
+            'uoms.*.factor_to_base'      => ['required_with:uoms.*.uom_id', 'nullable', 'numeric', 'min:0.0001'],
+            'allocationRules'            => ['nullable', 'array', new NoConflictingAllocationRules()],
+            'allocationRules.*'          => ['string', 'in:fifo,fefo,lifo'],
+            'varianceThresholdPct'       => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'varianceThresholdQty'       => ['nullable', 'numeric', 'min:0'],
+            'dispatchRequiresApproval'   => ['boolean'],
+            'dispatchApprovalQty'        => ['nullable', 'numeric', 'min:0'],
+            'adjustmentApproval'         => ['required', 'in:inherit,required,not_required'],
         ];
     }
 

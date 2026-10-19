@@ -62,7 +62,7 @@ class TestMasterDataSeeder extends Seeder
         $rows = [
             ['code' => 'HUAWEI',    'name' => 'Huawei Technologies Co. Ltd', 'type' => ['supplier', 'shipper']],
             ['code' => 'MAERSK',    'name' => 'Maersk Line',                 'type' => ['shipping_line']],
-            ['code' => 'TIGO',      'name' => 'Tigo Tanzania',               'type' => ['consignee', 'customer']],
+            ['code' => 'YAS',      'name' => 'Yas Tanzania',               'type' => ['consignee', 'customer']],
             ['code' => 'FASTTRUCK', 'name' => 'Fast Truck Logistics',        'type' => ['transporter']],
         ];
 
@@ -82,8 +82,8 @@ class TestMasterDataSeeder extends Seeder
     private function seedDepartmentsAndVWs(): void
     {
         $rows = [
-            ['dept_code' => 'TIGO-NET', 'dept_name' => 'Tigo Network', 'vw_code' => 'TIGO-NET', 'vw_name' => 'Tigo Network Stock'],
-            ['dept_code' => 'TIGO-RTL', 'dept_name' => 'Tigo Retail',  'vw_code' => 'TIGO-RTL', 'vw_name' => 'Tigo Retail Stock'],
+            ['dept_code' => 'YAS-NET', 'dept_name' => 'Yas Network', 'vw_code' => 'YAS-NET', 'vw_name' => 'Yas Network Stock'],
+            ['dept_code' => 'YAS-RTL', 'dept_name' => 'Yas Retail',  'vw_code' => 'YAS-RTL', 'vw_name' => 'Yas Retail Stock'],
         ];
 
         foreach ($rows as $row) {
@@ -132,8 +132,8 @@ class TestMasterDataSeeder extends Seeder
         $catNetwork = ItemCategory::firstWhere('name', 'Network Equipment');
         $catDevices = ItemCategory::firstWhere('name', 'Customer Devices');
         $catPower   = ItemCategory::firstWhere('name', 'Power');
-        $vwNet      = VirtualWarehouse::firstWhere('code', 'TIGO-NET');
-        $vwRtl      = VirtualWarehouse::firstWhere('code', 'TIGO-RTL');
+        $vwNet      = VirtualWarehouse::firstWhere('code', 'YAS-NET');
+        $vwRtl      = VirtualWarehouse::firstWhere('code', 'YAS-RTL');
 
         $defs = [
             [

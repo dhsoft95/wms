@@ -215,7 +215,7 @@ it('blocks dispatch when a line has picked_qty less than ordered_qty', function 
         'driver_name'  => 'John',
         'driver_phone' => '0700000000',
     ], $this->manager))
-        ->toThrow(\DomainException::class, 'picked qty');
+        ->toThrow(\DomainException::class, 'Dispatch blocked');
 });
 
 // ─── Rule 6: Dispatch succeeds when all lines fully picked ────────────────────
@@ -274,6 +274,7 @@ it('allows dispatch when all lines are fully picked', function () {
         'uom_id'             => $this->uom->id,
         'requested_qty'      => '5.0000',
         'requested_qty_base' => '5.0000',
+        'allocated_qty'      => '5.0000',
         'picked_qty'         => '5.0000',
         'status'             => \App\Enums\Outbound\DoLineStatus::Picked,
     ]);

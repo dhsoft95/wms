@@ -76,5 +76,11 @@ class AppServiceProvider extends ServiceProvider
 
         // Warehouse module: policies
         Gate::policy(\App\Models\InternalMovement::class, \App\Policies\InternalMovementPolicy::class);
+
+        // Transfers module: policies
+        Gate::policy(\App\Models\WarehouseTransfer::class, \App\Policies\WarehouseTransferPolicy::class);
+
+        // Inbound workflow: policies
+        Gate::policy(\App\Models\PurchaseOrder::class, \App\Policies\PurchaseOrderPolicy::class);
     }
 }

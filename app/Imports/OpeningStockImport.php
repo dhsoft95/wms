@@ -120,7 +120,7 @@ class OpeningStockImport extends BaseImport
 
     protected function computeSummary(int $totalRows, int $validRows, int $errorRows): array
     {
-        $path     = storage_path('app/' . $this->import->stored_path);
+        $path     = \Illuminate\Support\Facades\Storage::disk('local')->path($this->import->stored_path);
         $totalQty = '0';
 
         try {
@@ -155,7 +155,7 @@ class OpeningStockImport extends BaseImport
 
     public function import(): void
     {
-        $path    = storage_path('app/' . $this->import->stored_path);
+        $path    = \Illuminate\Support\Facades\Storage::disk('local')->path($this->import->stored_path);
         $rows    = SimpleExcelReader::create($path)->getRows()->collect()->all();
         $serials = $this->loadSerialsSheet($path);
         $errors  = [];

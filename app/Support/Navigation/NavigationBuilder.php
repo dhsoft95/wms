@@ -23,6 +23,10 @@ class NavigationBuilder
 
             $items = [];
             foreach ($group['items'] as $item) {
+                if (isset($item['enabled']) && $item['enabled'] === false) {
+                    continue;
+                }
+
                 if (!empty($item['can']) && !$user?->can($item['can'])) {
                     continue;
                 }

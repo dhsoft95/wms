@@ -16,6 +16,7 @@ class GrnLine extends Model
     protected $fillable = [
         'grn_id',
         'container_expected_line_id',
+        'purchase_order_line_id',
         'item_id',
         'virtual_warehouse_id',
         'uom_id',
@@ -55,6 +56,11 @@ class GrnLine extends Model
     public function containerExpectedLine(): BelongsTo
     {
         return $this->belongsTo(ContainerExpectedLine::class);
+    }
+
+    public function purchaseOrderLine(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrderLine::class);
     }
 
     public function item(): BelongsTo
