@@ -119,26 +119,7 @@ final class PurchaseOrderWorkflow
             }
 
             $po->submitted_at = now();
-
-            // Short-circuit: no chain and no category users → auto-approve
-            // Special-treatment POs always require human approval even with no chain configured
-            if (! $po->is_special_treatment && $this->chainService->isFullyApproved($po)) {
-                $po->status      = PurchaseOrderStatus::ApprovedPendingAcceptance;
-                $po->approved_at = now();
-                $po->save();
-                activity()->performedOn($po)->causedBy($by)->log('Submitted and auto-approved (no chain)');
-
-                $managers = User::role('warehouse-manager')->get();
-                foreach ($managers as $manager) {
-                    $manager->notify(new \App\Notifications\Inbound\PoStatusChangedNotification(
-                        $po, 'approved',
-                        "PO {$po->number} has been approved and is awaiting warehouse acceptance.",
-                    ));
-                }
-                return;
-            }
-
-            $po->status = PurchaseOrderStatus::PendingApproval;
+            $po->status       = PurchaseOrderStatus::PendingApproval;
             $po->save();
 
             activity()->performedOn($po)->causedBy($by)->log('Submitted for approval');
@@ -157,6 +138,7 @@ final class PurchaseOrderWorkflow
         DB::transaction(function () use ($po, $by, $comment) {
             // Determine whether this is a department-level or category-level action
             $deptLevel = $this->chainService->currentDepartmentLevel($po);
+            $pendingCategories = $this->chainService->pendingCategoryApprovals($po);
 
             if ($deptLevel !== null) {
                 // Department-level approval
@@ -172,12 +154,11 @@ final class PurchaseOrderWorkflow
 
                 activity()->performedOn($po)->causedBy($by)
                     ->log("Approved at department level {$deptLevel}");
-            } else {
+            } elseif ($pendingCategories->isNotEmpty()) {
                 // Category-level approval — user approves all their assigned categories
-                $pending = $this->chainService->pendingCategoryApprovals($po);
                 $userCategoryIds = ItemCategoryUser::where('user_id', $by->id)
                     ->where('warehouse_id', $po->warehouse_id)
-                    ->whereIn('item_category_id', $pending)
+                    ->whereIn('item_category_id', $pendingCategories)
                     ->pluck('item_category_id');
 
                 if ($userCategoryIds->isEmpty()) {
@@ -193,6 +174,19 @@ final class PurchaseOrderWorkflow
 
                 activity()->performedOn($po)->causedBy($by)
                     ->log('Category-level approval recorded');
+            } else {
+                // No chain configured — warehouse manager acts as fallback approver
+                if (! $by->hasAnyRole(['warehouse-manager', 'system-admin'])) {
+                    throw new \DomainException('No approval chain is configured. Only a warehouse manager can approve this order.');
+                }
+
+                $this->chainService->record(
+                    $po, $by, PurchaseOrderApprovalAction::Approved,
+                    0, null, null, $comment,
+                );
+
+                activity()->performedOn($po)->causedBy($by)
+                    ->log('Approved by warehouse manager (no chain configured)');
             }
 
             // Advance if fully approved
@@ -407,6 +401,11 @@ final class PurchaseOrderWorkflow
 
     public function markReceivingInProgress(PurchaseOrder $po, User $by): void
     {
+        // Already in progress (e.g. second delivery on a partial order) — no-op
+        if ($po->status === PurchaseOrderStatus::ReceivingInProgress) {
+            return;
+        }
+
         $this->assertStatus($po, PurchaseOrderStatus::AssignedPendingReceiving, PurchaseOrderStatus::PartiallyReceived);
 
         $po->status = PurchaseOrderStatus::ReceivingInProgress;
@@ -464,7 +463,7 @@ final class PurchaseOrderWorkflow
         $po->status = PurchaseOrderStatus::PendingSupervisorValidation;
         $po->save();
 
-        activity()->performedOn($po)->causedBy($by)->log('Putaway complete — awaiting supervisor validation');
+        activity()->performedOn($po)->causedBy($by)->log('Putaway complete  awaiting supervisor validation');
 
         $supervisor = $po->assignedSupervisor;
         $supervisor?->notify(new PoStatusChangedNotification(
@@ -549,6 +548,36 @@ final class PurchaseOrderWorkflow
     }
 
     // ─── Approver verification ────────────────────────────────────────────────
+
+    /**
+     * Direct close by warehouse manager — bypasses validation/verification steps.
+     * Used when all GRNs are closed and the internal workflow can be skipped.
+     */
+    public function closeOrder(PurchaseOrder $po, User $by): void
+    {
+        $this->assertRole($by, 'warehouse-manager', 'system-admin');
+
+        $allowed = [
+            PurchaseOrderStatus::PendingPutaway,
+            PurchaseOrderStatus::PutawayInProgress,
+            PurchaseOrderStatus::PendingSupervisorValidation,
+            PurchaseOrderStatus::CompletedPendingVerification,
+            PurchaseOrderStatus::IssueRaised,
+            PurchaseOrderStatus::IssueResolved,
+        ];
+
+        if (! in_array($po->status, $allowed, true)) {
+            throw new \DomainException("Cannot close order from status: {$po->status->label()}");
+        }
+
+        DB::transaction(function () use ($po, $by) {
+            $po->status      = PurchaseOrderStatus::VerifiedClosed;
+            $po->verified_at ??= now();
+            $po->save();
+
+            activity()->performedOn($po)->causedBy($by)->log('Order closed by warehouse manager');
+        });
+    }
 
     public function verifyAndClose(PurchaseOrder $po, User $by): void
     {
@@ -718,13 +747,23 @@ final class PurchaseOrderWorkflow
             return;
         }
 
-        // Notify category-level users
         $pending = $this->chainService->pendingCategoryApprovals($po);
-        foreach ($pending as $categoryId) {
-            $users = $this->chainService->usersForCategory($categoryId, $po->warehouse_id);
-            foreach ($users as $user) {
-                $user->notify(new PoApprovalRequestedNotification($po, 99));
+
+        if ($pending->isNotEmpty()) {
+            // Notify category-level users
+            foreach ($pending as $categoryId) {
+                $users = $this->chainService->usersForCategory($categoryId, $po->warehouse_id);
+                foreach ($users as $user) {
+                    $user->notify(new PoApprovalRequestedNotification($po, 99));
+                }
             }
+            return;
+        }
+
+        // No chain configured — notify all warehouse managers as fallback approvers
+        $managers = User::role('warehouse-manager')->get();
+        foreach ($managers as $manager) {
+            $manager->notify(new PoApprovalRequestedNotification($po, 0));
         }
     }
 

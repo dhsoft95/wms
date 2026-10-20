@@ -83,6 +83,12 @@ class Create extends Component
     public function mount(): void
     {
         $this->lines = [$this->blankLine($this->currency ?: 'TZS')];
+
+        // Pre-fill department for department users
+        $user = auth()->user();
+        if ($user->hasRole('department-user') && $user->department_id) {
+            $this->departmentId = (string) $user->department_id;
+        }
     }
 
     private function blankLine(string $currency = ''): array

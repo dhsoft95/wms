@@ -22,10 +22,6 @@ class Show extends Component
 
     public string $activeTab = 'lines';
 
-    // Reject modal
-    public bool   $showRejectModal = false;
-    public string $rejectNotes     = '';
-
     // Assign picker modal
     public bool   $showAssignModal = false;
     public string $assignUserId    = '';
@@ -54,14 +50,34 @@ class Show extends Component
     {
         return [
             DeliveryOrderStatus::Draft,
-            DeliveryOrderStatus::Submitted,
             DeliveryOrderStatus::Approved,
+            DeliveryOrderStatus::Acceptance,
             DeliveryOrderStatus::Allocated,
             DeliveryOrderStatus::Picking,
-            DeliveryOrderStatus::Picked,
             DeliveryOrderStatus::Dispatched,
-            DeliveryOrderStatus::Delivered,
         ];
+    }
+
+    public function stepperCurrentIndex(): int
+    {
+        // Index = the step currently highlighted (amber).
+        // Steps before it are green (done). Steps after are grey (future).
+        // Stepper: 0=Draft, 1=Approved, 2=Acceptance, 3=Allocated, 4=Picking, 5=Dispatched
+        return match($this->deliveryOrder->status) {
+            DeliveryOrderStatus::Draft,
+            DeliveryOrderStatus::Rejected,
+            DeliveryOrderStatus::Cancelled          => 0,  // at Draft
+            DeliveryOrderStatus::Submitted          => 1,  // Draft done → at Approved (pending)
+            DeliveryOrderStatus::Approved           => 2,  // Draft+Approved done → at Acceptance
+            DeliveryOrderStatus::Acceptance,
+            DeliveryOrderStatus::Assigned           => 3,  // → at Allocated
+            DeliveryOrderStatus::Allocated,
+            DeliveryOrderStatus::PartiallyAllocated => 4,  // → at Picking
+            DeliveryOrderStatus::Picking,
+            DeliveryOrderStatus::Picked             => 5,  // → at Dispatched
+            DeliveryOrderStatus::Dispatched,
+            DeliveryOrderStatus::Delivered          => 6,  // all done (6 = out of range → all green)
+        };
     }
 
     #[Computed]
@@ -88,9 +104,49 @@ class Show extends Component
         $this->authorize('submit', $this->deliveryOrder);
         try {
             app(DeliveryOrderWorkflow::class)->submit($this->deliveryOrder, auth()->user());
-            $this->dispatch('toast', message: 'Order submitted for approval.', type: 'success');
+            $this->deliveryOrder->refresh();
             unset($this->do);
-        } catch (\DomainException $e) {
+            $this->dispatch('toast', message: 'Order submitted for approval.', type: 'success');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function approve(): void
+    {
+        $this->authorize('approveDepartment', $this->deliveryOrder);
+        try {
+            app(DeliveryOrderWorkflow::class)->approveOrder($this->deliveryOrder, auth()->user());
+            $this->deliveryOrder->refresh();
+            unset($this->do);
+            $this->dispatch('toast', message: 'Order approved.', type: 'success');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function accept(): void
+    {
+        $this->authorize('allocate', $this->deliveryOrder);
+        try {
+            app(DeliveryOrderWorkflow::class)->accept($this->deliveryOrder, auth()->user());
+            $this->deliveryOrder->refresh();
+            unset($this->do);
+            $this->dispatch('toast', message: 'Order accepted for processing.', type: 'success');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function assignTeam(): void
+    {
+        $this->authorize('allocate', $this->deliveryOrder);
+        try {
+            app(DeliveryOrderWorkflow::class)->assignTeam($this->deliveryOrder, auth()->user());
+            $this->deliveryOrder->refresh();
+            unset($this->do);
+            $this->dispatch('toast', message: 'Order assigned to warehouse team.', type: 'success');
+        } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }
     }
@@ -100,9 +156,10 @@ class Show extends Component
         $this->authorize('allocate', $this->deliveryOrder);
         try {
             app(AllocationService::class)->allocate($this->deliveryOrder);
-            $this->dispatch('toast', message: 'Allocation complete.', type: 'success');
+            $this->deliveryOrder->refresh();
             unset($this->do);
-        } catch (\DomainException $e) {
+            $this->dispatch('toast', message: 'Allocation complete.', type: 'success');
+        } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }
     }
@@ -114,29 +171,10 @@ class Show extends Component
             $assigned = $this->assignUserId !== '' ? User::find($this->assignUserId) : null;
             app(PickingService::class)->generatePickList($this->deliveryOrder, $assigned);
             $this->showAssignModal = false;
+            $this->deliveryOrder->refresh();
+            unset($this->do);
             $this->dispatch('toast', message: 'Pick list generated.', type: 'success');
-            unset($this->do);
-        } catch (\DomainException $e) {
-            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
-        }
-    }
-
-    public function openRejectModal(): void
-    {
-        $this->rejectNotes    = '';
-        $this->showRejectModal = true;
-    }
-
-    public function confirmReject(): void
-    {
-        $this->validate(['rejectNotes' => ['required', 'string', 'min:5']]);
-        $this->authorize('cancel', $this->deliveryOrder);
-        try {
-            app(DeliveryOrderWorkflow::class)->reject($this->deliveryOrder, auth()->user(), $this->rejectNotes);
-            $this->showRejectModal = false;
-            $this->dispatch('toast', message: 'Order rejected.', type: 'success');
-            unset($this->do);
-        } catch (\DomainException $e) {
+        } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }
     }
@@ -146,33 +184,10 @@ class Show extends Component
         $this->authorize('cancel', $this->deliveryOrder);
         try {
             app(DeliveryOrderWorkflow::class)->cancel($this->deliveryOrder, auth()->user());
+            $this->deliveryOrder->refresh();
+            unset($this->do);
             $this->dispatch('toast', message: 'Order cancelled.', type: 'success');
-            unset($this->do);
-        } catch (\DomainException $e) {
-            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
-        }
-    }
-
-    public function approveDepartment(): void
-    {
-        $this->authorize('approveDepartment', $this->deliveryOrder);
-        try {
-            app(DeliveryOrderWorkflow::class)->approve($this->deliveryOrder, auth()->user(), 'department_head');
-            $this->dispatch('toast', message: 'Department approval recorded.', type: 'success');
-            unset($this->do);
-        } catch (\DomainException $e) {
-            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
-        }
-    }
-
-    public function approveWarehouse(): void
-    {
-        $this->authorize('approveWarehouse', $this->deliveryOrder);
-        try {
-            app(DeliveryOrderWorkflow::class)->approve($this->deliveryOrder, auth()->user(), 'warehouse_manager');
-            $this->dispatch('toast', message: 'Warehouse approval recorded.', type: 'success');
-            unset($this->do);
-        } catch (\DomainException $e) {
+        } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }
     }
@@ -183,12 +198,12 @@ class Show extends Component
         try {
             $pickList = PickList::findOrFail($pickListId);
             app(PickingService::class)->cancelPickList($pickList);
+            $this->deliveryOrder->refresh();
+            unset($this->do, $this->activePickList);
             $this->dispatch('toast', message: 'Pick list cancelled. You may regenerate.', type: 'success');
-            unset($this->do);
-        } catch (\DomainException $e) {
+        } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }
-        unset($this->activePickList);
     }
 
     public function render(): View

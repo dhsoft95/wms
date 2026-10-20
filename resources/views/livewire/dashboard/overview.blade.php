@@ -1,276 +1,451 @@
-@php
-// Static placeholder KPIs — containers replaced with real data below
-$kpis = [
-    ['label' => 'Stock on Hand',     'value' => '48,250', 'trend' => '+4.2% vs last week',  'trendColor' => 'text-emerald-600', 'icon' => 'archive',   'iconBg' => 'bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400'],
-    ['label' => 'Pending GRNs',      'value' => '6',      'trend' => '2 overdue more than 24h', 'trendColor' => 'text-amber-600', 'icon' => 'clipboard', 'iconBg' => 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400'],
-    ["Today's Dispatches" => true,   'label' => "Today's Dispatches", 'value' => '28',       'trend' => '96% on-time rate',     'trendColor' => 'text-emerald-600', 'icon' => 'truck',     'iconBg' => 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400'],
-];
-
-$utilization = [
-    ['label' => 'DAR-General Store', 'pct' => 78, 'warn' => false],
-    ['label' => 'DAR-Tech Vault',    'pct' => 54, 'warn' => false],
-    ['label' => 'Cold Room',         'pct' => 91, 'warn' => true],
-    ['label' => 'Yard Slots',        'pct' => 60, 'warn' => false, 'neutral' => true, 'label2' => '12 / 20'],
-];
-
-$activity = [
-    ['icon' => 'truck',     'iconBg' => 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10', 'text' => '<strong>GP-2026-088</strong> released for Azam Ltd, vehicle T 452 ABC',                  'meta' => 'Juma Kassim · 12 minutes ago'],
-    ['icon' => 'clipboard', 'iconBg' => 'bg-simba-50 text-simba-600 dark:bg-simba-500/10',        'text' => '<strong>GRN-2026-089</strong> receiving started for container MSKU1234567',               'meta' => 'Onesmo Mlelwa · 45 minutes ago'],
-    ['icon' => 'alert',     'iconBg' => 'bg-red-50 text-red-600 dark:bg-red-500/10',             'text' => 'Shortage of <strong>12 bags</strong> logged against GRN-2026-089',                       'meta' => 'Onesmo Mlelwa · 1 hour ago'],
-    ['icon' => 'arrows',    'iconBg' => 'bg-simba-50 text-simba-600 dark:bg-simba-500/10',       'text' => '150 units of <strong>SKU-AZ-001</strong> moved to DAR-A-03-02-B',                        'meta' => 'Neema Joseph · 3 hours ago'],
-];
-
-$approvals = [
-    ['ref' => 'ADJ-2026-014', 'desc' => 'Cycle count variance, -50 units', 'badge' => 'badge-amber', 'label' => 'Adjustment'],
-    ['ref' => 'TRF-2026-031', 'desc' => 'Tech Vault to Zanzibar, 200 units', 'badge' => 'badge-neutral', 'label' => 'Transfer'],
-    ['ref' => 'INS-2026-022', 'desc' => 'GRN shortage, 12 bags',            'badge' => 'badge-red',    'label' => 'Discrepancy'],
-];
-@endphp
-
 <div class="space-y-6">
-    <div class="page-header">
+
+    {{-- ── Page header + filters ─────────────────────────────────────────── --}}
+    <div class="page-header flex-wrap gap-y-3">
         <div>
             <h2 class="page-title">Operations Overview</h2>
             <p class="page-sub">Live snapshot of inbound, storage and outbound activity</p>
         </div>
-        <div class="flex gap-2">
-            <a href="{{ route('outbound.orders.index') }}" wire:navigate class="btn btn-secondary">
+
+        <div class="flex flex-wrap items-center gap-3 ml-auto">
+            {{-- Warehouse filter --}}
+            @if ($this->warehouses->isNotEmpty())
+            <select wire:model.live="warehouseId" class="input input-sm w-48">
+                <option value="">All warehouses</option>
+                @foreach ($this->warehouses as $wh)
+                    <option value="{{ $wh->id }}">{{ $wh->name }}</option>
+                @endforeach
+            </select>
+            @endif
+
+            {{-- Day range toggle --}}
+            <div class="flex rounded-lg border border-slate-200 dark:border-white/10 overflow-hidden text-xs font-medium">
+                @foreach ([7 => '7d', 30 => '30d', 90 => '90d'] as $val => $label)
+                <button type="button"
+                        wire:click="$set('days', {{ $val }})"
+                        class="px-3 py-1.5 transition-colors
+                               {{ $days === $val
+                                    ? 'bg-simba-600 text-white'
+                                    : 'bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/10' }}">
+                    {{ $label }}
+                </button>
+                @endforeach
+            </div>
+
+            <a href="{{ route('outbound.orders.index') }}" wire:navigate class="btn btn-secondary btn-sm">
                 <x-ui.icon name="cart" class="w-4 h-4" /> New Order
             </a>
-            <a href="{{ route('inbound.grn.create') }}" wire:navigate class="btn btn-primary">
+            <a href="{{ route('inbound.grn.create') }}" wire:navigate class="btn btn-primary btn-sm">
                 <x-ui.icon name="plus" class="w-4 h-4" /> New Receiving
             </a>
         </div>
     </div>
 
-    {{-- KPI cards --}}
-    <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
-        {{-- Static KPI: Stock on Hand --}}
-        <div class="card p-5">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="text-xs font-medium text-slate-500">Stock on Hand</p>
-                    <p class="mt-2 text-3xl font-bold tabular-nums">48,250</p>
-                </div>
-                <div class="kpi-icon bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400">
-                    <x-ui.icon name="archive" class="w-5 h-5" />
-                </div>
-            </div>
-            <p class="mt-3 text-xs text-slate-500">
-                <span class="font-semibold text-emerald-600">+4.2%</span> vs last week
-            </p>
-        </div>
-        {{-- Static KPI: Pending GRNs --}}
-        <div class="card p-5">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="text-xs font-medium text-slate-500">Pending GRNs</p>
-                    <p class="mt-2 text-3xl font-bold tabular-nums">6</p>
-                </div>
-                <div class="kpi-icon bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
-                    <x-ui.icon name="clipboard" class="w-5 h-5" />
+    {{-- ── KPI cards grid ──────────────────────────────────────────────────── --}}
+    <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
+
+        @if ($this->canSeeKpi('stock_on_hand'))
+        <a href="{{ route('inventory.stock.index') }}" wire:navigate
+           class="card p-4 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-medium text-slate-500">Stock on Hand</p>
+                <div class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400 shrink-0">
+                    <x-ui.icon name="archive" class="w-4 h-4" />
                 </div>
             </div>
-            <p class="mt-3 text-xs text-slate-500">
-                <span class="font-semibold text-amber-600">2</span> overdue more than 24h
+            <p class="mt-2 text-2xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">
+                {{ number_format($this->stockOnHand['qty'], 0) }}
             </p>
-        </div>
-        {{-- Real KPI: Active Containers --}}
-        <div class="card p-5">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="text-xs font-medium text-slate-500">Active Containers</p>
-                    <p class="mt-2 text-3xl font-bold tabular-nums">{{ $this->activeContainersCount }}</p>
-                </div>
-                <div class="kpi-icon bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400">
-                    <x-ui.icon name="cube" class="w-5 h-5" />
+            <p class="mt-1 text-xs text-slate-500">{{ number_format($this->stockOnHand['sku_count']) }} SKUs</p>
+        </a>
+        @endif
+
+        @if ($this->canSeeKpi('open_orders'))
+        <div class="card p-4">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-medium text-slate-500">Open Orders</p>
+                <div class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400 shrink-0">
+                    <x-ui.icon name="clipboard-list" class="w-4 h-4" />
                 </div>
             </div>
-            <p class="mt-3 text-xs text-slate-500">
-                <span class="font-semibold text-simba-600">{{ $this->arrivingThisWeek }}</span> arriving this week
+            <p class="mt-2 text-2xl font-bold tabular-nums">{{ number_format($this->openOrders['total']) }}</p>
+            <p class="mt-1 text-xs text-slate-500">
+                {{ $this->openOrders['po_count'] }} PO &bull;
+                {{ $this->openOrders['grn_count'] }} GRN &bull;
+                {{ $this->openOrders['transfer_count'] }} transfer
             </p>
         </div>
-        {{-- Static KPI: Today's Dispatches --}}
-        <div class="card p-5">
-            <div class="flex items-start justify-between">
-                <div>
-                    <p class="text-xs font-medium text-slate-500">Today's Dispatches</p>
-                    <p class="mt-2 text-3xl font-bold tabular-nums">28</p>
-                </div>
-                <div class="kpi-icon bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                    <x-ui.icon name="truck" class="w-5 h-5" />
+        @endif
+
+        @if ($this->canSeeKpi('pending_approvals'))
+        <a href="{{ route('approvals.index') }}" wire:navigate
+           class="card p-4 hover:border-amber-300 dark:hover:border-amber-600 transition-colors group">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-medium text-slate-500">Pending Approvals</p>
+                <div class="kpi-icon !w-8 !h-8 bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 shrink-0">
+                    <x-ui.icon name="bell" class="w-4 h-4" />
                 </div>
             </div>
-            <p class="mt-3 text-xs text-slate-500">
-                <span class="font-semibold text-emerald-600">96%</span> on-time rate
+            <p class="mt-2 text-2xl font-bold tabular-nums {{ $this->pendingApprovals['total'] > 0 ? 'text-amber-600' : '' }}">
+                {{ $this->pendingApprovals['total'] }}
+            </p>
+            <p class="mt-1 text-xs text-slate-500">For you to action</p>
+        </a>
+        @endif
+
+        @if ($this->canSeeKpi('to_receive'))
+        <a href="{{ route('inbound.grn.index') }}" wire:navigate
+           class="card p-4 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-medium text-slate-500">To Receive</p>
+                <div class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400 shrink-0">
+                    <x-ui.icon name="inbox" class="w-4 h-4" />
+                </div>
+            </div>
+            <p class="mt-2 text-2xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">
+                {{ $this->toReceive['total'] }}
+            </p>
+            <p class="mt-1 text-xs text-slate-500">{{ $this->toReceive['today'] }} started today</p>
+        </a>
+        @endif
+
+        @if ($this->canSeeKpi('awaiting_putaway'))
+        <a href="{{ route('inbound.grn.index') }}" wire:navigate
+           class="card p-4 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-medium text-slate-500">Awaiting Put-Away</p>
+                <div class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400 shrink-0">
+                    <x-ui.icon name="arrows" class="w-4 h-4" />
+                </div>
+            </div>
+            <p class="mt-2 text-2xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">
+                {{ $this->awaitingPutaway['total'] }}
+            </p>
+            <p class="mt-1 text-xs text-slate-500">Open tasks</p>
+        </a>
+        @endif
+
+        @if ($this->canSeeKpi('to_pick'))
+        <a href="{{ route('outbound.orders.index') }}" wire:navigate
+           class="card p-4 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-medium text-slate-500">To Pick / Dispatch</p>
+                <div class="kpi-icon !w-8 !h-8 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 shrink-0">
+                    <x-ui.icon name="truck" class="w-4 h-4" />
+                </div>
+            </div>
+            <p class="mt-2 text-2xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">
+                {{ $this->toPick['total'] }}
+            </p>
+            <p class="mt-1 text-xs text-slate-500">Orders ready to pick</p>
+        </a>
+        @endif
+
+        @if ($this->canSeeKpi('in_transit'))
+        <div class="card p-4">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-medium text-slate-500">In Transit</p>
+                <div class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400 shrink-0">
+                    <x-ui.icon name="cube" class="w-4 h-4" />
+                </div>
+            </div>
+            <p class="mt-2 text-2xl font-bold tabular-nums">{{ $this->inTransit['total'] }}</p>
+            <p class="mt-1 text-xs text-slate-500">
+                {{ $this->inTransit['containers'] }} containers &bull;
+                {{ $this->inTransit['transfers'] }} transfers
             </p>
         </div>
+        @endif
+
+        @if ($this->canSeeKpi('low_stock'))
+        <a href="{{ route('inventory.stock.index') }}" wire:navigate
+           class="card p-4 hover:border-red-300 dark:hover:border-red-700 transition-colors group">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-medium text-slate-500">Low Stock</p>
+                <div class="kpi-icon !w-8 !h-8 {{ $this->lowStock['count'] > 0 ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' : 'bg-slate-100 text-slate-400' }} shrink-0">
+                    <x-ui.icon name="alert" class="w-4 h-4" />
+                </div>
+            </div>
+            <p class="mt-2 text-2xl font-bold tabular-nums {{ $this->lowStock['count'] > 0 ? 'text-red-600' : '' }}">
+                {{ $this->lowStock['count'] }}
+            </p>
+            <p class="mt-1 text-xs text-slate-500">SKUs below min stock</p>
+        </a>
+        @endif
+
+        @if ($this->canSeeKpi('expiring'))
+        <a href="{{ route('inventory.stock.index') }}" wire:navigate
+           class="card p-4 hover:border-amber-300 dark:hover:border-amber-600 transition-colors group">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-medium text-slate-500">Expiring Soon</p>
+                <div class="kpi-icon !w-8 !h-8 {{ $this->expiring['count'] > 0 ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' : 'bg-slate-100 text-slate-400' }} shrink-0">
+                    <x-ui.icon name="clock" class="w-4 h-4" />
+                </div>
+            </div>
+            <p class="mt-2 text-2xl font-bold tabular-nums {{ $this->expiring['count'] > 0 ? 'text-amber-600' : '' }}">
+                {{ $this->expiring['count'] }}
+            </p>
+            <p class="mt-1 text-xs text-slate-500">SKUs expiring in ≤ 30 days</p>
+        </a>
+        @endif
+
+        @if ($this->canSeeKpi('containers_in_yard'))
+        <a href="{{ route('inbound.containers.index') }}" wire:navigate
+           class="card p-4 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
+            <div class="flex items-start justify-between gap-2">
+                <p class="text-xs font-medium text-slate-500">Containers in Yard</p>
+                <div class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400 shrink-0">
+                    <x-ui.icon name="cube" class="w-4 h-4" />
+                </div>
+            </div>
+            <p class="mt-2 text-2xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">
+                {{ $this->containersInYard['total'] }}
+            </p>
+            <p class="mt-1 text-xs {{ $this->containersInYard['over_dwell'] > 0 ? 'text-red-500 font-medium' : 'text-slate-500' }}">
+                @if ($this->containersInYard['over_dwell'] > 0)
+                    {{ $this->containersInYard['over_dwell'] }} over dwell limit
+                @else
+                    All within dwell limit
+                @endif
+            </p>
+        </a>
+        @endif
+
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {{-- Inbound pipeline --}}
-        <div class="card lg:col-span-2">
-            <div class="card-header">
-                <h3 class="card-title">Inbound Pipeline</h3>
-                <a href="{{ route('inbound.containers.index') }}" wire:navigate class="text-xs font-semibold text-simba-600 hover:underline">View all containers</a>
-            </div>
-            <x-ui.table>
-                    <thead>
-                        <tr>
-                            <th>Container</th><th>Vessel</th><th>ETA</th><th>Yard Slot</th><th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($this->pipelineContainers as $row)
-                            <tr>
-                                <td>
-                                    <a href="{{ route('inbound.containers.show', $row) }}" wire:navigate class="mono font-semibold text-simba-700 dark:text-simba-400 hover:text-simba-600 transition-colors">{{ $row->container_no }}</a>
-                                </td>
-                                <td class="text-sm">{{ $row->vessel ?? '—' }}</td>
-                                <td class="tabular-nums text-sm">{{ $row->eta?->format('d M Y') ?? '—' }}</td>
-                                <td>
-                                    @if($row->yardLocation)
-                                        <span class="font-mono text-xs px-2 py-0.5 rounded-md bg-zinc-900/5 dark:bg-white/10 text-slate-700 dark:text-slate-200">{{ $row->yardLocation->code }}</span>
-                                    @else
-                                        <span class="text-slate-400 italic text-sm">Not assigned</span>
-                                    @endif
-                                </td>
-                                <td><span class="badge {{ $row->status->color() }}"><span class="dot"></span>{{ $row->status->label() }}</span></td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="py-8 text-center text-sm text-slate-400">No active containers in the pipeline.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-            </x-ui.table>
-        </div>
+    {{-- ── Charts ───────────────────────────────────────────────────────────── --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {{-- Warehouse utilization --}}
+        {{-- Inbound vs Outbound --}}
+        @if ($this->canSeeChart('inbound_vs_outbound'))
         <div class="card">
-            <div class="card-header"><h3 class="card-title">Warehouse Utilization</h3></div>
-            <div class="card-body space-y-5">
-                @foreach ($utilization as $u)
-                    <div>
-                        <div class="flex justify-between text-sm mb-2">
-                            <span class="font-medium">{{ $u['label'] }}</span>
-                            <span class="tabular-nums font-semibold {{ $u['warn'] ? 'text-amber-600' : '' }}">
-                                {{ $u['label2'] ?? $u['pct'] . '%' }}
-                            </span>
-                        </div>
-                        <x-ui.progress :value="$u['pct']" :neutral="$u['neutral'] ?? false" />
-                        @if ($u['warn'])
-                            <p class="hint">Approaching capacity, plan re-slotting.</p>
-                        @endif
-                    </div>
-                @endforeach
+            <div class="card-header">
+                <h3 class="card-title">Inbound vs Outbound</h3>
+                <span class="text-xs text-slate-400 ml-auto">Last {{ $days }} days</span>
+            </div>
+            <div class="card-body">
+                <x-ui.chart
+                    type="line"
+                    :series="$this->chartInboundVsOutbound['series'] ?? []"
+                    :categories="$this->chartInboundVsOutbound['categories'] ?? []"
+                    :height="240"
+                    unit="units"
+                    chart-id="chart-inbound-outbound"
+                />
             </div>
         </div>
-    </div>
+        @endif
 
-    {{-- Outbound metrics --}}
-    <div>
-        <h3 class="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Outbound</h3>
-        <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
-            {{-- Pending Orders --}}
-            <a href="{{ route('outbound.orders.index') }}" wire:navigate class="card p-5 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <p class="text-xs font-medium text-slate-500">Pending Orders</p>
-                        <p class="mt-2 text-3xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">{{ $this->pendingOrdersCount }}</p>
-                    </div>
-                    <div class="kpi-icon bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400">
-                        <x-ui.icon name="clipboard-list" class="w-5 h-5" />
-                    </div>
-                </div>
-                <p class="mt-3 text-xs text-slate-500">Draft, submitted &amp; approved</p>
-            </a>
-
-            {{-- Today's Dispatches --}}
-            <div class="card p-5">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <p class="text-xs font-medium text-slate-500">Today's Dispatches</p>
-                        <p class="mt-2 text-3xl font-bold tabular-nums">{{ $this->todayDispatchCount }}</p>
-                    </div>
-                    <div class="kpi-icon bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
-                        <x-ui.icon name="truck" class="w-5 h-5" />
-                    </div>
-                </div>
-                <p class="mt-3 text-xs text-slate-500">Dispatched today</p>
+        {{-- Order Status Pipeline --}}
+        @if ($this->canSeeChart('order_pipeline'))
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Order Pipeline</h3>
+                <span class="text-xs text-slate-400 ml-auto">By status</span>
             </div>
-
-            {{-- Open Pick Lists --}}
-            <a href="{{ route('outbound.pick-lists.index') }}" wire:navigate class="card p-5 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <p class="text-xs font-medium text-slate-500">Open Pick Lists</p>
-                        <p class="mt-2 text-3xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">{{ $this->openPickListsCount }}</p>
-                    </div>
-                    <div class="kpi-icon bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400">
-                        <x-ui.icon name="clipboard" class="w-5 h-5" />
-                    </div>
-                </div>
-                <p class="mt-3 text-xs text-slate-500">Open &amp; in-progress</p>
-            </a>
-
-            {{-- Overdue Orders --}}
-            <a href="{{ route('outbound.orders.index') }}" wire:navigate class="card p-5 hover:border-red-300 dark:hover:border-red-700 transition-colors group">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <p class="text-xs font-medium text-slate-500">Overdue Orders</p>
-                        <p class="mt-2 text-3xl font-bold tabular-nums {{ $this->overdueOrdersCount > 0 ? 'text-red-600' : '' }}">{{ $this->overdueOrdersCount }}</p>
-                    </div>
-                    <div class="kpi-icon {{ $this->overdueOrdersCount > 0 ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-500' }}">
-                        <x-ui.icon name="alert" class="w-5 h-5" />
-                    </div>
-                </div>
-                <p class="mt-3 text-xs {{ $this->overdueOrdersCount > 0 ? 'text-red-500 font-semibold' : 'text-slate-500' }}">
-                    {{ $this->overdueOrdersCount > 0 ? 'Past required date' : 'All on time' }}
-                </p>
-            </a>
+            <div class="card-body">
+                <x-ui.chart
+                    type="bar"
+                    :series="$this->chartOrderPipeline['series'] ?? []"
+                    :categories="$this->chartOrderPipeline['categories'] ?? []"
+                    :height="240"
+                    chart-id="chart-order-pipeline"
+                />
+            </div>
         </div>
+        @endif
+
+        {{-- Top Moving Items --}}
+        @if ($this->canSeeChart('top_moving_items'))
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Top Moving Items</h3>
+                <span class="text-xs text-slate-400 ml-auto">Last {{ $days }} days · dispatched qty</span>
+            </div>
+            <div class="card-body">
+                <x-ui.chart
+                    type="bar"
+                    :horizontal="true"
+                    :series="$this->chartTopMovingItems['series'] ?? []"
+                    :categories="$this->chartTopMovingItems['categories'] ?? []"
+                    :height="240"
+                    unit="units"
+                    chart-id="chart-top-items"
+                />
+            </div>
+        </div>
+        @endif
+
+        {{-- Bin Utilisation --}}
+        @if ($this->canSeeChart('bin_utilisation'))
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Bin Utilisation</h3>
+                @php $binPct = $this->chartBinUtilisation['series'][0] ?? 0; @endphp
+                <span class="text-xs text-slate-400 ml-auto">{{ number_format($binPct, 1) }}% occupied</span>
+            </div>
+            <div class="card-body">
+                <x-ui.chart
+                    type="radialBar"
+                    :series="$this->chartBinUtilisation['series'] ?? []"
+                    :categories="$this->chartBinUtilisation['categories'] ?? []"
+                    :height="240"
+                    chart-id="chart-bin-util"
+                />
+            </div>
+        </div>
+        @endif
+
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {{-- Recent activity --}}
-        <div class="card lg:col-span-2">
-            <div class="card-header"><h3 class="card-title">Recent Activity</h3></div>
-            <ul class="divide-y" style="--tw-divide-color: rgb(255 255 255 / 0.4)">
-                @foreach ($activity as $item)
-                    <li class="flex gap-4 px-5 py-4">
-                        <div class="kpi-icon !w-8 !h-8 {{ $item['iconBg'] }}">
-                            <x-ui.icon :name="$item['icon']" class="w-4 h-4" />
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm">{!! $item['text'] !!}</p>
-                            <p class="text-xs text-slate-500 mt-0.5">{{ $item['meta'] }}</p>
-                        </div>
-                    </li>
-                @endforeach
-            </ul>
-        </div>
+    {{-- ── Action lists ────────────────────────────────────────────────────── --}}
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-        {{-- Awaiting approval --}}
+        @if ($this->canSeeAction('my_approvals'))
         <div class="card flex flex-col">
             <div class="card-header">
-                <h3 class="card-title">Awaiting Your Approval</h3>
-                <span class="badge badge-simba">{{ count($approvals) }}</span>
+                <h3 class="card-title">Pending Approvals</h3>
+                @if ($this->myApprovals->isNotEmpty())
+                    <span class="badge badge-amber ml-auto">{{ $this->myApprovals->count() }}</span>
+                @endif
             </div>
-            <ul class="flex-1">
-                @foreach ($approvals as $item)
-                    <li class="list-row">
-                        <div>
-                            <p class="text-sm font-semibold mono">{{ $item['ref'] }}</p>
-                            <p class="text-xs text-slate-500">{{ $item['desc'] }}</p>
-                        </div>
-                        <span class="badge {{ $item['badge'] }}">{{ $item['label'] }}</span>
-                    </li>
-                @endforeach
-            </ul>
-            <div class="p-4" style="border-top: 1px solid rgb(255 255 255 / 0.4);">
-                <a href="{{ route('approvals.index') }}" wire:navigate class="btn btn-secondary w-full">Open Approvals Inbox</a>
+            @if ($this->myApprovals->isEmpty())
+                <div class="card-body">
+                    <p class="text-sm text-slate-400 text-center py-4">No approvals awaiting your action.</p>
+                </div>
+            @else
+            <x-ui.table>
+                <thead>
+                    <tr><th>Ref</th><th>Type</th><th>Details</th><th>Age</th>@if (! $this->isReadonly())<th></th>@endif</tr>
+                </thead>
+                <tbody>
+                    @foreach ($this->myApprovals as $a)
+                    <tr>
+                        <td class="mono font-semibold">{{ $a['ref'] }}</td>
+                        <td><span class="badge {{ $a['badge'] }}">{{ $a['type'] }}</span></td>
+                        <td class="text-sm text-slate-500">{{ $a['desc'] }}</td>
+                        <td class="text-sm text-slate-400 tabular-nums">{{ $a['age'] }}</td>
+                        @if (! $this->isReadonly())
+                        <td>
+                            <a href="{{ route('approvals.index') }}" wire:navigate
+                               class="btn btn-secondary btn-xs">Review</a>
+                        </td>
+                        @endif
+                    </tr>
+                    @endforeach
+                </tbody>
+            </x-ui.table>
+            @endif
+            <div class="card-footer mt-auto">
+                <a href="{{ route('approvals.index') }}" wire:navigate class="btn btn-secondary btn-sm w-full">
+                    Open Approvals Inbox
+                </a>
             </div>
         </div>
+        @endif
+
+        @if ($this->canSeeAction('overdue_orders'))
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Overdue Orders</h3>
+                @if ($this->overdueOrders->isNotEmpty())
+                    <span class="badge badge-red ml-auto">{{ $this->overdueOrders->count() }}</span>
+                @endif
+            </div>
+            @if ($this->overdueOrders->isEmpty())
+                <div class="card-body">
+                    <p class="text-sm text-slate-400 text-center py-4">All orders are on time.</p>
+                </div>
+            @else
+            <x-ui.table>
+                <thead>
+                    <tr><th>Order</th><th>Consignee</th><th>Required</th><th>Status</th></tr>
+                </thead>
+                <tbody>
+                    @foreach ($this->overdueOrders as $do)
+                    <tr>
+                        <td>
+                            <a href="{{ route('outbound.orders.show', $do) }}" wire:navigate
+                               class="mono font-semibold text-simba-700 dark:text-simba-400 hover:text-simba-600">
+                                {{ $do->number }}
+                            </a>
+                        </td>
+                        <td class="text-sm">{{ $do->consigneePartner?->name ?? '—' }}</td>
+                        <td class="text-sm tabular-nums text-red-600 font-medium">
+                            {{ $do->required_date?->format('d M Y') ?? '—' }}
+                        </td>
+                        <td><span class="badge badge-red">{{ ucwords(str_replace('_', ' ', $do->status->value)) }}</span></td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </x-ui.table>
+            @endif
+        </div>
+        @endif
+
+        @if ($this->canSeeAction('recent_variances'))
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Recent Variances</h3>
+            </div>
+            @if ($this->recentVariances->isEmpty())
+                <div class="card-body">
+                    <p class="text-sm text-slate-400 text-center py-4">No recent variances.</p>
+                </div>
+            @else
+            <x-ui.table>
+                <thead>
+                    <tr><th>Source</th><th>Ref</th><th>SKU</th><th>Item</th><th class="text-right">Variance</th></tr>
+                </thead>
+                <tbody>
+                    @foreach ($this->recentVariances as $v)
+                    <tr>
+                        <td><span class="badge {{ $v['badge'] }} text-xs">{{ $v['source'] }}</span></td>
+                        <td class="mono text-xs">{{ $v['ref'] }}</td>
+                        <td class="mono text-xs">{{ $v['sku'] }}</td>
+                        <td class="text-sm">{{ $v['item'] }}</td>
+                        <td class="text-right mono text-sm font-semibold {{ $v['var'] < 0 ? 'text-red-600' : 'text-amber-600' }}">
+                            {{ $v['var'] >= 0 ? '+' : '' }}{{ number_format($v['var'], 2) }}
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </x-ui.table>
+            @endif
+        </div>
+        @endif
+
+        @if ($this->canSeeAction('recent_activity'))
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Recent Activity</h3>
+                <a href="{{ route('inventory.movements.index') }}" wire:navigate
+                   class="text-xs font-semibold text-simba-600 hover:underline ml-auto">View all</a>
+            </div>
+            @if ($this->recentActivity->isEmpty())
+                <div class="card-body">
+                    <p class="text-sm text-slate-400 text-center py-4">No recent stock movements.</p>
+                </div>
+            @else
+            <x-ui.table>
+                <thead>
+                    <tr><th>Ref</th><th>Type</th><th>Posted By</th><th>When</th></tr>
+                </thead>
+                <tbody>
+                    @foreach ($this->recentActivity as $txn)
+                    <tr>
+                        <td class="mono text-xs font-semibold">{{ $txn->reference_no ?? '—' }}</td>
+                        <td class="text-sm">{{ $txn->type?->label() ?? ucfirst(str_replace('_', ' ', $txn->type ?? '')) }}</td>
+                        <td class="text-sm">{{ $txn->postedBy?->name ?? '—' }}</td>
+                        <td class="text-xs text-slate-400 tabular-nums">{{ $txn->posted_at?->diffForHumans() }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </x-ui.table>
+            @endif
+        </div>
+        @endif
+
     </div>
+
 </div>

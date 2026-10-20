@@ -27,9 +27,8 @@ use Illuminate\Support\Facades\Hash;
 class DemoUsersSeeder extends Seeder
 {
     private const PASSWORD = 'Password1!';
-
     private const USERS = [
-        ['email' => 'admin@wms.local',    'name' => 'System Administrator', 'role' => 'system-admin'],
+        ['email' => 'david.haule@simbalogistic.co.tz',    'name' => 'System Administrator', 'role' => 'system-admin'],
         ['email' => 'wm@wms.local',       'name' => 'Warehouse Manager',    'role' => 'warehouse-manager'],
         ['email' => 'ws@wms.local',       'name' => 'Warehouse Supervisor', 'role' => 'warehouse-supervisor'],
         ['email' => 'dept@wms.local',     'name' => 'Department User',      'role' => 'department-user'],

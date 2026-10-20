@@ -107,6 +107,7 @@
                     <th>Type</th>
                     <th>Number</th>
                     <th>Department / VW</th>
+                    <th>Progress</th>
                     <th>Date</th>
                     <th>Status</th>
                     <th></th>
@@ -180,6 +181,24 @@
                             {{ $order->department_name ?? '—' }}
                         </td>
 
+                        {{-- Progress --}}
+                        <td>
+                            @php
+                                $pct      = (int) ($order->progress_pct ?? 0);
+                                $barColor = $pct >= 100 ? 'bg-emerald-500' : ($pct > 0 ? 'bg-simba-500' : 'bg-slate-200 dark:bg-slate-700');
+                            @endphp
+                            @if ($order->rec_type === 'po')
+                                <div class="flex items-center gap-2 min-w-[90px]">
+                                    <div class="progress flex-1">
+                                        <div class="{{ $barColor }}" style="width:{{ $pct }}%"></div>
+                                    </div>
+                                    <span class="text-xs tabular-nums text-slate-500 dark:text-slate-400 shrink-0">{{ $pct }}%</span>
+                                </div>
+                            @else
+                                <span class="text-slate-400">—</span>
+                            @endif
+                        </td>
+
                         {{-- Date --}}
                         <td class="tabular-nums text-sm text-slate-600 dark:text-slate-400">
                             {{ $order->doc_date ? \Carbon\Carbon::parse($order->doc_date)->format('d M Y') : '—' }}
@@ -225,7 +244,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="!py-12 text-center text-slate-500">
+                        <td colspan="8" class="!py-12 text-center text-slate-500">
                             @if ($search || $statusFilter || $dateFrom || $dateTo)
                                 No orders match your current filters.
                             @else

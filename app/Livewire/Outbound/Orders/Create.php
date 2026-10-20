@@ -33,6 +33,7 @@ class Create extends Component
     public string $requiredDate        = '';
     public string $priority            = 'normal';
     public string $allocationRule      = 'fefo';
+    public string $packageType         = '';
     public string $remarks             = '';
     public string $mrnNumber           = '';
     public mixed  $mrnFile             = null;
@@ -228,6 +229,7 @@ class Create extends Component
                 'required_date'        => $this->requiredDate,
                 'priority'             => $this->priority,
                 'allocation_rule'      => $this->allocationRule,
+                'package_type'         => $this->packageType ?: null,
                 'remarks'              => $this->remarks,
                 'mrn_number'           => $this->mrnNumber,
                 'mrn_file_path'        => $mrnFilePath,

@@ -23,6 +23,15 @@
 
         {{-- Action Buttons --}}
         <div class="flex flex-wrap items-center gap-2">
+            {{-- Attached PO document — always visible when uploaded --}}
+            @if ($purchaseOrder->po_file_path)
+                <x-ui.pdf-viewer :url="route('inbound.orders.document.download', $purchaseOrder)"
+                                 label="Attached PO Document"
+                                 btnClass="btn btn-secondary gap-1.5">
+                    <x-ui.icon name="paper-clip" class="w-4 h-4" /> Attached PO
+                </x-ui.pdf-viewer>
+            @endif
+
             {{-- Draft actions --}}
             @if ($purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::Draft)
                 @can('update', $purchaseOrder)
@@ -114,7 +123,7 @@
                 @endcan
                 @can('closeShort', $purchaseOrder)
                     <button wire:click="openCloseShortModal" class="btn btn-secondary text-amber-600 dark:text-amber-400">
-                        <x-ui.icon name="x-mark" class="w-4 h-4" /> Close Short
+                        <x-ui.icon name="x-mark" class="w-4 h-4" /> Close Partial Delivery
                     </button>
                 @endcan
             @endif
@@ -129,6 +138,13 @@
                         <x-ui.icon name="check-badge" class="w-4 h-4" /> Validate
                     </button>
                 @endcan
+                @canany(['warehouse-manager', 'system-admin'])
+                    <button wire:click="closeOrder"
+                            wire:confirm="Close this purchase order now? This skips validation and marks it as closed."
+                            class="btn btn-secondary">
+                        <x-ui.icon name="lock-closed" class="w-4 h-4" /> Close Order
+                    </button>
+                @endcanany
             @endif
 
             {{-- Completed / issue raised / issue resolved — approver verifies --}}
@@ -156,6 +172,13 @@
                         @endforeach
                     @endif
                 @endcan
+                @canany(['warehouse-manager', 'system-admin'])
+                    <button wire:click="closeOrder"
+                            wire:confirm="Close this purchase order now?"
+                            class="btn btn-secondary">
+                        <x-ui.icon name="lock-closed" class="w-4 h-4" /> Close Order
+                    </button>
+                @endcanany
             @endif
 
             {{-- Cancel (if status is cancellable) --}}
@@ -173,7 +196,8 @@
 
     {{-- Status Timeline --}}
     @php
-        $currentIdx = collect($this->timelineSteps)->search(fn($s) => $s['status'] === $purchaseOrder->status);
+        $currentIdx   = collect($this->timelineSteps)->search(fn($s) => $s['status'] === $this->timelineStatus());
+        $allDone = $purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::VerifiedClosed;
         $terminalOverride = in_array($purchaseOrder->status, [
             \App\Enums\Inbound\PurchaseOrderStatus::Rejected,
             \App\Enums\Inbound\PurchaseOrderStatus::Cancelled,
@@ -185,8 +209,8 @@
             <div class="flex items-center gap-0 min-w-max">
                 @foreach ($this->timelineSteps as $i => $step)
                     @php
-                        $done    = !$terminalOverride && $currentIdx !== false && $i < $currentIdx;
-                        $current = !$terminalOverride && $currentIdx === $i;
+                        $done    = $allDone || (!$terminalOverride && $currentIdx !== false && $i < $currentIdx);
+                        $current = !$allDone && !$terminalOverride && $currentIdx === $i;
                     @endphp
                     <div class="flex items-center">
                         <div class="flex flex-col items-center gap-1">
@@ -212,8 +236,8 @@
                         @if (!$loop->last)
                             <div @class([
                                 'h-0.5 w-8 mx-1 rounded self-start mt-4',
-                                'bg-emerald-400' => $done,
-                                'bg-slate-200 dark:bg-slate-700' => !$done,
+                                'bg-emerald-400' => $allDone || $done,
+                                'bg-slate-200 dark:bg-slate-700' => !$allDone && !$done,
                             ])></div>
                         @endif
                     </div>
@@ -238,10 +262,11 @@
                 <div class="card-header">
                     <h3 class="card-title">Purchase Order Details</h3>
                     @if ($purchaseOrder->po_file_path)
-                        <a href="{{ route('inbound.orders.document.download', $purchaseOrder) }}"
-                           class="btn btn-ghost btn-sm text-xs gap-1.5 ml-auto">
+                        <x-ui.pdf-viewer :url="route('inbound.orders.document.download', $purchaseOrder)"
+                                         label="Purchase Order Document"
+                                         btnClass="btn btn-ghost btn-sm text-xs gap-1.5 ml-auto">
                             <x-ui.icon name="document" class="w-3.5 h-3.5" /> PO Document
-                        </a>
+                        </x-ui.pdf-viewer>
                     @endif
                 </div>
                 <div class="card-body grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4 text-sm">
@@ -356,16 +381,21 @@
                                 <th>GRN Number</th>
                                 <th>Status</th>
                                 <th>Dock</th>
-                                <th>Received By</th>
+                                <th class="text-right">Items Received</th>
                                 <th>Date</th>
                                 <th class="text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             @foreach ($purchaseOrder->grns as $grn)
+                                @php
+                                    $totalGood    = $grn->lines->sum(fn($l) => (float)($l->received_good_qty ?? 0));
+                                    $totalDamaged = $grn->lines->sum(fn($l) => (float)($l->received_damaged_qty ?? 0));
+                                    $totalItems   = $grn->lines->count();
+                                @endphp
                                 <tr wire:key="grn-{{ $grn->id }}">
                                     <td class="font-mono text-sm font-semibold text-simba-600 dark:text-simba-400">
-                                        {{ $grn->number ?? '(tally in progress)' }}
+                                        {{ $grn->number ?? '(Receiving in progress)' }}
                                     </td>
                                     <td>
                                         <span class="badge {{ $grn->status->color() }}">
@@ -373,12 +403,26 @@
                                         </span>
                                     </td>
                                     <td class="font-mono text-xs text-slate-500">{{ $grn->receivingDock?->code ?? '—' }}</td>
-                                    <td class="text-sm text-slate-600 dark:text-slate-400">{{ $grn->receivedByUser?->name ?? '—' }}</td>
+                                    <td class="text-right">
+                                        @if ($totalItems > 0)
+                                            <div class="tabular-nums text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+                                                {{ number_format($totalGood, 2) }}
+                                            </div>
+                                            @if ($totalDamaged > 0)
+                                                <div class="tabular-nums text-xs text-red-500 dark:text-red-400">
+                                                    +{{ number_format($totalDamaged, 2) }} dmg
+                                                </div>
+                                            @endif
+                                            <div class="text-xs text-slate-400">{{ $totalItems }} line(s)</div>
+                                        @else
+                                            <span class="text-slate-400">—</span>
+                                        @endif
+                                    </td>
                                     <td class="text-xs text-slate-500">{{ $grn->created_at->format('d M Y H:i') }}</td>
                                     <td class="text-right">
                                         @if ($grn->number === null && $grn->status === \App\Enums\GrnStatus::Draft)
                                             <a href="{{ route('inbound.grn.tally', $grn) }}" wire:navigate class="btn btn-primary btn-sm">
-                                                <x-ui.icon name="pencil" class="w-3.5 h-3.5" /> Continue Tally
+                                                <x-ui.icon name="pencil" class="w-3.5 h-3.5" /> Continue Receiving
                                             </a>
                                         @else
                                             <a href="{{ route('inbound.grn.show', $grn) }}" wire:navigate class="btn btn-secondary btn-sm">
@@ -398,24 +442,92 @@
         {{-- Right: Sidebar --}}
         <div class="space-y-6">
 
+            {{-- Documents card — visible once approved --}}
+            @php
+                $approvedStatuses = [
+                    \App\Enums\Inbound\PurchaseOrderStatus::ApprovedPendingAcceptance,
+                    \App\Enums\Inbound\PurchaseOrderStatus::AcceptedPendingAssignment,
+                    \App\Enums\Inbound\PurchaseOrderStatus::AssignedPendingReceiving,
+                    \App\Enums\Inbound\PurchaseOrderStatus::ReceivingInProgress,
+                    \App\Enums\Inbound\PurchaseOrderStatus::PartiallyReceived,
+                    \App\Enums\Inbound\PurchaseOrderStatus::PendingPutaway,
+                    \App\Enums\Inbound\PurchaseOrderStatus::PutawayInProgress,
+                    \App\Enums\Inbound\PurchaseOrderStatus::PendingSupervisorValidation,
+                    \App\Enums\Inbound\PurchaseOrderStatus::CompletedPendingVerification,
+                    \App\Enums\Inbound\PurchaseOrderStatus::IssueRaised,
+                    \App\Enums\Inbound\PurchaseOrderStatus::IssueResolved,
+                    \App\Enums\Inbound\PurchaseOrderStatus::VerifiedClosed,
+                ];
+            @endphp
+            @if (in_array($purchaseOrder->status, $approvedStatuses, true))
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Documents</h3>
+                    </div>
+                    <div class="card-body space-y-3">
+                        {{-- Attached PO document --}}
+                        <div class="flex items-center justify-between gap-3 p-3 rounded-lg bg-slate-50 dark:bg-white/[0.03] border border-slate-100 dark:border-white/[0.06]">
+                            <div class="flex items-center gap-2.5 min-w-0">
+                                <div class="shrink-0 w-8 h-8 rounded-md bg-simba-50 dark:bg-simba-900/30 flex items-center justify-center">
+                                    <x-ui.icon name="document-text" class="w-4 h-4 text-simba-600 dark:text-simba-400" />
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">Purchase Order</p>
+                                    <p class="text-[10px] text-slate-400 font-mono">{{ $purchaseOrder->number }}</p>
+                                </div>
+                            </div>
+                            @if ($purchaseOrder->po_file_path)
+                                <x-ui.pdf-viewer :url="route('inbound.orders.document.download', $purchaseOrder)"
+                                                 label="Purchase Order — {{ $purchaseOrder->number }}"
+                                                 btnClass="btn btn-ghost btn-sm gap-1 text-xs shrink-0">
+                                    <x-ui.icon name="eye" class="w-3.5 h-3.5" /> View
+                                </x-ui.pdf-viewer>
+                            @else
+                                <span class="text-[10px] text-slate-400 italic shrink-0">No document attached</span>
+                            @endif
+                        </div>
+
+                        {{-- Approval stamp --}}
+                        @if ($purchaseOrder->approved_at)
+                            <p class="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                <x-ui.icon name="check-badge" class="w-3.5 h-3.5" />
+                                Approved {{ $purchaseOrder->approved_at->format('d M Y H:i') }}
+                            </p>
+                        @endif
+                    </div>
+                </div>
+            @endif
+
             {{-- Assignment card --}}
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">Assignment</h3>
                 </div>
-                <div class="card-body space-y-4 text-sm">
-                    <div>
-                        <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Supervisor</p>
-                        <p class="mt-1 font-medium text-slate-800 dark:text-slate-200">
-                            {{ $purchaseOrder->assignedSupervisor?->name ?? '—' }}
-                        </p>
-                    </div>
-                    <div>
-                        <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Clerk</p>
-                        <p class="mt-1 font-medium text-slate-800 dark:text-slate-200">
-                            {{ $purchaseOrder->assignedClerk?->name ?? '—' }}
-                        </p>
-                    </div>
+                <div class="divide-y divide-slate-100 dark:divide-white/[0.06]">
+                    @foreach ([
+                        ['person' => $purchaseOrder->assignedSupervisor, 'role' => 'Supervisor'],
+                        ['person' => $purchaseOrder->assignedClerk,       'role' => 'Receiving Clerk'],
+                    ] as $row)
+                        <div class="px-5 py-3 flex items-center gap-3">
+                            @if ($row['person'])
+                                <div class="shrink-0 w-8 h-8 rounded-full bg-simba-100 dark:bg-simba-900/40 flex items-center justify-center text-xs font-bold text-simba-700 dark:text-simba-300 uppercase">
+                                    {{ mb_substr($row['person']->name, 0, 1) }}
+                                </div>
+                                <div>
+                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $row['person']->name }}</p>
+                                    <p class="text-xs text-slate-400 dark:text-slate-500">{{ $row['role'] }}</p>
+                                </div>
+                            @else
+                                <div class="shrink-0 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                                    <x-ui.icon name="user" class="w-4 h-4 text-slate-400" />
+                                </div>
+                                <div>
+                                    <p class="text-sm text-slate-400 dark:text-slate-500">Unassigned</p>
+                                    <p class="text-xs text-slate-400 dark:text-slate-500">{{ $row['role'] }}</p>
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
                 </div>
             </div>
 
@@ -613,7 +725,6 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <h3 class="font-bold text-slate-900 dark:text-white">Start Receiving</h3>
-                        <p class="text-xs text-slate-500 mt-0.5">Record vehicle and dock details before entering quantities.</p>
                     </div>
                     <button wire:click="closeReceiveModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
                 </div>
@@ -630,17 +741,25 @@
                         @error('receiveDockId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                     </div>
 
-                    {{-- Container fields — only when PO package type = Container --}}
+                    {{-- Container Details — only when PO package type = Container --}}
                     @if ($purchaseOrder->package_type?->value === 'container')
+                        <div class="md:col-span-2 pt-1">
+                            <div class="flex items-center gap-2 mb-3">
+                                <div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
+                                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Container Details</span>
+                                <div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
+                            </div>
+                        </div>
+
                         <div>
-                            <label class="label">Container No. <span class="text-red-500">*</span></label>
+                            <label class="label">Container No.</label>
                             <input wire:model="receiveContainerNo" type="text"
-                                   placeholder="e.g. TCKU1234567 (ISO format)"
+                                   placeholder="e.g. TCKU1234567"
                                    class="input font-mono uppercase" />
                             @error('receiveContainerNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="label">Size / Type <span class="text-red-500">*</span></label>
+                            <label class="label">Size / Type</label>
                             <select wire:model="receiveContainerSizeType" class="input">
                                 <option value="">Select…</option>
                                 @foreach (\App\Enums\ContainerSizeType::cases() as $st)
@@ -649,15 +768,22 @@
                             </select>
                             @error('receiveContainerSizeType') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                         </div>
+                        <div>
+                            <label class="label">Seal No.</label>
+                            <input wire:model="receiveContainerSealNo" type="text"
+                                   placeholder="Seal number"
+                                   class="input font-mono" />
+                        </div>
+                        <div>
+                            <label class="label">Shipping Line</label>
+                            <select wire:model="receiveContainerShippingLineId" class="input">
+                                <option value="">Select shipping line…</option>
+                                @foreach ($this->shippingLines as $sl)
+                                    <option value="{{ $sl->id }}">{{ $sl->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
                     @endif
-
-                    <div>
-                        <label class="label">Delivery Type</label>
-                        <select wire:model="receiveDeliveryType" class="input">
-                            <option value="full">Full Delivery</option>
-                            <option value="partial">Partial Delivery</option>
-                        </select>
-                    </div>
 
                     <div>
                         <label class="label">Vehicle Type</label>
@@ -689,31 +815,6 @@
                         <input wire:model="receiveTransporter" type="text" class="input" />
                     </div>
 
-                    <div class="md:col-span-2">
-                        <label class="label">Seal Check</label>
-                        <div class="flex gap-4">
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input wire:model.live="receiveSealCheck" type="radio" value="match" class="text-simba-600" />
-                                <span class="text-sm text-slate-700 dark:text-slate-200">Match</span>
-                            </label>
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input wire:model.live="receiveSealCheck" type="radio" value="mismatch" class="text-red-500" />
-                                <span class="text-sm text-slate-700 dark:text-slate-200">Mismatch</span>
-                            </label>
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input wire:model.live="receiveSealCheck" type="radio" value="na" class="text-slate-400" />
-                                <span class="text-sm text-slate-700 dark:text-slate-200">N/A</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    @if ($receiveSealCheck === 'mismatch')
-                        <div class="md:col-span-2">
-                            <label class="label text-red-600">Mismatch Reason <span class="text-red-500">*</span></label>
-                            <textarea wire:model="receiveSealMismatchReason" rows="2" class="input resize-none border-red-300"
-                                      placeholder="Describe the seal mismatch…"></textarea>
-                        </div>
-                    @endif
                 </div>
 
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
@@ -816,11 +917,11 @@
              x-data wire:click.self="closeCloseShortModal">
             <div class="card w-full max-w-md p-6 space-y-4">
                 <div class="flex items-center justify-between">
-                    <h3 class="font-bold text-slate-900 dark:text-white">Close Short Delivery</h3>
+                    <h3 class="font-bold text-slate-900 dark:text-white">Close Partial Delivery</h3>
                     <button wire:click="closeCloseShortModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
                 </div>
                 <p class="text-sm text-slate-600 dark:text-slate-400">
-                    This will close the PO even though not all lines have been fully received. A reason is required.
+                    This will close the PO as a partial delivery — not all lines have been fully received. A reason is required.
                 </p>
                 <div>
                     <label class="label">Reason <span class="text-red-500">*</span></label>
@@ -831,7 +932,7 @@
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="closeCloseShortModal" class="btn btn-ghost">Cancel</button>
                     <button wire:click="closeShort" wire:loading.attr="disabled" class="btn btn-secondary text-amber-600">
-                        <span wire:loading.remove wire:target="closeShort">Close Short</span>
+                        <span wire:loading.remove wire:target="closeShort">Confirm Partial Delivery</span>
                         <span wire:loading wire:target="closeShort">Closing…</span>
                     </button>
                 </div>

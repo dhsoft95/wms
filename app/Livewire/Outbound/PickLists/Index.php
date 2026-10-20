@@ -29,12 +29,11 @@ class Index extends Component
     public string $assignUserId     = '';
 
     // Execute task modal (desktop picking)
-    public bool   $showPickModal     = false;
-    public ?int   $activeTaskId      = null;
-    public string $pickedQty         = '';
-    public array  $availableSerials  = [];
-    public array  $selectedSerials   = [];
-    public string $pickedSerial      = '';  // fallback when no serials in system
+    public bool   $showPickModal    = false;
+    public ?int   $activeTaskId     = null;
+    public string $pickedQty        = '';
+    public array  $availableSerials = [];   // [['serial_no' => '...', 'location_code' => '...', 'at_alloc_location' => bool], ...]
+    public array  $selectedSerials  = [];   // selected serial_no strings
 
     public function updatedSearch(): void       { $this->resetPage(); }
     public function updatedStatusFilter(): void { $this->resetPage(); }
@@ -129,31 +128,34 @@ class Index extends Component
 
     public function openPickTask(int $taskId): void
     {
-        $task = PickTask::with(['allocation.item', 'allocation.location'])->find($taskId);
+        $task = PickTask::with(['allocation.item', 'allocation.location', 'allocation.batch'])->find($taskId);
 
         $this->activeTaskId     = $taskId;
         $this->pickedQty        = $task ? number_format((float) $task->qty_to_pick, 4, '.', '') : '';
-        $this->pickedSerial     = '';
         $this->availableSerials = [];
         $this->selectedSerials  = [];
 
-        if ($task && $task->allocation?->item?->track_serial && $task->allocation->location_id) {
+        if ($task && $task->allocation?->item?->track_serial) {
             $alloc = $task->allocation;
             $qty   = (int) round((float) $task->qty_to_pick);
 
-            $serialQuery = SerialNumber::where('item_id', $alloc->item_id)
-                ->where('location_id', $alloc->location_id)
-                ->where('status', 'in_stock');
+            // Load all in-stock serials for this item so the picker can select from any location
+            $rows = SerialNumber::with('location')
+                ->where('item_id', $alloc->item_id)
+                ->where('status', 'in_stock')
+                ->orderByRaw('location_id = ? DESC', [$alloc->location_id])  // allocated location first
+                ->orderBy('serial_no')
+                ->get();
 
-            if ($alloc->lpn_id) {
-                $serialQuery->where('lpn_id', $alloc->lpn_id);
-            }
-            if ($alloc->batch_id) {
-                $serialQuery->where('batch_id', $alloc->batch_id);
-            }
+            $this->availableSerials = $rows->map(fn ($s) => [
+                'serial_no'          => $s->serial_no,
+                'location_code'      => $s->location?->code ?? '—',
+                'at_alloc_location'  => $s->location_id === $alloc->location_id,
+            ])->toArray();
 
-            $this->availableSerials = $serialQuery->pluck('serial_no')->all();
-            $this->selectedSerials  = array_slice($this->availableSerials, 0, $qty);
+            // Pre-select serials from the allocated location (up to required qty)
+            $atLocation = array_values(array_filter($this->availableSerials, fn ($s) => $s['at_alloc_location']));
+            $this->selectedSerials = array_column(array_slice($atLocation, 0, $qty), 'serial_no');
         }
 
         $this->showPickModal = true;
@@ -168,24 +170,17 @@ class Index extends Component
         $task = PickTask::with(['pickList.deliveryOrder', 'allocation.item'])->findOrFail($this->activeTaskId);
         $by   = auth()->user();
 
-        if (count($this->availableSerials) > 0) {
-            $serials = array_values(array_filter($this->selectedSerials, fn ($s) => $s !== ''));
-        } else {
-            $serials = array_values(array_filter(
-                array_map('trim', preg_split('/[\r\n,]+/', $this->pickedSerial)),
-                fn ($s) => $s !== ''
-            ));
-        }
+        $serials = array_values(array_filter($this->selectedSerials, fn ($s) => $s !== ''));
 
         if ($task->allocation?->item?->track_serial && count($serials) === 0) {
-            $this->addError('pickedSerial', 'Serial numbers are required for this item.');
+            $this->addError('selectedSerials', 'Select at least one serial number for this item.');
             return;
         }
 
         if ($task->allocation?->item?->track_serial) {
             $expected = (int) round((float) $this->pickedQty);
             if (count($serials) !== $expected) {
-                $this->addError('pickedSerial', "Expected {$expected} serial(s) for qty {$expected}, got " . count($serials) . '.');
+                $this->addError('selectedSerials', "Select exactly {$expected} serial(s) for qty {$expected} — got " . count($serials) . '.');
                 return;
             }
         }

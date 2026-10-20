@@ -68,7 +68,9 @@ final class DispatchService
             $dispatch = Dispatch::create([
                 'number'                 => DocumentNumber::next('DSP'),
                 'delivery_order_id'      => $do->id,
-                'vehicle_no'             => $data['vehicle_no'],
+                'vehicle_reg_no'         => $data['vehicle_reg_no'],
+                'container_no'           => $data['container_no'] ?? null,
+                'container_size'         => $data['container_size'] ?? null,
                 'driver_name'            => $data['driver_name'],
                 'driver_phone'           => $data['driver_phone'],
                 'driver_id_no'           => $data['driver_id_no'] ?? null,

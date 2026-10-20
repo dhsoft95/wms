@@ -23,7 +23,7 @@ class StockDemoSeeder extends Seeder
         $vws       = VirtualWarehouse::active()->limit(5)->get();
 
         if ($items->isEmpty() || $locations->isEmpty() || $vws->isEmpty()) {
-            $this->command->warn('No items/locations/VWs found — run FoundationDemoSeeder first.');
+            $this->command->warn('No items/locations/VWs found  run FoundationDemoSeeder first.');
             return;
         }
 
@@ -113,7 +113,7 @@ class StockDemoSeeder extends Seeder
             // Even though we pass Available here, the ledger will force on_hold because it's quarantine
             $this->postLine($ledger, $qrtItem, $qrtLoc, $vwA, '60.0000', StockStatus::Available, $ref, null, null, "Quarantine stock {$qrtItem->sku} — will be forced on_hold");
         } else {
-            $this->command->warn('No quarantine location found — skipping quarantine demo stock.');
+            $this->command->warn('No quarantine location found skipping quarantine demo stock.');
         }
 
         // -- Group 6: item below min_stock threshold --------------------------

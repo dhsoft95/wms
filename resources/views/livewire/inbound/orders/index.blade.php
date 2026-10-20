@@ -47,6 +47,7 @@
                     <th>Source / Type</th>
                     <th>Warehouse</th>
                     <th>Supplier</th>
+                    <th>Progress</th>
                     <th>Status</th>
                     <th>Expected Date</th>
                     <th>Requested By</th>
@@ -86,6 +87,22 @@
                         {{-- Supplier --}}
                         <td class="text-sm text-slate-700 dark:text-slate-300">
                             {{ $order->supplierPartner?->name ?? '—' }}
+                        </td>
+
+                        {{-- Progress --}}
+                        <td>
+                            @php
+                                $expected = (float) ($order->total_expected_qty ?? 0);
+                                $received = (float) ($order->total_received_qty ?? 0);
+                                $pct      = $expected > 0 ? (int) min(100, round($received / $expected * 100)) : 0;
+                                $barColor = $pct >= 100 ? 'bg-emerald-500' : ($pct > 0 ? 'bg-simba-500' : 'bg-slate-200 dark:bg-slate-700');
+                            @endphp
+                            <div class="flex items-center gap-2 min-w-[100px]">
+                                <div class="progress flex-1">
+                                    <div class="{{ $barColor }}" style="width:{{ $pct }}%"></div>
+                                </div>
+                                <span class="text-xs tabular-nums text-slate-500 dark:text-slate-400 shrink-0">{{ $pct }}%</span>
+                            </div>
                         </td>
 
                         {{-- Status --}}

@@ -16,9 +16,9 @@ class DispatchDocumentController extends Controller
         $do  = $dispatch->deliveryOrder;
         $pdf = app(DeliveryNoteService::class)->generate($do);
 
-        $filename = 'DN-' . ($dispatch->dn_number ?? $dispatch->number) . '.pdf';
+        $filename = 'ODN-' . ($dispatch->dn_number ?? $dispatch->number) . '.pdf';
 
-        return $pdf->download($filename);
+        return $pdf->stream($filename);
     }
 
     public function rcn(Dispatch $dispatch): Response

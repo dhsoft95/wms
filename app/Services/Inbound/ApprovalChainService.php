@@ -185,6 +185,21 @@ final class ApprovalChainService
             ->exists();
     }
 
+    /**
+     * Returns true when no dept chain and no category users are configured,
+     * and the user is a warehouse manager or system admin.
+     * In this case the manager acts as the default approver.
+     */
+    public function canActAsFallbackApprover(PurchaseOrder $po, User $user): bool
+    {
+        if (! $user->hasAnyRole(['warehouse-manager', 'system-admin'])) {
+            return false;
+        }
+
+        return $this->getDepartmentChains($po)->isEmpty()
+            && $this->pendingCategoryApprovals($po)->isEmpty();
+    }
+
     // ─── Progression ─────────────────────────────────────────────────────────
 
     /**

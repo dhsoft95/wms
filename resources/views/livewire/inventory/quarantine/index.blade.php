@@ -66,7 +66,7 @@
              x-data x-on:keydown.escape.window="$wire.showReleaseModal = false">
             <div class="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
                  wire:click="$set('showReleaseModal', false)"></div>
-            <div class="relative z-10 w-full max-w-md rounded-2xl bg-white dark:bg-zinc-900 shadow-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
+            <div class="relative z-10 w-full max-w-lg rounded-2xl bg-white dark:bg-zinc-900 shadow-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
                 <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/[0.08]">
                     <h3 class="text-[15px] font-semibold text-slate-900 dark:text-white">Release from Quarantine</h3>
                     <button type="button" wire:click="$set('showReleaseModal', false)" class="icon-btn text-slate-400 hover:text-slate-700">
@@ -99,13 +99,64 @@
                         </select>
                         @error('releaseBinId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                     </div>
-                    <div>
-                        <label class="label">Quantity to Release <span class="text-red-500">*</span></label>
-                        <input wire:model="releaseQty" type="number" step="0.0001" min="0.0001"
-                               class="input mono @error('releaseQty') border-red-400 @enderror"
-                               placeholder="0.0000">
-                        @error('releaseQty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                    </div>
+
+                    @if($isSerialTracked)
+                        {{-- Serial number selection --}}
+                        <div>
+                            <div class="flex items-center justify-between mb-1.5">
+                                <label class="label mb-0">Serial Numbers <span class="text-red-500">*</span></label>
+                                <span class="text-xs text-slate-500 dark:text-slate-400">
+                                    {{ count($selectedSerials) }} of {{ count($availableSerials) }} selected
+                                </span>
+                            </div>
+                            @error('selectedSerials') <p class="hint !text-red-600 mb-1">{{ $message }}</p> @enderror
+
+                            @if(count($availableSerials) > 0)
+                                <div class="flex items-center gap-2 mb-2">
+                                    <button type="button"
+                                        wire:click="$set('selectedSerials', @js($availableSerials))"
+                                        class="text-xs text-simba-600 dark:text-simba-400 hover:underline">
+                                        Select all
+                                    </button>
+                                    <span class="text-slate-300 dark:text-slate-600">·</span>
+                                    <button type="button"
+                                        wire:click="$set('selectedSerials', [])"
+                                        class="text-xs text-slate-500 hover:underline">
+                                        Clear
+                                    </button>
+                                </div>
+                                <div class="border border-slate-200 dark:border-slate-700 rounded-lg overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800" style="max-height: 220px;">
+                                    @foreach($availableSerials as $sn)
+                                        <label class="flex items-center gap-3 px-3 py-2 hover:bg-slate-50 dark:hover:bg-white/[0.04] cursor-pointer">
+                                            <input type="checkbox"
+                                                   wire:model.live="selectedSerials"
+                                                   value="{{ $sn }}"
+                                                   class="rounded border-slate-300 dark:border-slate-600 text-simba-600 focus:ring-simba-500">
+                                            <span class="font-mono text-xs text-slate-800 dark:text-slate-200">{{ $sn }}</span>
+                                        </label>
+                                    @endforeach
+                                </div>
+                            @else
+                                <p class="text-xs text-slate-400 italic">No serial numbers found in quarantine for this balance.</p>
+                            @endif
+                        </div>
+
+                        {{-- Auto-filled qty indicator --}}
+                        @if(count($selectedSerials) > 0)
+                            <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50 dark:bg-white/[0.04] text-xs">
+                                <span class="text-slate-500 dark:text-slate-400">Qty to release</span>
+                                <span class="font-bold tabular-nums text-slate-800 dark:text-slate-200">{{ count($selectedSerials) }}</span>
+                            </div>
+                        @endif
+                    @else
+                        <div>
+                            <label class="label">Quantity to Release <span class="text-red-500">*</span></label>
+                            <input wire:model="releaseQty" type="number" step="0.0001" min="0.0001"
+                                   class="input mono @error('releaseQty') border-red-400 @enderror"
+                                   placeholder="0.0000">
+                            @error('releaseQty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
                 </div>
                 <div class="flex justify-end gap-3 px-6 py-4 bg-slate-50/80 dark:bg-white/[0.02] border-t border-slate-100 dark:border-white/[0.08] rounded-b-2xl">
                     <button wire:click="$set('showReleaseModal', false)" class="btn btn-secondary">Cancel</button>

@@ -53,12 +53,13 @@ class FoundationDefaultsSeeder extends Seeder
             );
         }
 
-        // Phase A — PO, MRN, RCN, DN
+        // Phase A — PO, MRN, RCN, DN, ODN
         foreach ([
             ['type' => 'PO',  'prefix' => 'PO',  'include_year' => true, 'padding' => 4, 'reset_yearly' => true],
             ['type' => 'MRN', 'prefix' => 'MRN', 'include_year' => true, 'padding' => 4, 'reset_yearly' => true],
             ['type' => 'RCN', 'prefix' => 'RCN', 'include_year' => true, 'padding' => 4, 'reset_yearly' => true],
             ['type' => 'DN',  'prefix' => 'DN',  'include_year' => true, 'padding' => 4, 'reset_yearly' => true],
+            ['type' => 'ODN', 'prefix' => 'ODN', 'include_year' => true, 'padding' => 6, 'reset_yearly' => true],
         ] as $seq) {
             DocumentSequence::updateOrCreate(
                 ['type' => $seq['type']],

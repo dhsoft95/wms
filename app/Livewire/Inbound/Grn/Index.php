@@ -26,6 +26,13 @@ class Index extends Component
     public function updatedStatusFilter(): void { $this->resetPage(); }
     public function updatedSourceFilter(): void { $this->resetPage(); }
 
+    public function applySearch(string $value): void
+    {
+        $this->search = $value;
+        $this->resetPage();
+        unset($this->searchSuggestions);
+    }
+
     // ─── Computed ─────────────────────────────────────────────────────────────
 
     #[Computed]
@@ -34,7 +41,8 @@ class Index extends Component
         $query = app(GrnQueryService::class)
             ->queryFor(auth()->user())
             ->with(['warehouse', 'supplierPartner', 'container', 'purchaseOrder'])
-            ->withCount('lines');
+            ->withCount('lines')
+            ->where('status', '!=', GrnStatus::Cancelled->value);
 
         if ($this->search !== '') {
             $search = '%' . $this->search . '%';
@@ -67,7 +75,8 @@ class Index extends Component
     #[Computed]
     public function statusCounts(): array
     {
-        $base = app(GrnQueryService::class)->queryFor(auth()->user());
+        $base = app(GrnQueryService::class)->queryFor(auth()->user())
+            ->where('status', '!=', GrnStatus::Cancelled->value);
 
         $counts = ['all' => (clone $base)->count()];
 
@@ -76,6 +85,58 @@ class Index extends Component
         }
 
         return $counts;
+    }
+
+    /**
+     * Live search suggestions: GRN numbers, supplier names, container numbers.
+     *
+     * @return array<int, array{label: string, sub: string, value: string}>
+     */
+    #[Computed]
+    public function searchSuggestions(): array
+    {
+        if (strlen($this->search) < 2) {
+            return [];
+        }
+
+        $like  = '%' . $this->search . '%';
+        $base  = app(GrnQueryService::class)->queryFor(auth()->user());
+        $items = [];
+
+        // GRN numbers
+        (clone $base)
+            ->where('number', 'like', $like)
+            ->limit(5)
+            ->pluck('number')
+            ->each(fn ($n) => $items[] = ['label' => $n, 'sub' => 'GRN', 'value' => $n]);
+
+        // Supplier names via relation
+        (clone $base)
+            ->whereHas('supplierPartner', fn ($q) => $q->where('name', 'like', $like))
+            ->with('supplierPartner:id,name')
+            ->limit(4)
+            ->get(['id', 'supplier_partner_id'])
+            ->each(function ($g) use (&$items) {
+                $name = $g->supplierPartner?->name;
+                if ($name && ! collect($items)->contains('value', $name)) {
+                    $items[] = ['label' => $name, 'sub' => 'Supplier', 'value' => $name];
+                }
+            });
+
+        // Container numbers
+        (clone $base)
+            ->whereHas('container', fn ($q) => $q->where('number', 'like', $like))
+            ->with('container:id,number')
+            ->limit(4)
+            ->get(['id', 'container_id'])
+            ->each(function ($g) use (&$items) {
+                $num = $g->container?->number;
+                if ($num && ! collect($items)->contains('value', $num)) {
+                    $items[] = ['label' => $num, 'sub' => 'Container', 'value' => $num];
+                }
+            });
+
+        return array_slice($items, 0, 10);
     }
 
     #[Computed]
@@ -87,7 +148,16 @@ class Index extends Component
     #[Computed]
     public function statuses(): array
     {
-        return GrnStatus::cases();
+        return array_values(array_filter(
+            GrnStatus::cases(),
+            fn (GrnStatus $s) => ! in_array($s, [
+                GrnStatus::Receiving,
+                GrnStatus::PutawayComplete,
+                GrnStatus::PendingVarianceApproval,
+                GrnStatus::PendingVarianceApproval,
+                GrnStatus::Cancelled,
+            ], true),
+        ));
     }
 
     // ─── Render ───────────────────────────────────────────────────────────────

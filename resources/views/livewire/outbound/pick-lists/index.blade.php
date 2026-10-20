@@ -128,20 +128,13 @@
 
                         {{-- Actions --}}
                         <td class="text-right">
-                            <div class="flex items-center justify-end gap-2">
-                                <button wire:click="openAssignModal({{ $pl->id }})"
-                                        class="btn btn-secondary btn-sm">
-                                    <x-ui.icon name="user" class="w-3.5 h-3.5" /> Assign
-                                </button>
-
-                                @if (in_array($pl->status->value, ['open', 'in_progress'], true))
-                                    <a href="{{ route('outbound.orders.show', $pl->delivery_order_id) }}"
-                                       wire:navigate
-                                       class="btn btn-primary btn-sm">
-                                        <x-ui.icon name="clipboard" class="w-3.5 h-3.5" /> Pick Tasks
-                                    </a>
-                                @endif
-                            </div>
+                            @if (in_array($pl->status->value, ['open', 'in_progress'], true))
+                                <a href="{{ route('outbound.orders.show', $pl->delivery_order_id) }}"
+                                   wire:navigate
+                                   class="btn btn-primary btn-sm">
+                                    <x-ui.icon name="clipboard" class="w-3.5 h-3.5" /> Pick Tasks
+                                </a>
+                            @endif
                         </td>
                     </tr>
                 @empty
@@ -430,7 +423,18 @@
                             $trackSerial = $task->allocation?->item?->track_serial ?? false;
                             $qtyRequired = (int) round((float) $task->qty_to_pick);
                         @endphp
-                        <div>
+                        @if ($trackSerial || count($availableSerials) > 0)
+                        <div
+                            x-data="{
+                                search: '',
+                                get filtered() {
+                                    const q = this.search.toLowerCase().trim();
+                                    if (!q) return @js($availableSerials);
+                                    return @js($availableSerials).filter(s => s.serial_no.toLowerCase().includes(q) || s.location_code.toLowerCase().includes(q));
+                                }
+                            }"
+                        >
+                            {{-- Header row --}}
                             <div class="flex items-center justify-between mb-1.5">
                                 <label class="label mb-0">
                                     Serial Numbers
@@ -440,47 +444,58 @@
                                         <span class="text-slate-400 font-normal ml-1">(optional)</span>
                                     @endif
                                 </label>
-                                @if (count($availableSerials) > 0)
-                                    <span class="text-xs tabular-nums {{ count($selectedSerials) === $qtyRequired ? 'text-green-600 dark:text-green-400' : 'text-slate-500' }}">
-                                        {{ count($selectedSerials) }}&nbsp;/&nbsp;{{ $qtyRequired }} selected
-                                    </span>
-                                @endif
+                                <span class="text-xs tabular-nums"
+                                      :class="{{ count($selectedSerials) }} === {{ $qtyRequired }} ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-500'">
+                                    {{ count($selectedSerials) }}&nbsp;/&nbsp;{{ $qtyRequired }} selected
+                                </span>
                             </div>
 
                             @if (count($availableSerials) > 0)
+                                {{-- Search input --}}
+                                <div class="relative mb-2">
+                                    <x-ui.icon name="search" class="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                    <input x-model="search"
+                                           type="text"
+                                           placeholder="Search serial or location…"
+                                           class="input !pl-8 w-full text-sm" />
+                                </div>
+
                                 {{-- Checkbox list --}}
-                                <div class="max-h-64 overflow-y-auto rounded-xl border border-slate-200 dark:border-white/[0.08] p-3">
-                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                        @foreach ($availableSerials as $sn)
-                                            <label class="flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.04] border border-slate-200 dark:border-white/[0.08] select-none">
-                                                <input type="checkbox"
-                                                       wire:model="selectedSerials"
-                                                       value="{{ $sn }}"
-                                                       class="rounded border-slate-300 dark:border-white/20 text-blue-600 focus:ring-blue-500 h-4 w-4 shrink-0" />
-                                                <span class="mono text-xs text-slate-800 dark:text-slate-200 truncate">{{ $sn }}</span>
-                                            </label>
-                                        @endforeach
+                                <div class="max-h-56 overflow-y-auto rounded-xl border border-slate-200 dark:border-white/[0.08] divide-y divide-slate-100 dark:divide-white/[0.06]">
+                                    <template x-for="sn in filtered" :key="sn.serial_no">
+                                        <label class="flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.04] select-none">
+                                            <input type="checkbox"
+                                                   :value="sn.serial_no"
+                                                   wire:model="selectedSerials"
+                                                   class="rounded border-slate-300 dark:border-white/20 text-blue-600 focus:ring-blue-500 h-4 w-4 shrink-0" />
+                                            <span class="mono text-sm text-slate-800 dark:text-slate-200 flex-1 truncate" x-text="sn.serial_no"></span>
+                                            <span class="text-xs tabular-nums shrink-0"
+                                                  :class="sn.at_alloc_location ? 'text-emerald-600 dark:text-emerald-400 font-medium' : 'text-slate-400'"
+                                                  x-text="sn.location_code"></span>
+                                        </label>
+                                    </template>
+                                    <div x-show="filtered.length === 0"
+                                         class="px-4 py-6 text-center text-sm text-slate-400">
+                                        No serials match your search.
                                     </div>
                                 </div>
+
                                 @if (count($availableSerials) < $qtyRequired)
-                                    <p class="hint !text-amber-600 dark:!text-amber-400">
-                                        Only {{ count($availableSerials) }} serial(s) on record — {{ $qtyRequired }} required.
+                                    <p class="hint !text-amber-600 dark:!text-amber-400 mt-1.5">
+                                        Only {{ count($availableSerials) }} serial(s) found — {{ $qtyRequired }} required.
                                     </p>
                                 @endif
                             @else
-                                {{-- Manual entry fallback --}}
-                                <textarea wire:model="pickedSerial"
-                                          id="picked-serial"
-                                          rows="4"
-                                          placeholder="{{ $trackSerial ? 'One serial per line — must match qty picked' : 'One serial per line (optional)' }}"
-                                          class="input w-full mono resize-none text-sm"></textarea>
-                                <p class="hint">Enter one serial number per line.</p>
+                                <p class="hint !text-amber-600 dark:!text-amber-400">
+                                    No serial numbers found in stock for this item. Record receipt serials first.
+                                </p>
                             @endif
 
-                            @error('pickedSerial')
-                                <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            @error('selectedSerials')
+                                <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
                             @enderror
                         </div>
+                        @endif
                     @else
                         <p class="text-sm text-slate-500">Loading task…</p>
                     @endif

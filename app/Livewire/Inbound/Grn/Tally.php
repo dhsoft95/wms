@@ -9,6 +9,7 @@ use App\Models\Grn;
 use App\Models\GrnLine;
 use App\Models\GrnReceipt;
 use App\Models\UnitOfMeasure;
+use App\Services\Foundation\UomConverter;
 use App\Services\Inbound\GrnWorkflow;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
@@ -26,11 +27,9 @@ class Tally extends Component
     public string $receiptUomId     = '';
     public string $receiptBatchNo   = '';
     public string $receiptExpiry    = '';
-    public string $receiptCondition = 'good';
-    public string $receiptCurrency  = '';
-    public string $receiptUnitPrice = '';
-    public string $receiptLineTotal = '';
-    public string $receiptSerials   = '';
+    public string $receiptCondition  = 'good';
+    public string $receiptDamageRemark = '';
+    public string $receiptSerials    = '';
 
     public function mount(Grn $grn): void
     {
@@ -40,7 +39,6 @@ class Tally extends Component
         }
 
         $this->grn = $grn->load(['purchaseOrder', 'receivingDock', 'warehouse']);
-        $this->receiptCurrency = $grn->purchaseOrder?->currency ?? 'TZS';
     }
 
     // ─── Computed ─────────────────────────────────────────────────────────────
@@ -65,7 +63,19 @@ class Tally extends Component
         if ($this->activeLine === null) {
             return null;
         }
-        return GrnLine::with('item', 'uom', 'item.uoms.uom')->find($this->activeLine);
+        return GrnLine::with('item', 'uom', 'item.uoms.uom', 'receipts.uom')->find($this->activeLine);
+    }
+
+    #[Computed]
+    public function itemRequiresExpiry(): bool
+    {
+        $item = $this->activeTallyLine?->item;
+        if (! $item) {
+            return false;
+        }
+
+        return $item->track_expiry
+            || in_array('fefo', $item->allocation_rules ?? [], true);
     }
 
     #[Computed]
@@ -74,34 +84,22 @@ class Tally extends Component
         if ($this->activeTallyLine === null) {
             return collect();
         }
-        return UnitOfMeasure::whereIn(
-            'id',
-            $this->activeTallyLine->item?->uoms->pluck('uom_id') ?? []
-        )->get(['id', 'code', 'name']);
-    }
 
-    // ─── Lifecycle hooks for auto-total calculation ───────────────────────────
+        $item = $this->activeTallyLine->item;
 
-    public function updatedReceiptQty(): void
-    {
-        $this->recalcTotal();
-    }
-
-    public function updatedReceiptUnitPrice(): void
-    {
-        $this->recalcTotal();
-    }
-
-    private function recalcTotal(): void
-    {
-        $qty   = is_numeric($this->receiptQty) ? (float) $this->receiptQty : 0;
-        $price = is_numeric($this->receiptUnitPrice) ? (float) $this->receiptUnitPrice : 0;
-
-        if ($qty > 0 && $price > 0) {
-            $this->receiptLineTotal = number_format(round($qty * $price, 4), 4, '.', '');
-        } else {
-            $this->receiptLineTotal = '';
+        // Prefer the item's configured UoMs from item_uoms
+        $ids = $item?->uoms->pluck('uom_id')->filter()->all() ?? [];
+        if (! empty($ids)) {
+            return UnitOfMeasure::whereIn('id', $ids)->get(['id', 'code', 'name']);
         }
+
+        // Fall back to the item's base UoM
+        if ($item?->base_uom_id) {
+            return UnitOfMeasure::where('id', $item->base_uom_id)->get(['id', 'code', 'name']);
+        }
+
+        // Last resort: all UoMs
+        return UnitOfMeasure::orderBy('code')->get(['id', 'code', 'name']);
     }
 
     // ─── Actions ──────────────────────────────────────────────────────────────
@@ -118,47 +116,35 @@ class Tally extends Component
 
         $line = GrnLine::with('uom', 'item.uoms.uom')->find($lineId);
 
-        // Auto-fill UOM from the item's default purchase UOM
-        $defaultUomId = $line?->uom_id;
-        if ($line?->item) {
-            $defaultPurchaseUom = $line->item->uoms
-                ->firstWhere('is_default_purchase', true);
-            if ($defaultPurchaseUom) {
-                $defaultUomId = $defaultPurchaseUom->uom_id;
-            }
-        }
-
-        // Default currency from PO
-        $poCurrency = $this->grn->purchaseOrder?->currency ?? 'TZS';
-
-        // Try to pre-fill unit_price from PO line
-        $poLine        = $line?->purchaseOrderLine;
-        $defaultPrice  = $poLine?->unit_price ?? null;
+        // Default to item's base UoM (e.g. PCS), fall back to GRN line UoM
+        $defaultUomId = $line?->item?->base_uom_id ?? $line?->uom_id;
 
         $this->receiptQty       = '';
         $this->receiptUomId     = (string) ($defaultUomId ?? '');
         $this->receiptBatchNo   = '';
         $this->receiptExpiry    = '';
-        $this->receiptCondition = 'good';
-        $this->receiptCurrency  = $poCurrency;
-        $this->receiptUnitPrice = $defaultPrice !== null && (float) $defaultPrice > 0
-            ? number_format((float) $defaultPrice, 4, '.', '')
-            : '';
-        $this->receiptLineTotal = '';
-        $this->receiptSerials   = '';
+        $this->receiptCondition    = 'good';
+        $this->receiptDamageRemark = '';
+        $this->receiptSerials      = '';
     }
 
     public function addReceipt(): void
     {
         $this->validate([
-            'activeLine'       => ['required', 'exists:grn_lines,id'],
-            'receiptQty'       => ['required', 'numeric', 'min:0.0001'],
-            'receiptUomId'     => ['required', 'exists:units_of_measure,id'],
-            'receiptCondition' => ['required', 'in:good,damaged'],
-            'receiptUnitPrice' => ['nullable', 'numeric', 'min:0'],
+            'activeLine'          => ['required', 'exists:grn_lines,id'],
+            'receiptQty'          => ['required', 'numeric', 'min:0.0001'],
+            'receiptUomId'        => ['required', 'exists:units_of_measure,id'],
+            'receiptCondition'    => ['required', 'in:good,damaged'],
+            'receiptDamageRemark' => ['required_if:receiptCondition,damaged', 'nullable', 'string', 'max:500'],
         ]);
 
         $line = GrnLine::findOrFail($this->activeLine);
+
+        // Enforce expiry date for FEFO / expiry-tracked items
+        if ($this->itemRequiresExpiry && trim($this->receiptExpiry) === '') {
+            $this->addError('receiptExpiry', 'Expiry date is required for this item (FEFO / expiry-tracked).');
+            return;
+        }
 
         // Parse and validate serial numbers if item is serial-tracked
         $serialNos = [];
@@ -167,37 +153,34 @@ class Tally extends Component
                 array_map('trim', preg_split('/[\r\n,]+/', $this->receiptSerials)),
                 fn ($s) => $s !== ''
             ));
-            $absQty = (int) round((float) $this->receiptQty);
+
+            // Serials must match BASE qty (after UoM conversion), not entered qty
+            $baseQty = (int) round((float) UomConverter::toBase(
+                $line->item,
+                (int) $this->receiptUomId,
+                $this->receiptQty,
+            ));
+
             if (empty($serialNos)) {
-                $this->addError('receiptSerials', "Serial numbers are required for this item ({$absQty} needed).");
+                $this->addError('receiptSerials', "Serial numbers are required ({$baseQty} needed).");
                 return;
             }
-            if (count($serialNos) !== $absQty) {
-                $this->addError('receiptSerials', "Expected {$absQty} serial number(s), got " . count($serialNos) . '.');
+            if (count($serialNos) !== $baseQty) {
+                $this->addError('receiptSerials', "Expected {$baseQty} serial number(s) for this quantity, got " . count($serialNos) . '.');
                 return;
             }
         }
 
-        $qty   = (string) $this->receiptQty;
-        $price = is_numeric($this->receiptUnitPrice) && (float) $this->receiptUnitPrice > 0
-            ? (string) $this->receiptUnitPrice
-            : null;
-        $total = ($price !== null)
-            ? (string) round((float) $qty * (float) $price, 4)
-            : null;
-
         GrnReceipt::create([
-            'grn_line_id' => $line->id,
-            'qty'         => $qty,
-            'uom_id'      => (int) $this->receiptUomId,
-            'condition'   => $this->receiptCondition,
-            'batch_no'    => $this->receiptBatchNo ?: null,
-            'expiry_date' => $this->receiptExpiry ?: null,
-            'currency'    => $this->receiptCurrency ?: null,
-            'unit_price'  => $price,
-            'line_total'  => $total,
-            'serial_nos'  => ! empty($serialNos) ? $serialNos : null,
-            'received_by' => auth()->id(),
+            'grn_line_id'   => $line->id,
+            'qty'           => (string) $this->receiptQty,
+            'uom_id'        => (int) $this->receiptUomId,
+            'condition'     => $this->receiptCondition,
+            'damage_remark' => $this->receiptCondition === 'damaged' ? ($this->receiptDamageRemark ?: null) : null,
+            'batch_no'      => $this->receiptBatchNo ?: null,
+            'expiry_date'   => $this->receiptExpiry ?: null,
+            'serial_nos'    => ! empty($serialNos) ? $serialNos : null,
+            'received_by'   => auth()->id(),
         ]);
 
         $line->recalculateTotals();
@@ -207,10 +190,9 @@ class Tally extends Component
         $this->receiptQty       = '';
         $this->receiptBatchNo   = '';
         $this->receiptExpiry    = '';
-        $this->receiptCondition = 'good';
-        $this->receiptUnitPrice = '';
-        $this->receiptLineTotal = '';
-        $this->receiptSerials   = '';
+        $this->receiptCondition    = 'good';
+        $this->receiptDamageRemark = '';
+        $this->receiptSerials      = '';
 
         $this->dispatch('toast', message: 'Receipt recorded.', type: 'success');
     }
@@ -246,7 +228,7 @@ class Tally extends Component
     {
         return view('livewire.inbound.grn.tally')
             ->layout('components.layouts.app', [
-                'title'           => 'Receiving Tally — ' . ($this->grn->purchaseOrder?->number ?? ''),
+                'title'           => 'Goods Receipt Entry — ' . ($this->grn->purchaseOrder?->number ?? ''),
                 'breadcrumbGroup' => 'Inbound',
             ]);
     }

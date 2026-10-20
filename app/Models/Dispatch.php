@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\Outbound\ContainerSize;
 use App\Models\Inventory\StockTransaction;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,15 +18,17 @@ class Dispatch extends Model
     use LogsActivity;
 
     protected $fillable = [
-        'number', 'delivery_order_id', 'vehicle_no', 'driver_name', 'driver_phone',
-        'driver_id_no', 'transporter_partner_id', 'seal_no', 'dispatched_at',
-        'dispatched_by', 'stock_transaction_id', 'notes', 'dn_number', 'rcn_number',
+        'number', 'delivery_order_id', 'vehicle_reg_no', 'container_no', 'container_size',
+        'driver_name', 'driver_phone', 'driver_id_no', 'transporter_partner_id',
+        'seal_no', 'dispatched_at', 'dispatched_by', 'stock_transaction_id',
+        'notes', 'dn_number', 'rcn_number',
     ];
 
     protected function casts(): array
     {
         return [
-            'dispatched_at' => 'datetime',
+            'dispatched_at'  => 'datetime',
+            'container_size' => ContainerSize::class,
         ];
     }
 

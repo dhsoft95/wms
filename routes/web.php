@@ -60,6 +60,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:grn.receive')->name('grn.receive');
         Route::get('/grn/{grn}/tally',   \App\Livewire\Inbound\Grn\Tally::class)
             ->middleware('permission:po.receive')->name('grn.tally');
+        Route::get('/grn/{grn}/document', [\App\Http\Controllers\GrnDocumentController::class, 'download'])
+            ->middleware('permission:grn.view')->name('grn.document');
         Route::get('/putaway',           \App\Livewire\Warehouse\Putaway\Index::class)
             ->middleware('permission:putaway.view')->name('putaway.index'); // inbound.putaway.index
         Route::get('/inspections',       \App\Livewire\Inbound\Inspections\Index::class)
@@ -76,6 +78,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:po.create')->name('edit');
         Route::get('/{purchaseOrder}/document', [\App\Http\Controllers\PurchaseOrderDocumentController::class, 'download'])
             ->name('document.download');
+        Route::get('/{purchaseOrder}/pdf', [\App\Http\Controllers\PurchaseOrderPdfController::class, 'download'])
+            ->name('pdf');
     });
 
     // Container document download (private, streams file)
@@ -240,6 +244,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('reports')->name('reports.')->middleware('permission:reports.view')->group(function () {
         Route::get('/',      \App\Livewire\Reports\Index::class)->name('index');
         Route::get('/print', \App\Livewire\Reports\PrintDocument::class)->name('print');
+
+        // Download a queued report
+        Route::get('/download/{reportRequest}', [\App\Http\Controllers\ReportPdfController::class, 'download'])->name('download');
     });
 
     // Admin — user/role management

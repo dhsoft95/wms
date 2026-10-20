@@ -6,13 +6,16 @@ namespace App\Services\Inbound;
 
 use App\Data\Inventory\StockKey;
 use App\Data\Inventory\StockReference;
+use App\Enums\Inbound\PurchaseOrderStatus;
 use App\Enums\LocationLevel;
 use App\Enums\LocationStatus;
 use App\Enums\LocationType;
 use App\Enums\PutawayTaskStatus;
+use App\Models\Grn;
 use App\Models\Inventory\Lpn;
 use App\Models\Inventory\SerialNumber;
 use App\Models\Inventory\StockBalance;
+use App\Models\PutawayTaskSplit;
 use App\Models\Location;
 use App\Models\PutawayTask;
 use App\Models\User;
@@ -22,7 +25,10 @@ use Illuminate\Support\Facades\DB;
 
 final class PutawayEngine
 {
-    public function __construct(private readonly StockLedger $ledger) {}
+    public function __construct(
+        private readonly StockLedger $ledger,
+        private readonly PurchaseOrderWorkflow $poWorkflow,
+    ) {}
 
     /**
      * Suggest a destination location for a putaway task.
@@ -173,13 +179,152 @@ final class PutawayEngine
                 ]);
             }
 
-            // Check if GRN can advance to PutawayComplete
-            $this->checkGrnPutawayProgress($task->grn);
+            // Check if GRN can advance to PutawayComplete and sync PO status
+            $this->checkGrnPutawayProgress($task->grn, $user);
 
             activity()
                 ->performedOn($task->grn)
                 ->causedBy($user)
                 ->withProperties(['task_id' => $task->id, 'location' => $destination->code])
+                ->log('Putaway executed');
+
+            return $task->fresh();
+        });
+    }
+
+    /**
+     * Execute a putaway task split across multiple bins.
+     * $rows = [['location_id' => int, 'qty' => string, 'serials' => string[]], ...]
+     */
+    public function executeSplits(PutawayTask $task, array $rows, User $user): PutawayTask
+    {
+        if (empty($rows)) {
+            throw new \DomainException('At least one bin row is required.');
+        }
+
+        // Pre-validate destinations outside the transaction
+        foreach ($rows as $row) {
+            $destination = Location::findOrFail($row['location_id']);
+            if (! $destination->isBin()) {
+                throw new \DomainException(
+                    "Destination '{$destination->code}' is a {$destination->level->label()}, not a bin."
+                );
+            }
+            if (app(\App\Services\Inventory\CycleCountWorkflow::class)->isLocationLocked($destination->id)) {
+                throw new \DomainException(
+                    "Bin '{$destination->code}' is locked under an active cycle count and cannot receive stock."
+                );
+            }
+        }
+
+        // Validate total qty equals task qty
+        $totalQty = array_reduce($rows, fn ($carry, $r) => bcadd($carry, (string) $r['qty'], 4), '0.0000');
+        if (bccomp($totalQty, (string) $task->qty, 4) !== 0) {
+            throw new \DomainException(
+                "Total split qty ({$totalQty}) must equal task qty ({$task->qty})."
+            );
+        }
+
+        return DB::transaction(function () use ($task, $rows, $user) {
+            $task = PutawayTask::where('id', $task->id)->lockForUpdate()->firstOrFail();
+
+            if (! $task->isExecutable() && $task->status !== PutawayTaskStatus::Open) {
+                throw new \DomainException("Task #{$task->id} cannot be executed from status: {$task->status->label()}");
+            }
+
+            $from        = $task->fromLocation;
+            $item        = $task->item;
+            $uomId       = $item->base_uom_id;
+            $stockStatus = \App\Enums\Inventory\StockStatus::Available;
+            if ($from?->type === LocationType::Quarantine) {
+                $stockStatus = \App\Enums\Inventory\StockStatus::OnHold;
+            }
+
+            // For serial-tracked items, collect all user-specified serials to avoid re-fetching already-assigned ones
+            $assignedSerials = [];
+
+            $firstLocationId  = null;
+            $firstTransaction = null;
+
+            foreach ($rows as $i => $row) {
+                $destination = Location::findOrFail($row['location_id']);
+                $firstLocationId ??= $destination->id;
+
+                $fromKey = new StockKey(
+                    itemId:             $task->item_id,
+                    batchId:            $task->batch_id,
+                    lpnId:              $task->lpn_id,
+                    locationId:         $task->from_location_id,
+                    virtualWarehouseId: $task->virtual_warehouse_id,
+                    stockStatus:        $stockStatus,
+                );
+
+                $ref = new StockReference(
+                    referenceType: 'putaway_task',
+                    referenceId:   $task->id,
+                    referenceNo:   "PT-{$task->id}",
+                );
+
+                $serials = $row['serials'] ?? [];
+
+                // Auto-assign remaining in-stock serials when user didn't specify
+                if ($item->track_serial && empty($serials)) {
+                    $rowQtyInt   = (int) round((float) $row['qty']);
+                    $serialQuery = SerialNumber::where('item_id', $task->item_id)
+                        ->where('location_id', $task->from_location_id)
+                        ->where('status', \App\Enums\Inventory\SerialStatus::InStock);
+                    if ($task->batch_id) {
+                        $serialQuery->where('batch_id', $task->batch_id);
+                    }
+                    if (! empty($assignedSerials)) {
+                        $serialQuery->whereNotIn('serial_no', $assignedSerials);
+                    }
+                    $serials = $serialQuery->limit($rowQtyInt)->pluck('serial_no')->all();
+                }
+
+                $assignedSerials = array_merge($assignedSerials, $serials);
+
+                $stockTx = $this->ledger->move(
+                    from:           $fromKey,
+                    toLocationId:   $destination->id,
+                    qty:            (string) $row['qty'],
+                    uomId:          $uomId,
+                    ref:            $ref,
+                    serials:        $serials,
+                    idempotencyKey: "putaway:{$task->id}:split:{$i}",
+                );
+
+                $firstTransaction ??= $stockTx;
+
+                PutawayTaskSplit::create([
+                    'putaway_task_id'      => $task->id,
+                    'location_id'          => $destination->id,
+                    'qty'                  => $row['qty'],
+                    'serial_nos'           => ! empty($serials) ? $serials : null,
+                    'stock_transaction_id' => $stockTx->id,
+                    'posted_by'            => $user->id,
+                    'posted_at'            => now(),
+                ]);
+            }
+
+            if ($task->lpn_id && $firstLocationId) {
+                Lpn::where('id', $task->lpn_id)->update(['current_location_id' => $firstLocationId]);
+            }
+
+            $task->update([
+                'actual_location_id'   => $firstLocationId,
+                'status'               => PutawayTaskStatus::Completed->value,
+                'completed_by'         => $user->id,
+                'completed_at'         => now(),
+                'stock_transaction_id' => $firstTransaction?->id,
+            ]);
+
+            $this->checkGrnPutawayProgress($task->grn, $user);
+
+            activity()
+                ->performedOn($task->grn)
+                ->causedBy($user)
+                ->withProperties(['task_id' => $task->id, 'splits' => count($rows)])
                 ->log('Putaway executed');
 
             return $task->fresh();
@@ -206,7 +351,7 @@ final class PutawayEngine
         });
     }
 
-    private function checkGrnPutawayProgress(\App\Models\Grn $grn): void
+    private function checkGrnPutawayProgress(Grn $grn, User $user): void
     {
         $grn->load('putawayTasks');
 
@@ -229,5 +374,37 @@ final class PutawayEngine
             : \App\Enums\GrnStatus::PutawayInProgress;
 
         $grn->save();
+
+        // Sync parent PO status
+        if ($grn->purchase_order_id === null) {
+            return;
+        }
+
+        $po = $grn->purchaseOrder ?? $grn->load('purchaseOrder')->purchaseOrder;
+        if ($po === null) {
+            return;
+        }
+
+        // Advance PO from PendingPutaway → PutawayInProgress on first task execution
+        if ($po->status === PurchaseOrderStatus::PendingPutaway) {
+            $this->poWorkflow->markPutawayStarted($po, $user);
+            $po->refresh();
+        }
+
+        // Advance PO to PendingSupervisorValidation when all GRNs for this PO are done
+        if ($grn->status === \App\Enums\GrnStatus::PutawayComplete
+            && $po->status === PurchaseOrderStatus::PutawayInProgress
+        ) {
+            $allDone = Grn::where('purchase_order_id', $po->id)
+                ->whereNotIn('status', [
+                    \App\Enums\GrnStatus::PutawayComplete->value,
+                    \App\Enums\GrnStatus::Closed->value,
+                ])
+                ->doesntExist();
+
+            if ($allDone) {
+                $this->poWorkflow->markPutawayComplete($po, $user);
+            }
+        }
     }
 }

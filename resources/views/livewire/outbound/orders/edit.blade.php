@@ -100,21 +100,22 @@
                 </div>
             </div>
 
-            {{-- Allocation --}}
+            {{-- Shipment Settings --}}
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Allocation Settings</h3>
+                    <h3 class="card-title">Shipment Settings</h3>
                 </div>
                 <div class="card-body grid grid-cols-1 md:grid-cols-2 gap-4">
 
                     <div>
-                        <label class="label">Allocation Rule</label>
-                        <select wire:model="allocationRule" class="input" @disabled(! $this->isDraft)>
-                            @foreach ($this->allocationRules as $rule)
-                                <option value="{{ $rule->value }}">{{ $rule->label() }}</option>
+                        <label class="label">Package Type</label>
+                        <select wire:model="packageType" class="input" @disabled(! $this->isDraft)>
+                            <option value="">— Select package type —</option>
+                            @foreach (\App\Enums\Outbound\PackageType::cases() as $pt)
+                                <option value="{{ $pt->value }}">{{ $pt->label() }}</option>
                             @endforeach
                         </select>
-                        @error('allocationRule') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('packageType') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="md:col-span-2">
@@ -125,28 +126,28 @@
                 </div>
             </div>
 
-            {{-- MRN / Supporting Document --}}
+            {{-- Sales Order --}}
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">MRN / Supporting Document</h3>
+                    <h3 class="card-title">Sales Order</h3>
                 </div>
                 <div class="card-body grid grid-cols-1 md:grid-cols-2 gap-4">
 
                     <div>
-                        <label class="label">MRN Number</label>
-                        <input wire:model="mrnNumber" type="text" placeholder="e.g. MRN-2026-00123" class="input" @disabled(! $this->isDraft)>
+                        <label class="label">Sales Order Number</label>
+                        <input wire:model="mrnNumber" type="text" placeholder="e.g. SO-2026-00123" class="input" @disabled(! $this->isDraft)>
                         @error('mrnNumber') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
-                        <label class="label">MRN Document <span class="text-xs text-slate-400">(PDF / image, max 10 MB)</span></label>
+                        <label class="label">Sales Order Document <span class="text-xs text-slate-400">(PDF / image, max 10 MB)</span></label>
                         @if ($deliveryOrder->mrn_file_path)
                             <div class="mb-2 flex items-center gap-2 text-sm">
                                 <x-ui.icon name="paperclip" class="w-3.5 h-3.5 text-slate-400" />
                                 <a href="{{ route('outbound.orders.mrn.download', $deliveryOrder) }}"
                                    target="_blank"
                                    class="text-brand hover:underline truncate">
-                                    View current MRN file
+                                    View current Sales Order file
                                 </a>
                             </div>
                         @endif

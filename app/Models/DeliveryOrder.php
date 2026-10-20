@@ -7,6 +7,7 @@ namespace App\Models;
 use App\Enums\Outbound\AllocationRule;
 use App\Enums\Outbound\DeliveryOrderPriority;
 use App\Enums\Outbound\DeliveryOrderStatus;
+use App\Enums\Outbound\PackageType;
 use App\Models\Concerns\BelongsToCategoryUser;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -27,8 +28,8 @@ class DeliveryOrder extends Model
         'number', 'virtual_warehouse_id', 'warehouse_id', 'department_id',
         'consignee_partner_id', 'delivery_address', 'required_date',
         'priority', 'allocation_rule', 'status', 'requested_by',
-        'submitted_at', 'remarks', 'backorder_of_id',
-        'mrn_number', 'mrn_file_path',
+        'submitted_at', 'acceptance_at', 'assigned_at', 'remarks', 'backorder_of_id',
+        'mrn_number', 'mrn_file_path', 'package_type',
     ];
 
     protected function casts(): array
@@ -37,8 +38,11 @@ class DeliveryOrder extends Model
             'status'          => DeliveryOrderStatus::class,
             'priority'        => DeliveryOrderPriority::class,
             'allocation_rule' => AllocationRule::class,
+            'package_type'    => PackageType::class,
             'required_date'   => 'date',
             'submitted_at'    => 'datetime',
+            'acceptance_at'   => 'datetime',
+            'assigned_at'     => 'datetime',
         ];
     }
 

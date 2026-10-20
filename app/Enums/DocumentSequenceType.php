@@ -21,6 +21,7 @@ enum DocumentSequenceType: string
     case Rcn = 'RCN';
     case Dn  = 'DN';
     case Wtr = 'WTR';
+    case Odn = 'ODN';
 
     public function label(): string
     {
@@ -42,6 +43,7 @@ enum DocumentSequenceType: string
             self::Rcn => 'Reconciliation Note',
             self::Dn  => 'Delivery Note',
             self::Wtr => 'Warehouse Transfer',
+            self::Odn => 'Outbound Delivery Note',
         };
     }
 }

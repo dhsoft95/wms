@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -139,6 +140,16 @@ class PurchaseOrder extends Model
     public function grns(): HasMany
     {
         return $this->hasMany(Grn::class, 'purchase_order_id');
+    }
+
+    public function grnLines(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            \App\Models\GrnLine::class,
+            Grn::class,
+            'purchase_order_id',
+            'grn_id',
+        );
     }
 
     public function approvals(): HasMany

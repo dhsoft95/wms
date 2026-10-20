@@ -4,90 +4,182 @@ declare(strict_types=1);
 
 namespace App\Livewire\Dashboard;
 
-use App\Enums\ContainerStatus;
-use App\Enums\Outbound\DeliveryOrderStatus;
-use App\Enums\Outbound\PickListStatus;
-use App\Models\DeliveryOrder;
-use App\Models\Dispatch;
-use App\Models\PickList;
-use App\Services\Inbound\ContainerQueryService;
+use App\Services\Dashboard\DashboardMetrics;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 
 class Overview extends Component
 {
-    #[Computed]
-    public function activeContainersCount(): int
-    {
-        $activeValues = array_column(
-            array_filter(ContainerStatus::cases(), fn($s) => $s->isActive()),
-            'value'
-        );
+    #[Url]
+    public ?int $warehouseId = null;
 
-        return app(ContainerQueryService::class)
-            ->queryFor(auth()->user())
-            ->whereIn('status', $activeValues)
-            ->count();
+    #[Url]
+    public int $days = 30;
+
+    private function metrics(): DashboardMetrics
+    {
+        return app(DashboardMetrics::class);
+    }
+
+    private function user()
+    {
+        return auth()->user();
+    }
+
+    // ── Visibility helpers ───────────────────────────────────────────────────
+
+    public function canSeeKpi(string $key): bool
+    {
+        $role       = $this->user()->roleSlug();
+        $visibility = config("dashboard.kpi_visibility.{$role}", []);
+
+        return $visibility === 'all' || in_array($key, (array) $visibility, true);
+    }
+
+    public function canSeeAction(string $key): bool
+    {
+        $role       = $this->user()->roleSlug();
+        $visibility = config("dashboard.action_visibility.{$role}", []);
+
+        return $visibility === 'all' || in_array($key, (array) $visibility, true);
+    }
+
+    public function isReadonly(): bool
+    {
+        return in_array($this->user()->roleSlug(), config('dashboard.readonly_roles', []), true);
+    }
+
+    public function canSeeChart(string $key): bool
+    {
+        $role       = $this->user()->roleSlug();
+        $visibility = config("dashboard.chart_visibility.{$role}", []);
+
+        return $visibility === 'all' || in_array($key, (array) $visibility, true);
+    }
+
+    // ── KPI computed properties ──────────────────────────────────────────────
+
+    #[Computed]
+    public function stockOnHand(): array
+    {
+        return $this->metrics()->stockOnHand($this->user(), $this->warehouseId);
     }
 
     #[Computed]
-    public function arrivingThisWeek(): int
+    public function openOrders(): array
     {
-        return app(ContainerQueryService::class)
-            ->queryFor(auth()->user())
-            ->where('status', ContainerStatus::Expected->value)
-            ->whereBetween('eta', [now(), now()->endOfWeek()])
-            ->count();
+        return $this->metrics()->openOrders($this->user(), $this->warehouseId);
     }
 
     #[Computed]
-    public function pipelineContainers()
+    public function pendingApprovals(): array
     {
-        return app(ContainerQueryService::class)
-            ->queryFor(auth()->user())
-            ->whereIn('status', ['expected', 'arrived', 'parked', 'unloading'])
-            ->with('yardLocation')
-            ->orderByDesc('id')
-            ->limit(5)
-            ->get();
+        return $this->metrics()->pendingApprovals($this->user());
     }
 
     #[Computed]
-    public function pendingOrdersCount(): int
+    public function toReceive(): array
     {
-        return DeliveryOrder::whereIn('status', [
-            DeliveryOrderStatus::Draft->value,
-            DeliveryOrderStatus::Submitted->value,
-            DeliveryOrderStatus::Approved->value,
-        ])->count();
+        return $this->metrics()->toReceive($this->user(), $this->warehouseId);
     }
 
     #[Computed]
-    public function todayDispatchCount(): int
+    public function awaitingPutaway(): array
     {
-        return Dispatch::whereDate('dispatched_at', today())->count();
+        return $this->metrics()->awaitingPutaway($this->user(), $this->warehouseId);
     }
 
     #[Computed]
-    public function openPickListsCount(): int
+    public function toPick(): array
     {
-        return PickList::whereIn('status', [
-            PickListStatus::Open->value,
-            PickListStatus::InProgress->value,
-        ])->count();
+        return $this->metrics()->toPick($this->user(), $this->warehouseId);
     }
 
     #[Computed]
-    public function overdueOrdersCount(): int
+    public function inTransit(): array
     {
-        return DeliveryOrder::whereDate('required_date', '<', today())
-            ->whereNotIn('status', [
-                DeliveryOrderStatus::Dispatched->value,
-                DeliveryOrderStatus::Delivered->value,
-                DeliveryOrderStatus::Cancelled->value,
-            ])
-            ->count();
+        return $this->metrics()->inTransit($this->user(), $this->warehouseId);
+    }
+
+    #[Computed]
+    public function lowStock(): array
+    {
+        return $this->metrics()->lowStock($this->user(), $this->warehouseId);
+    }
+
+    #[Computed]
+    public function expiring(): array
+    {
+        return $this->metrics()->expiring($this->user(), $this->warehouseId);
+    }
+
+    #[Computed]
+    public function containersInYard(): array
+    {
+        return $this->metrics()->containersInYard($this->user());
+    }
+
+    // ── Action list computed properties ──────────────────────────────────────
+
+    #[Computed]
+    public function myApprovals(): Collection
+    {
+        return $this->metrics()->myApprovals($this->user());
+    }
+
+    #[Computed]
+    public function overdueOrders(): Collection
+    {
+        return $this->metrics()->overdueOrders($this->user(), $this->warehouseId);
+    }
+
+    #[Computed]
+    public function recentVariances(): Collection
+    {
+        return $this->metrics()->recentVariances($this->user(), $this->warehouseId);
+    }
+
+    #[Computed]
+    public function recentActivity(): Collection
+    {
+        return $this->metrics()->recentActivity($this->user(), $this->warehouseId);
+    }
+
+    // ── Warehouse list for the filter dropdown ────────────────────────────────
+
+    #[Computed]
+    public function warehouses(): Collection
+    {
+        return \App\Models\Warehouse::active()->orderBy('name')->get(['id', 'name']);
+    }
+
+    // ── Chart computed properties ─────────────────────────────────────────────
+
+    #[Computed]
+    public function chartInboundVsOutbound(): array
+    {
+        return $this->metrics()->chartInboundVsOutbound($this->user(), $this->days);
+    }
+
+    #[Computed]
+    public function chartOrderPipeline(): array
+    {
+        return $this->metrics()->chartOrderStatusPipeline($this->user());
+    }
+
+    #[Computed]
+    public function chartBinUtilisation(): array
+    {
+        return $this->metrics()->chartBinUtilisation($this->user(), $this->warehouseId);
+    }
+
+    #[Computed]
+    public function chartTopMovingItems(): array
+    {
+        return $this->metrics()->chartTopMovingItems($this->user(), $this->days);
     }
 
     public function render(): View

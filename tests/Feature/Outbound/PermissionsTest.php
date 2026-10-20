@@ -69,7 +69,7 @@ function makePermDo(Warehouse $wh, VirtualWarehouse $vw, User $requestedBy, Deli
     ]);
 }
 
-function makeUser(string $role): User
+function makeOutboundUser(string $role): User
 {
     $user = User::factory()->create(['status' => 'active']);
     $user->assignRole($role);
@@ -83,7 +83,7 @@ test('test_order_owner_can_submit', function () {
     $dept = permDept();
     $vw   = permVw($wh, $dept);
 
-    $owner = makeUser('department-user');
+    $owner = makeOutboundUser('department-user');
     $do    = makePermDo($wh, $vw, $owner, DeliveryOrderStatus::Draft);
 
     $policy = new DeliveryOrderPolicy();
@@ -98,11 +98,11 @@ test('test_non_owner_cannot_submit', function () {
     $wh     = permWarehouse();
     $dept   = permDept();
     $vw     = permVw($wh, $dept);
-    $owner  = makeUser('department-user');
+    $owner  = makeOutboundUser('department-user');
     $do     = makePermDo($wh, $vw, $owner);
 
     // scanner-operator does not have orders.submit
-    $other = makeUser('scanner-operator');
+    $other = makeOutboundUser('scanner-operator');
 
     $policy = new DeliveryOrderPolicy();
 
@@ -116,12 +116,12 @@ test('test_department_manager_can_approve_department_level', function () {
     $dept = permDept();
     $vw   = permVw($wh, $dept);
 
-    $manager = makeUser('department-user');
+    $manager = makeOutboundUser('department-user');
     // Assign the manager as department head
     $dept->update(['head_user_id' => $manager->id]);
     $dept->refresh();
 
-    $requestor = makeUser('department-user');
+    $requestor = makeOutboundUser('department-user');
     $do = makePermDo($wh, $vw, $requestor, DeliveryOrderStatus::Submitted);
     $do->update(['department_id' => $dept->id]);
     $do->load('department');
@@ -139,8 +139,8 @@ test('test_warehouse_manager_can_approve_warehouse_level', function () {
     $dept = permDept();
     $vw   = permVw($wh, $dept);
 
-    $wManager   = makeUser('warehouse-manager');
-    $requestor  = makeUser('department-user');
+    $wManager   = makeOutboundUser('warehouse-manager');
+    $requestor  = makeOutboundUser('department-user');
     $do         = makePermDo($wh, $vw, $requestor, DeliveryOrderStatus::Submitted);
 
     $policy = new DeliveryOrderPolicy();
@@ -155,7 +155,7 @@ test('test_system_admin_can_do_everything', function () {
     $wh        = permWarehouse();
     $dept      = permDept();
     $vw        = permVw($wh, $dept);
-    $admin     = makeUser('system-admin');
+    $admin     = makeOutboundUser('system-admin');
     $do        = makePermDo($wh, $vw, $admin, DeliveryOrderStatus::Draft);
 
     // Gate::before bypass: system-admin returns true for any ability

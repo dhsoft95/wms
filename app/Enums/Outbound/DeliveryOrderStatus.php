@@ -10,6 +10,8 @@ enum DeliveryOrderStatus: string
     case Submitted          = 'submitted';
     case Approved           = 'approved';
     case Rejected           = 'rejected';
+    case Acceptance         = 'acceptance';
+    case Assigned           = 'assigned';
     case Allocated          = 'allocated';
     case PartiallyAllocated = 'partially_allocated';
     case Picking            = 'picking';
@@ -22,9 +24,11 @@ enum DeliveryOrderStatus: string
     {
         return match($this) {
             self::Draft              => 'Draft',
-            self::Submitted          => 'Submitted',
+            self::Submitted          => 'Pending Approval',
             self::Approved           => 'Approved',
             self::Rejected           => 'Rejected',
+            self::Acceptance         => 'Acceptance',
+            self::Assigned           => 'Assigned',
             self::Allocated          => 'Allocated',
             self::PartiallyAllocated => 'Partially Allocated',
             self::Picking            => 'Picking',
@@ -42,6 +46,8 @@ enum DeliveryOrderStatus: string
             self::Submitted          => 'badge-amber',
             self::Approved           => 'badge-blue',
             self::Rejected           => 'badge-red',
+            self::Acceptance         => 'badge-purple',
+            self::Assigned           => 'badge-cyan',
             self::Allocated          => 'badge-cyan',
             self::PartiallyAllocated => 'badge-orange',
             self::Picking            => 'badge-violet',
@@ -56,14 +62,17 @@ enum DeliveryOrderStatus: string
     {
         $allowed = match($this) {
             self::Draft              => [self::Submitted, self::Cancelled],
-            self::Submitted          => [self::Approved, self::Rejected, self::Cancelled],
-            self::Approved           => [self::Allocated, self::PartiallyAllocated, self::Cancelled],
-            self::PartiallyAllocated => [self::Allocated, self::Picking, self::Cancelled],
+            self::Approved           => [self::Acceptance, self::Cancelled],
+            self::Acceptance         => [self::Allocated, self::PartiallyAllocated, self::Cancelled],
             self::Allocated          => [self::Picking, self::Cancelled],
-            self::Picking            => [self::Picked],
+            self::PartiallyAllocated => [self::Allocated, self::Picking, self::Cancelled],
+            self::Picking            => [self::Picked, self::Dispatched],
             self::Picked             => [self::Dispatched],
             self::Dispatched         => [self::Delivered],
+            // Legacy paths kept for backward-compatibility with existing data
+            self::Submitted          => [self::Approved, self::Rejected, self::Cancelled],
             self::Rejected           => [self::Draft],
+            self::Assigned           => [self::Allocated, self::PartiallyAllocated, self::Picking, self::Cancelled],
             default                  => [],
         };
 

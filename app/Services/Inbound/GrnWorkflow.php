@@ -173,7 +173,7 @@ final class GrnWorkflow
             $grn = Grn::where('id', $grn->id)->lockForUpdate()->firstOrFail();
 
             // 2. Idempotency check
-            if ($grn->status === GrnStatus::Received) {
+            if (in_array($grn->status, [GrnStatus::PutawayInProgress, GrnStatus::PutawayComplete, GrnStatus::Closed], true)) {
                 return;
             }
 
@@ -282,14 +282,13 @@ final class GrnWorkflow
             // 6. Auto-unload container if all GRNs for it are now received
             if ($grn->container_id !== null) {
                 $container = $grn->container;
-                $grn->status = GrnStatus::Received;
+                $grn->status = GrnStatus::PutawayInProgress;
                 $grn->confirmed_by = $user->id;
                 $grn->confirmed_at = now();
                 $grn->save();
 
                 $allReceived = Grn::where('container_id', $grn->container_id)
                     ->whereNotIn('status', [
-                        GrnStatus::Received->value,
                         GrnStatus::PutawayInProgress->value,
                         GrnStatus::PutawayComplete->value,
                         GrnStatus::Closed->value,
@@ -304,8 +303,8 @@ final class GrnWorkflow
                     }
                 }
             } else {
-                // 7. Set status = received
-                $grn->status       = GrnStatus::Received;
+                // 7. Auto-advance to putaway — no manual step needed
+                $grn->status       = GrnStatus::PutawayInProgress;
                 $grn->confirmed_by = $user->id;
                 $grn->confirmed_at = now();
                 $grn->save();
@@ -333,10 +332,6 @@ final class GrnWorkflow
         array $vehicleData,
         User $clerk,
     ): Grn {
-        if (Grn::isDockBusy($dockLocationId)) {
-            throw new \DomainException('Selected dock is currently busy. Choose a different dock.');
-        }
-
         return DB::transaction(function () use ($po, $dockLocationId, $vehicleData, $clerk) {
             // For container POs, create the Container record now (at receiving time)
             $containerId = $po->container_id;
@@ -346,11 +341,14 @@ final class GrnWorkflow
                 && $containerId === null
             ) {
                 $container = \App\Models\Container::create([
-                    'number'       => DocumentNumber::next('CTR'),
-                    'container_no' => strtoupper($vehicleData['container_no']),
-                    'size_type'    => $vehicleData['container_size_type'] ?? null,
-                    'warehouse_id' => $po->warehouse_id,
-                    'status'       => \App\Enums\ContainerStatus::Arrived,
+                    'number'              => DocumentNumber::next('CTR'),
+                    'container_no'        => strtoupper($vehicleData['container_no']),
+                    'size_type'           => $vehicleData['container_size_type'] ?? null,
+                    'seal_no'                       => $vehicleData['container_seal_no'] ?? null,
+                    'shipping_line_partner_id'      => $vehicleData['container_shipping_line_id'] ? (int) $vehicleData['container_shipping_line_id'] : null,
+                    'purchase_order_id'             => $po->id,
+                    'warehouse_id'        => $po->warehouse_id,
+                    'status'              => \App\Enums\ContainerStatus::Arrived,
                 ]);
                 $containerId = $container->id;
             }
@@ -421,7 +419,7 @@ final class GrnWorkflow
         }
 
         // Already completed — idempotent no-op
-        if ($grn->status === GrnStatus::Received) {
+        if (in_array($grn->status, [GrnStatus::PutawayInProgress, GrnStatus::PutawayComplete, GrnStatus::Closed], true)) {
             return;
         }
 
@@ -434,7 +432,7 @@ final class GrnWorkflow
             $grn = Grn::where('id', $grn->id)->lockForUpdate()->firstOrFail();
 
             // Idempotency: already completed (re-check inside lock)
-            if ($grn->status === GrnStatus::Received) {
+            if (in_array($grn->status, [GrnStatus::PutawayInProgress, GrnStatus::PutawayComplete, GrnStatus::Closed], true)) {
                 return;
             }
 
@@ -530,8 +528,8 @@ final class GrnWorkflow
                 }
             }
 
-            // Advance GRN status
-            $grn->status       = GrnStatus::Received;
+            // Advance GRN directly to putaway — no manual step needed
+            $grn->status       = GrnStatus::PutawayInProgress;
             $grn->confirmed_by = $user->id;
             $grn->confirmed_at = now();
             $grn->save();
@@ -540,6 +538,11 @@ final class GrnWorkflow
             $po = PurchaseOrder::find($grn->purchase_order_id);
             if ($po) {
                 $this->poWorkflow->onGrnConfirmed($po, $user);
+                // If all lines received, PO is now PendingPutaway — immediately start putaway
+                $po->refresh();
+                if ($po->status === \App\Enums\Inbound\PurchaseOrderStatus::PendingPutaway) {
+                    $this->poWorkflow->markPutawayStarted($po, $user);
+                }
             }
 
             activity()->performedOn($grn)->causedBy($user)
@@ -587,7 +590,47 @@ final class GrnWorkflow
 
             $grn->closed_at = now();
             $grn->save();
+
+            // When all GRNs for this PO are now closed/cancelled, auto-close the PO
+            // through any remaining internal states (putaway/validation/verification).
+            if ($grn->purchase_order_id) {
+                $this->syncPoAfterGrnClose($grn, $user);
+            }
         });
+    }
+
+    private function syncPoAfterGrnClose(Grn $grn, User $user): void
+    {
+        $po = $grn->purchaseOrder ?? PurchaseOrder::find($grn->purchase_order_id);
+        if ($po === null) {
+            return;
+        }
+
+        $allClosed = Grn::where('purchase_order_id', $po->id)
+            ->whereNotIn('status', [GrnStatus::Closed->value, GrnStatus::Cancelled->value])
+            ->doesntExist();
+
+        if (! $allClosed) {
+            return;
+        }
+
+        $internalStatuses = [
+            PurchaseOrderStatus::PendingPutaway,
+            PurchaseOrderStatus::PutawayInProgress,
+            PurchaseOrderStatus::PendingSupervisorValidation,
+            PurchaseOrderStatus::CompletedPendingVerification,
+            PurchaseOrderStatus::IssueRaised,
+            PurchaseOrderStatus::IssueResolved,
+        ];
+
+        if (in_array($po->status, $internalStatuses, true)) {
+            $po->status      = PurchaseOrderStatus::VerifiedClosed;
+            $po->verified_at ??= now();
+            $po->save();
+
+            activity()->performedOn($po)->causedBy($user)
+                ->log('Order auto-closed after all GRNs closed');
+        }
     }
 
     /**

@@ -26,7 +26,7 @@
     <div class="header">
         <div class="header-left">
             <div class="brand-name">{{ $brandName }}</div>
-            <div class="doc-title">DELIVERY NOTE / GOODS DELIVERY NOTE</div>
+            <div class="doc-title">OUTBOUND DELIVERY NOTE (ODN)</div>
         </div>
         <div class="header-right">
             <div><strong>DO No:</strong> {{ $do->number }}</div>
@@ -52,10 +52,12 @@
         <div class="info-col">
             <div class="info-label">Transport Details</div>
             <div class="info-value">
-                <strong>Vehicle:</strong> {{ $dispatch->vehicle_no }}<br>
+                <strong>Vehicle Reg:</strong> {{ $dispatch->vehicle_reg_no }}<br>
+                @if($dispatch->container_no)<strong>Container No:</strong> {{ $dispatch->container_no }}<br>@endif
+                @if($dispatch->container_size)<strong>Container Size:</strong> {{ $dispatch->container_size->label() }}<br>@endif
                 <strong>Driver:</strong> {{ $dispatch->driver_name }}<br>
-                <strong>Phone:</strong> {{ $dispatch->driver_phone }}<br>
-                @if($dispatch->seal_no)<strong>Seal:</strong> {{ $dispatch->seal_no }}@endif
+                @if($dispatch->driver_phone)<strong>Phone:</strong> {{ $dispatch->driver_phone }}<br>@endif
+                @if($dispatch->seal_no)<strong>Seal No:</strong> {{ $dispatch->seal_no }}@endif
             </div>
         </div>
         @endif

@@ -37,6 +37,7 @@ class Edit extends Component
     public string $requiredDate        = '';
     public string $priority            = 'normal';
     public string $allocationRule      = 'fefo';
+    public string $packageType         = '';
     public string $remarks             = '';
     public string $mrnNumber           = '';
     public mixed  $mrnFile             = null;
@@ -61,6 +62,7 @@ class Edit extends Component
             : '';
         $this->priority           = $deliveryOrder->priority?->value ?? 'normal';
         $this->allocationRule     = $deliveryOrder->allocation_rule?->value ?? 'fefo';
+        $this->packageType        = $deliveryOrder->package_type?->value ?? '';
         $this->remarks            = $deliveryOrder->remarks ?? '';
         $this->mrnNumber          = $deliveryOrder->mrn_number ?? '';
 
@@ -225,6 +227,7 @@ class Edit extends Component
                 'required_date'        => $this->requiredDate,
                 'priority'             => $this->priority,
                 'allocation_rule'      => $this->allocationRule,
+                'package_type'         => $this->packageType ?: null,
                 'remarks'              => $this->remarks,
                 'mrn_number'           => $this->mrnNumber ?: null,
                 'mrn_file_path'        => $mrnFilePath,

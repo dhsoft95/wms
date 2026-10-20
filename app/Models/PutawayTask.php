@@ -10,6 +10,7 @@ use App\Models\Inventory\Lpn;
 use App\Models\Inventory\StockTransaction;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PutawayTask extends Model
 {
@@ -96,6 +97,11 @@ class PutawayTask extends Model
     public function stockTransaction(): BelongsTo
     {
         return $this->belongsTo(StockTransaction::class);
+    }
+
+    public function splits(): HasMany
+    {
+        return $this->hasMany(PutawayTaskSplit::class);
     }
 
     // ─── Business Methods ─────────────────────────────────────────────────────

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Livewire\Outbound\Dispatch;
 
+use App\Enums\Outbound\ContainerSize;
 use App\Enums\Outbound\DeliveryOrderStatus;
+use App\Enums\Outbound\PackageType;
 use App\Models\DeliveryOrder;
 use App\Models\Dispatch as DispatchModel;
 use App\Models\Partner;
@@ -19,23 +21,26 @@ class Index extends Component
 {
     use WithPagination;
 
-    public string $search       = '';
-    public string $tab          = 'ready';   // 'ready' | 'recent'
+    public string $search = '';
+    public string $tab    = 'ready';   // 'ready' | 'recent'
 
     // Dispatch modal
-    public bool    $showDispatchModal   = false;
-    public ?int    $actionDoId          = null;
-    public string  $vehicleNo           = '';
-    public string  $driverName          = '';
-    public string  $driverPhone         = '';
-    public string  $driverIdNo          = '';
+    public bool    $showDispatchModal    = false;
+    public ?int    $actionDoId           = null;
+    public string  $packageType          = '';   // read-only display, loaded from DO
+    public string  $vehicleRegNo         = '';
+    public string  $containerNo          = '';
+    public string  $containerSize        = '';
+    public string  $sealNo               = '';
+    public string  $driverName           = '';
+    public string  $driverPhone          = '';
+    public string  $driverIdNo           = '';
     public string  $transporterPartnerId = '';
-    public string  $sealNo              = '';
-    public string  $dispatchNotes       = '';
+    public string  $dispatchNotes        = '';
 
     // Gate verify modal
-    public bool   $showGateModal = false;
-    public ?int   $actionGatePassId = null;
+    public bool  $showGateModal  = false;
+    public ?int  $actionGatePassId = null;
 
     public function updatedSearch(): void { $this->resetPage(); }
     public function updatedTab(): void    { $this->resetPage(); }
@@ -46,7 +51,6 @@ class Index extends Component
         $query = DeliveryOrder::with(['consigneePartner', 'virtualWarehouse', 'warehouse'])
             ->where('status', DeliveryOrderStatus::Picked->value);
 
-        // VW scoping
         $user = auth()->user();
         if (! $user->canAccessAllVirtualWarehouses()) {
             $vwIds = $user->accessibleVirtualWarehouseIds();
@@ -90,22 +94,38 @@ class Index extends Component
     #[Computed]
     public function transporters(): \Illuminate\Database\Eloquent\Collection
     {
-        return Partner::where('is_active', true)->orderBy('name')->get();
+        return Partner::ofType('transporter')->where('is_active', true)->orderBy('name')->get();
+    }
+
+    #[Computed]
+    public function containerSizes(): array
+    {
+        return ContainerSize::cases();
+    }
+
+    public function isContainer(): bool
+    {
+        return $this->packageType === PackageType::Container->value;
     }
 
     // ─── Actions ──────────────────────────────────────────────────────────────
 
     public function openDispatchModal(int $doId): void
     {
-        $this->actionDoId            = $doId;
-        $this->vehicleNo             = '';
-        $this->driverName            = '';
-        $this->driverPhone           = '';
-        $this->driverIdNo            = '';
-        $this->transporterPartnerId  = '';
-        $this->sealNo                = '';
-        $this->dispatchNotes         = '';
-        $this->showDispatchModal     = true;
+        $do = DeliveryOrder::findOrFail($doId);
+
+        $this->actionDoId           = $doId;
+        $this->packageType          = $do->package_type?->value ?? '';
+        $this->vehicleRegNo         = '';
+        $this->containerNo          = '';
+        $this->containerSize        = '';
+        $this->sealNo               = '';
+        $this->driverName           = '';
+        $this->driverPhone          = '';
+        $this->driverIdNo           = '';
+        $this->transporterPartnerId = '';
+        $this->dispatchNotes        = '';
+        $this->showDispatchModal    = true;
     }
 
     public function closeDispatchModal(): void
@@ -116,24 +136,40 @@ class Index extends Component
 
     public function confirmDispatch(): void
     {
-        $this->validate([
-            'vehicleNo'   => ['required', 'string', 'max:20'],
-            'driverName'  => ['required', 'string', 'max:100'],
-            'driverPhone' => ['nullable', 'string', 'max:20'],
-            'driverIdNo'  => ['nullable', 'string', 'max:50'],
-        ]);
+        $isContainer = $this->packageType === PackageType::Container->value;
+
+        $rules = [
+            'vehicleRegNo'  => ['required', 'string', 'max:20'],
+            'driverName'    => ['required', 'string', 'max:100'],
+            'driverPhone'   => ['nullable', 'string', 'regex:/^(\+?255|0)7[0-9]{8}$/'],
+            'driverIdNo'    => ['nullable', 'string', 'max:50'],
+            'sealNo'        => $isContainer ? ['required', 'string', 'max:50'] : ['nullable', 'string', 'max:50'],
+            'containerNo'   => $isContainer ? ['required', 'string', 'max:50'] : ['nullable', 'string', 'max:50'],
+            'containerSize' => $isContainer ? ['required', 'string'] : ['nullable', 'string'],
+        ];
+
+        $messages = [
+            'driverPhone.regex'   => 'Enter a valid Tanzanian phone number (e.g. 0712345678 or +255712345678).',
+            'sealNo.required'     => 'Seal No is required for container shipments.',
+            'containerNo.required'=> 'Container No is required for container shipments.',
+            'containerSize.required' => 'Container Size is required for container shipments.',
+        ];
+
+        $this->validate($rules, $messages);
 
         $do = DeliveryOrder::findOrFail($this->actionDoId);
-        $this->authorize('allocate', $do);  // reuse allocate permission for dispatch
+        $this->authorize('allocate', $do);
 
         $data = [
-            'vehicle_no'              => $this->vehicleNo,
-            'driver_name'             => $this->driverName,
-            'driver_phone'            => $this->driverPhone ?: null,
-            'driver_id_no'            => $this->driverIdNo ?: null,
-            'transporter_partner_id'  => $this->transporterPartnerId ?: null,
-            'seal_no'                 => $this->sealNo ?: null,
-            'notes'                   => $this->dispatchNotes ?: null,
+            'vehicle_reg_no'         => strtoupper(trim($this->vehicleRegNo)),
+            'container_no'           => $isContainer ? strtoupper(trim($this->containerNo)) : null,
+            'container_size'         => $isContainer ? ($this->containerSize ?: null) : null,
+            'seal_no'                => $this->sealNo ?: null,
+            'driver_name'            => $this->driverName,
+            'driver_phone'           => $this->driverPhone ?: null,
+            'driver_id_no'           => $this->driverIdNo ?: null,
+            'transporter_partner_id' => $this->transporterPartnerId ?: null,
+            'notes'                  => $this->dispatchNotes ?: null,
         ];
 
         try {

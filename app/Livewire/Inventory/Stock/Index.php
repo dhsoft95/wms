@@ -16,14 +16,13 @@ class Index extends Component
 {
     use WithPagination;
 
-    public string $search = '';
+    public string $search         = '';
     public string $filterCategory = '';
-    public string $filterItem = '';
+    public string $filterItem     = '';
     public string $filterLocation = '';
-    public string $filterVw = '';
-    public string $filterStatus = '';
-    public string $filterExpiring = '';  // days: '', '7', '14', '30'
-    public bool $groupByItem = false;
+    public string $filterVw       = '';
+    public string $filterStatus   = '';
+    public string $filterExpiring = '';
 
     protected $queryString = [
         'filterItem'     => ['except' => ''],
@@ -31,7 +30,7 @@ class Index extends Component
         'filterVw'       => ['except' => ''],
     ];
 
-    public ?int $viewingSerialsId = null; // StockBalance id
+    public ?int $viewingSerialsId = null;
 
     public function viewSerials(int $balanceId): void
     {
@@ -71,28 +70,28 @@ class Index extends Component
         return ['balance' => $balance, 'serials' => $serials];
     }
 
-    public function updatingSearch(): void { $this->resetPage(); }
-    public function updatingFilterCategory(): void { $this->resetPage(); }
-    public function updatingFilterItem(): void { $this->resetPage(); }
-    public function updatingFilterLocation(): void { $this->resetPage(); }
-    public function updatingFilterVw(): void { $this->resetPage(); }
-    public function updatingFilterStatus(): void { $this->resetPage(); }
-    public function updatingFilterExpiring(): void { $this->resetPage(); }
+    public function updatingSearch(): void         { $this->resetPage(); }
+    public function updatingFilterCategory(): void  { $this->resetPage(); }
+    public function updatingFilterItem(): void      { $this->resetPage(); }
+    public function updatingFilterLocation(): void  { $this->resetPage(); }
+    public function updatingFilterVw(): void        { $this->resetPage(); }
+    public function updatingFilterStatus(): void    { $this->resetPage(); }
+    public function updatingFilterExpiring(): void  { $this->resetPage(); }
 
     #[Computed]
     public function balances()
     {
         return app(StockQueryService::class)->stockOnHand(
-            itemId: $this->filterItem ? (int) $this->filterItem : null,
-            locationId: $this->filterLocation ? (int) $this->filterLocation : null,
-            virtualWarehouseId: $this->filterVw ? (int) $this->filterVw : null,
-            stockStatus: $this->filterStatus ?: null,
-            expiringWithinDays: $this->filterExpiring ? (int) $this->filterExpiring : null,
-            groupByItem: $this->groupByItem,
-            user: auth()->user(),
-            perPage: 25,
-            search: $this->search ?: null,
-            categoryId: $this->filterCategory ? (int) $this->filterCategory : null,
+            itemId:              $this->filterItem     ? (int) $this->filterItem     : null,
+            locationId:          $this->filterLocation ? (int) $this->filterLocation : null,
+            virtualWarehouseId:  $this->filterVw       ? (int) $this->filterVw       : null,
+            stockStatus:         $this->filterStatus   ?: null,
+            expiringWithinDays:  $this->filterExpiring ? (int) $this->filterExpiring : null,
+            groupByItem:         true,
+            user:                auth()->user(),
+            perPage:             25,
+            search:              $this->search ?: null,
+            categoryId:          $this->filterCategory ? (int) $this->filterCategory : null,
         );
     }
 

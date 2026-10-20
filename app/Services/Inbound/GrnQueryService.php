@@ -18,6 +18,13 @@ final class GrnQueryService
             return Grn::query();
         }
 
+        // Department users see GRNs linked to their department's POs
+        if ($user->hasRole('department-user') && $user->department_id) {
+            return Grn::whereHas('purchaseOrder', function (Builder $q) use ($user) {
+                $q->where('department_id', $user->department_id);
+            });
+        }
+
         $vwIds = $user->virtualWarehouses()->pluck('virtual_warehouses.id');
 
         return Grn::whereHas('lines', function (Builder $q) use ($vwIds) {

@@ -75,7 +75,10 @@ final class AllocationService
                 $line->save();
             }
 
-            $do->status = DeliveryOrderStatus::Approved;
+            // Revert to Acceptance (if it reached that step) otherwise Approved
+            $do->status = $do->acceptance_at !== null
+                ? DeliveryOrderStatus::Acceptance
+                : DeliveryOrderStatus::Approved;
             $do->save();
         });
     }

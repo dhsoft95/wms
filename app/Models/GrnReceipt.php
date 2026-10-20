@@ -22,6 +22,7 @@ class GrnReceipt extends Model
         'batch_no',
         'expiry_date',
         'condition',
+        'damage_remark',
         'currency',
         'unit_price',
         'line_total',

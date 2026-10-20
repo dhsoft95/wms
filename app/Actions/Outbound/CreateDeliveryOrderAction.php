@@ -31,6 +31,7 @@ final class CreateDeliveryOrderAction
                 'required_date'        => $data['required_date'],
                 'priority'             => $data['priority'],
                 'allocation_rule'      => $data['allocation_rule'],
+                'package_type'         => $data['package_type'] ?? null,
                 'remarks'              => $data['remarks'] ?? null,
                 'mrn_number'           => $data['mrn_number'] ?? null,
                 'mrn_file_path'        => $data['mrn_file_path'] ?? null,

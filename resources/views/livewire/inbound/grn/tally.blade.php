@@ -7,7 +7,7 @@
                class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-simba-600 mb-2">
                 <x-ui.icon name="arrow-left" class="w-3.5 h-3.5" /> Back to {{ $grn->purchaseOrder?->number }}
             </a>
-            <h2 class="page-title">Receiving Tally</h2>
+            <h2 class="page-title">Goods Receipt Entry</h2>
             <div class="flex flex-wrap items-center gap-3 mt-1">
                 <span class="badge badge-slate">
                     <span class="dot"></span>Draft (unconfirmed)
@@ -18,11 +18,6 @@
                 @if ($grn->vehicle_plate)
                     <span class="text-xs text-slate-500 dark:text-slate-400">
                         Vehicle: <span class="font-mono font-medium">{{ $grn->vehicle_plate }}</span>
-                    </span>
-                @endif
-                @if ($grn->purchaseOrder?->currency)
-                    <span class="text-xs text-slate-500 dark:text-slate-400">
-                        Currency: <span class="font-mono font-medium">{{ $grn->purchaseOrder->currency }}</span>
                     </span>
                 @endif
             </div>
@@ -140,56 +135,65 @@
                                     <option value="">Select…</option>
                                     @foreach ($this->uomOptions as $u)
                                         <option value="{{ $u->id }}">{{ $u->code }}</option>
+
                                     @endforeach
                                 </select>
                                 @error('receiptUomId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                             </div>
                         </div>
 
-                        {{-- Currency + Unit Price + Line Total row --}}
-                        <div class="grid grid-cols-3 gap-4">
-                            <div>
-                                <label class="label">Currency</label>
-                                <select wire:model="receiptCurrency" class="input font-mono">
-                                    <option value="">—</option>
-                                    @foreach (\App\Enums\Currency::cases() as $c)
-                                        <option value="{{ $c->value }}">{{ $c->value }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            <div>
-                                <label class="label">Unit Price</label>
-                                <input wire:model.live="receiptUnitPrice" type="number" step="0.0001" min="0"
-                                       class="input font-mono tabular-nums" placeholder="0.0000" />
-                                @error('receiptUnitPrice') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                            </div>
-                            <div>
-                                <label class="label">Total Value</label>
-                                <input wire:model="receiptLineTotal" type="number" step="0.0001" min="0"
-                                       class="input font-mono tabular-nums bg-slate-50 dark:bg-slate-800/50"
-                                       placeholder="Auto-calculated" />
-                            </div>
-                        </div>
-
                         {{-- Condition --}}
-                        <div>
-                            <label class="label">Condition <span class="text-red-500">*</span></label>
-                            <div class="flex gap-4">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input wire:model="receiptCondition" type="radio" value="good" class="text-simba-600" />
-                                    <span class="text-sm text-slate-700 dark:text-slate-200">Good</span>
-                                </label>
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input wire:model="receiptCondition" type="radio" value="damaged" class="text-amber-500" />
-                                    <span class="text-sm text-slate-700 dark:text-slate-200">Damaged (→ quarantine)</span>
-                                </label>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="label">Condition <span class="text-red-500">*</span></label>
+                                <div class="flex gap-4">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input wire:model.live="receiptCondition" type="radio" value="good" class="text-simba-600" />
+                                        <span class="text-sm text-slate-700 dark:text-slate-200">Good</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input wire:model.live="receiptCondition" type="radio" value="damaged" class="text-amber-500" />
+                                        <span class="text-sm text-slate-700 dark:text-slate-200">Damaged (→ quarantine)</span>
+                                    </label>
+                                </div>
                             </div>
+                            @if ($receiptCondition === 'damaged')
+                            <div>
+                                <label class="label">
+                                    Damage Remark <span class="text-red-500">*</span>
+                                    <span class="text-xs text-slate-400 font-normal ml-1">Describe the damage</span>
+                                </label>
+                                <textarea wire:model="receiptDamageRemark" rows="2"
+                                          class="input w-full resize-none @error('receiptDamageRemark') border-red-400 @enderror"
+                                          placeholder="e.g. Crushed carton, water damage, torn packaging…"></textarea>
+                                @error('receiptDamageRemark')
+                                    <p class="hint !text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            @endif
                         </div>
 
                         @if ($tallyLine->item?->track_serial)
+                            @php
+                                $neededSerials = null;
+                                if ($receiptQty !== '' && $receiptUomId !== '') {
+                                    try {
+                                        $neededSerials = (int) round((float) \App\Services\Foundation\UomConverter::toBase(
+                                            $tallyLine->item,
+                                            (int) $receiptUomId,
+                                            $receiptQty,
+                                        ));
+                                    } catch (\Throwable) {}
+
+                                }
+                            @endphp
                             <div>
                                 <label class="label">Serial Numbers <span class="text-red-500">*</span>
-                                    <span class="text-xs text-slate-400 font-normal">(one per line or comma-separated)</span>
+                                    @if ($neededSerials !== null)
+                                        <span class="text-xs text-slate-400 font-normal">({{ $neededSerials }} required — one per line or comma-separated)</span>
+                                    @else
+                                        <span class="text-xs text-slate-400 font-normal">(one per line or comma-separated)</span>
+                                    @endif
                                 </label>
                                 <textarea wire:model="receiptSerials" rows="4"
                                           class="input w-full font-mono text-xs resize-y @error('receiptSerials') border-red-400 @enderror"
@@ -206,10 +210,20 @@
                             </div>
                         @endif
 
-                        @if ($tallyLine->item?->track_expiry ?? false)
+                        @if ($this->itemRequiresExpiry || ($tallyLine->item?->track_expiry ?? false))
                             <div>
-                                <label class="label">Expiry Date</label>
-                                <input wire:model="receiptExpiry" type="date" class="input" />
+                                <label class="label">
+                                    Expiry Date
+                                    @if ($this->itemRequiresExpiry)
+                                        <span class="text-red-500">*</span>
+                                        <span class="text-xs text-amber-600 dark:text-amber-400 font-normal ml-1">Required  FEFO item</span>
+                                    @endif
+                                </label>
+                                <input wire:model="receiptExpiry" type="date"
+                                       class="input @error('receiptExpiry') border-red-400 @enderror" />
+                                @error('receiptExpiry')
+                                    <p class="hint !text-red-600">{{ $message }}</p>
+                                @enderror
                             </div>
                         @endif
 
@@ -236,9 +250,7 @@
                                     <th class="text-right">Qty</th>
                                     <th>UoM</th>
                                     <th>Condition</th>
-                                    <th>Batch</th>
-                                    <th class="text-right">Unit Price</th>
-                                    <th class="text-right">Total</th>
+                                    <th>Batch / Serials</th>
                                     <th></th>
                                 </tr>
                             </thead>
@@ -255,6 +267,11 @@
                                             ])>
                                                 {{ ucfirst($receipt->condition?->value ?? $receipt->condition ?? '—') }}
                                             </span>
+                                            @if ($receipt->damage_remark)
+                                                <p class="text-xs text-amber-600 dark:text-amber-400 mt-0.5 max-w-[180px] truncate" title="{{ $receipt->damage_remark }}">
+                                                    {{ $receipt->damage_remark }}
+                                                </p>
+                                            @endif
                                         </td>
                                         <td class="font-mono text-xs text-slate-500">
                                             {{ $receipt->batch_no ?? '—' }}
@@ -264,21 +281,6 @@
                                                         <span class="badge badge-slate text-xs font-mono">{{ $sn }}</span>
                                                     @endforeach
                                                 </div>
-                                            @endif
-                                        </td>
-                                        <td class="tabular-nums text-right font-mono text-sm">
-                                            @if ($receipt->unit_price)
-                                                <span class="text-slate-500 text-xs">{{ $receipt->currency ?? '' }}</span>
-                                                {{ number_format((float) $receipt->unit_price, 4) }}
-                                            @else
-                                                <span class="text-slate-400">—</span>
-                                            @endif
-                                        </td>
-                                        <td class="tabular-nums text-right font-mono text-sm font-semibold">
-                                            @if ($receipt->line_total)
-                                                {{ number_format((float) $receipt->line_total, 2) }}
-                                            @else
-                                                <span class="text-slate-400">—</span>
                                             @endif
                                         </td>
                                         <td class="text-right">

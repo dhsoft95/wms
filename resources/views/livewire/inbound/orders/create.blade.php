@@ -35,9 +35,21 @@
                         @error('warehouseId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                     </div>
 
+                    {{-- Department --}}
+                    <div>
+                        <label class="label">Department</label>
+                        <select wire:model="departmentId" class="input"
+                                {{ auth()->user()->hasRole('department-user') ? 'disabled' : '' }}>
+                            <option value="">— None —</option>
+                            @foreach ($this->departments as $dept)
+                                <option value="{{ $dept->id }}">{{ $dept->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
                     {{-- Virtual Warehouse --}}
                     <div>
-                        <label class="label">Virtual Warehouse / Department</label>
+                        <label class="label">Virtual Warehouse</label>
                         <select wire:model="virtualWarehouseId" class="input">
                             <option value="">None</option>
                             @foreach ($this->virtualWarehouses as $vw)
@@ -61,6 +73,17 @@
                     <div>
                         <label class="label">Supplier</label>
                         <select wire:model="supplierPartnerId" class="input">
+                            <option value="">None</option>
+                            @foreach ($this->partners as $partner)
+                                <option value="{{ $partner->id }}">{{ $partner->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- Consignee --}}
+                    <div>
+                        <label class="label">Consignee</label>
+                        <select wire:model="consigneePartnerId" class="input">
                             <option value="">None</option>
                             @foreach ($this->partners as $partner)
                                 <option value="{{ $partner->id }}">{{ $partner->name }}</option>

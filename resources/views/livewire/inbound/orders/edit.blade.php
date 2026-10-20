@@ -38,7 +38,7 @@
 
                     {{-- Virtual Warehouse --}}
                     <div>
-                        <label class="label">Virtual Warehouse / Department</label>
+                        <label class="label">Virtual Warehouse </label>
                         <select wire:model="virtualWarehouseId" class="input">
                             <option value="">None</option>
                             @foreach ($this->virtualWarehouses as $vw)
@@ -62,6 +62,17 @@
                     <div>
                         <label class="label">Supplier</label>
                         <select wire:model="supplierPartnerId" class="input">
+                            <option value="">None</option>
+                            @foreach ($this->partners as $partner)
+                                <option value="{{ $partner->id }}">{{ $partner->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- Consignee --}}
+                    <div>
+                        <label class="label">Consignee</label>
+                        <select wire:model="consigneePartnerId" class="input">
                             <option value="">None</option>
                             @foreach ($this->partners as $partner)
                                 <option value="{{ $partner->id }}">{{ $partner->name }}</option>

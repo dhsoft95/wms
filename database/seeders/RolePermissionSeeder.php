@@ -64,7 +64,7 @@ class RolePermissionSeeder extends Seeder
         'approvals.view',  'approvals.approve',
 
         // Reports / Traceability
-        'reports.view',    'reports.export',
+        'reports.view',    'reports.export',    'reports.ai_summary',
         'traceability.view',
         'audit-logs.view',
 
@@ -145,7 +145,7 @@ class RolePermissionSeeder extends Seeder
             'gate.verify', 'pod.upload', 'returns.create',
             'scan.dispatch', 'scan.gate',
             'approvals.view', 'approvals.approve',
-            'reports.view', 'reports.export',
+            'reports.view', 'reports.export', 'reports.ai_summary',
             'traceability.view',
             'items.view', 'items.create', 'items.update',
             'partners.view', 'partners.create', 'partners.update',
@@ -193,6 +193,8 @@ class RolePermissionSeeder extends Seeder
             'movements.view', 'movements.create',
             // PO workflow
             'po.view', 'po.create', 'po.approve',
+            // GRN
+            'grn.view',
         ],
 
         'storekeeper' => [
@@ -260,7 +262,7 @@ class RolePermissionSeeder extends Seeder
             'picking.view',
             'dispatch.view',
             'approvals.view',
-            'reports.view', 'reports.export',
+            'reports.view', 'reports.export', 'reports.ai_summary',
             'traceability.view',
             'audit-logs.view',
             'items.view',
@@ -309,7 +311,7 @@ class RolePermissionSeeder extends Seeder
             'counts.view',
             'orders.view',
             'dispatch.view',
-            'reports.view', 'reports.export',
+            'reports.view', 'reports.export', 'reports.ai_summary',
             'items.view',
             'partners.view',
             'locations.view',

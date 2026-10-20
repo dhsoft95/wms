@@ -75,7 +75,6 @@
                     <tr>
                         <th class="px-4 py-3">Number</th>
                         <th class="px-4 py-3">Type</th>
-                        <th class="px-4 py-3">Reference</th>
                         <th class="px-4 py-3">Items</th>
                         <th class="px-4 py-3">Posted By</th>
                         <th class="px-4 py-3">Date</th>
@@ -114,11 +113,6 @@
                                 };
                             @endphp
                             <span class="badge {{ $typeBadge }}">{{ $tx->type->label() }}</span>
-                        </td>
-
-                        {{-- Reference --}}
-                        <td class="px-4 py-3.5 mono text-xs text-slate-600 dark:text-slate-400">
-                            {{ $tx->reference_no ?: '—' }}
                         </td>
 
                         {{-- Items summary --}}
@@ -179,7 +173,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-5 py-16 text-center">
+                        <td colspan="7" class="px-5 py-16 text-center">
                             <x-ui.icon name="refresh" class="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600" />
                             <p class="mt-3 font-medium text-slate-900 dark:text-white">No movements found</p>
                             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -198,8 +192,7 @@
                     @for ($i = 0; $i < 6; $i++)
                         <tr class="skeleton-row">
                             <td class="px-4"><div class="skeleton-cell w-28"></div></td>
-                            <td class="px-4"><div class="skeleton-cell w-24"></div></td>
-                            <td class="px-4"><div class="skeleton-cell w-20"></div></td>
+                            <td class="px-4"><div class="skeleton-cell w-36"></div></td>
                             <td class="px-4"><div class="skeleton-cell w-48"></div></td>
                             <td class="px-4"><div class="skeleton-cell w-28"></div></td>
                             <td class="px-4"><div class="skeleton-cell w-32"></div></td>

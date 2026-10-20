@@ -39,6 +39,7 @@
                         <th>DO Number</th>
                         <th>Consignee</th>
                         <th>VW / Warehouse</th>
+                        <th>Package Type</th>
                         <th>Required Date</th>
                         <th>Lines</th>
                         <th class="text-right">Action</th>
@@ -56,6 +57,15 @@
                                 <div class="text-xs text-slate-500 dark:text-slate-400">
                                     {{ $do->warehouse?->name ?? '—' }}
                                 </div>
+                            </td>
+                            <td class="text-sm">
+                                @if ($do->package_type)
+                                    <span class="badge {{ $do->package_type === \App\Enums\Outbound\PackageType::Container ? 'badge-blue' : 'badge-slate' }}">
+                                        {{ $do->package_type->label() }}
+                                    </span>
+                                @else
+                                    <span class="text-slate-400">—</span>
+                                @endif
                             </td>
                             <td class="tabular-nums text-sm @if($do->required_date && $do->required_date->isPast()) text-red-600 dark:text-red-400 font-semibold @endif">
                                 {{ $do->required_date?->format('d M Y') ?? '—' }}
@@ -75,7 +85,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="!py-12 text-center text-slate-500">
+                            <td colspan="7" class="!py-12 text-center text-slate-500">
                                 @if ($search)
                                     No orders match your search.
                                 @else
@@ -100,7 +110,7 @@
                         <th>Dispatch #</th>
                         <th>DO Number</th>
                         <th>Consignee</th>
-                        <th>Vehicle No</th>
+                        <th>Vehicle Reg</th>
                         <th>Driver</th>
                         <th>Dispatched At</th>
                         <th>Gate Pass</th>
@@ -115,7 +125,7 @@
                                 {{ $dispatch->deliveryOrder?->number ?? '—' }}
                             </td>
                             <td>{{ $dispatch->deliveryOrder?->consigneePartner?->name ?? '—' }}</td>
-                            <td class="mono text-sm">{{ $dispatch->vehicle_no ?? '—' }}</td>
+                            <td class="mono text-sm">{{ $dispatch->vehicle_reg_no ?? '—' }}</td>
                             <td class="text-sm">{{ $dispatch->driver_name ?? '—' }}</td>
                             <td class="tabular-nums text-sm">
                                 {{ $dispatch->dispatched_at?->format('d M Y H:i') ?? '—' }}
@@ -135,15 +145,22 @@
                                 @endif
                             </td>
                             <td class="text-right">
-                                @if ($dispatch->gatePass && $dispatch->gatePass->status->value === 'issued')
-                                    <button wire:click="verifyGateExit({{ $dispatch->gatePass->id }})"
-                                            wire:confirm="Mark gate exit for {{ $dispatch->number }}?"
-                                            class="btn btn-primary btn-sm">
-                                        <x-ui.icon name="check" class="w-3.5 h-3.5" /> Verify Exit
-                                    </button>
-                                @else
-                                    <span class="text-xs text-slate-400">—</span>
-                                @endif
+                                <div class="flex items-center justify-end gap-2">
+                                    <x-ui.pdf-viewer
+                                        :url="route('outbound.dispatch.dn.download', $dispatch->id)"
+                                        :label="'ODN — ' . $dispatch->number"
+                                        btnClass="btn btn-secondary btn-sm gap-1.5">
+                                        <x-ui.icon name="document-arrow-down" class="w-3.5 h-3.5" /> ODN
+                                    </x-ui.pdf-viewer>
+
+                                    @if ($dispatch->gatePass && $dispatch->gatePass->status->value === 'issued')
+                                        <button wire:click="verifyGateExit({{ $dispatch->gatePass->id }})"
+                                                wire:confirm="Mark gate exit for {{ $dispatch->number }}?"
+                                                class="btn btn-primary btn-sm">
+                                            <x-ui.icon name="check" class="w-3.5 h-3.5" /> Verify Exit
+                                        </button>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @empty
@@ -170,6 +187,18 @@
     @if ($showDispatchModal)
         <x-ui.modal title="Confirm Dispatch" wireClose="closeDispatchModal" maxWidth="xl">
 
+            {{-- Package Type (read-only) --}}
+            @php $isContainer = $packageType === \App\Enums\Outbound\PackageType::Container->value; @endphp
+            <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
+                <x-ui.icon name="cube" class="w-5 h-5 text-slate-500 shrink-0" />
+                <div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Package Type</p>
+                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                        {{ $packageType ? \App\Enums\Outbound\PackageType::from($packageType)->label() : '— Not set —' }}
+                    </p>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                 {{-- Vehicle Registration No --}}
@@ -177,25 +206,69 @@
                     <label class="label" for="dispatch-vehicle">
                         Vehicle Registration No <span class="text-rose-500">*</span>
                     </label>
-                    <input wire:model="vehicleNo"
+                    <input wire:model="vehicleRegNo"
                            id="dispatch-vehicle"
                            type="text"
                            placeholder="T 452 ABC"
-                           class="input w-full mono uppercase @error('vehicleNo') border-red-400 @enderror" />
-                    @error('vehicleNo')
+                           class="input w-full mono uppercase @error('vehicleRegNo') border-red-400 @enderror" />
+                    @error('vehicleRegNo')
                         <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
                     @enderror
                 </div>
 
-                {{-- Seal No --}}
+                {{-- Seal No (required for container, optional for loose cargo) --}}
                 <div>
-                    <label class="label" for="dispatch-seal">Seal No</label>
+                    <label class="label" for="dispatch-seal">
+                        Seal No
+                        @if ($isContainer)
+                            <span class="text-rose-500">*</span>
+                        @endif
+                    </label>
                     <input wire:model="sealNo"
                            id="dispatch-seal"
                            type="text"
                            placeholder="SL-55021"
-                           class="input w-full mono" />
+                           class="input w-full mono @error('sealNo') border-red-400 @enderror" />
+                    @error('sealNo')
+                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                    @enderror
                 </div>
+
+                {{-- Container fields — only shown for container shipments --}}
+                @if ($isContainer)
+                    {{-- Container No --}}
+                    <div>
+                        <label class="label" for="dispatch-container-no">
+                            Container No <span class="text-rose-500">*</span>
+                        </label>
+                        <input wire:model="containerNo"
+                               id="dispatch-container-no"
+                               type="text"
+                               placeholder="TCKU 123456-7"
+                               class="input w-full mono uppercase @error('containerNo') border-red-400 @enderror" />
+                        @error('containerNo')
+                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    {{-- Container Size --}}
+                    <div>
+                        <label class="label" for="dispatch-container-size">
+                            Container Size <span class="text-rose-500">*</span>
+                        </label>
+                        <select wire:model="containerSize"
+                                id="dispatch-container-size"
+                                class="input w-full @error('containerSize') border-red-400 @enderror">
+                            <option value="">— Select size —</option>
+                            @foreach ($this->containerSizes as $size)
+                                <option value="{{ $size->value }}">{{ $size->label() }}</option>
+                            @endforeach
+                        </select>
+                        @error('containerSize')
+                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        @enderror
+                    </div>
+                @endif
 
                 {{-- Driver Name --}}
                 <div>

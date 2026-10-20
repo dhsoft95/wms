@@ -3,7 +3,7 @@
     <div class="page-header">
         <div>
             <h2 class="page-title">Goods Receipt Notes</h2>
-            <p class="page-sub">Receiving records for every container and supplier delivery.</p>
+            <p class="page-sub">Receiving records for every item.</p>
         </div>
     </div>
 
@@ -15,9 +15,16 @@
                     All <span class="badge badge-neutral ml-1">{{ $this->statusCounts['all'] ?? 0 }}</span>
                 </button>
                 @foreach ($this->statuses as $status)
+                    @php
+                        $tabLabel = match($status) {
+                            \App\Enums\GrnStatus::Received         => 'Receiving',
+                            \App\Enums\GrnStatus::PutawayInProgress => 'Putaway',
+                            default                                 => $status->label(),
+                        };
+                    @endphp
                     <button wire:click="$set('statusFilter','{{ $status->value }}')"
                             @class(['tab','active' => $statusFilter === $status->value])>
-                        {{ $status->label() }}
+                        {{ $tabLabel }}
                         @if (($this->statusCounts[$status->value] ?? 0) > 0)
                             <span class="badge {{ $status->color() }} ml-1">{{ $this->statusCounts[$status->value] }}</span>
                         @endif
@@ -27,19 +34,50 @@
 
             <div class="flex items-center gap-2 ml-auto">
                 {{-- Source filter --}}
-                <select wire:model.live="sourceFilter" class="input input-sm">
-                    <option value="">All Sources</option>
-                    @foreach ($this->sources as $src)
-                        <option value="{{ $src->value }}">{{ $src->label() }}</option>
-                    @endforeach
-                </select>
+{{--                <select wire:model.live="sourceFilter" class="input input-sm">--}}
+{{--                    <option value="">All Sources</option>--}}
+{{--                    @foreach ($this->sources as $src)--}}
+{{--                        <option value="{{ $src->value }}">{{ $src->label() }}</option>--}}
+{{--                    @endforeach--}}
+{{--                </select>--}}
 
-                {{-- Search --}}
-                <div class="relative">
-                    <x-ui.icon name="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                    <input wire:model.live.debounce.300ms="search" type="text"
-                           placeholder="Search GRN, container, supplier…"
-                           class="input !pl-9 sm:w-64" />
+                {{-- Search with suggestions --}}
+                <div class="relative" x-data="{ open: false }" @click.outside="open = false">
+                    <x-ui.icon name="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" />
+                    <input wire:model.live.debounce.300ms="search"
+                           @focus="open = true"
+                           @keydown.escape="open = false"
+                           @keydown.enter="open = false"
+                           type="text"
+                           placeholder="Search ...."
+                           class="input !pl-9 sm:w-64"
+                           autocomplete="off" />
+                    @if ($search !== '')
+                        <button type="button"
+                                wire:click="$set('search', '')"
+                                @click="open = false"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                            <x-ui.icon name="x" class="w-3.5 h-3.5" />
+                        </button>
+                    @endif
+
+                    @if (count($this->searchSuggestions) > 0)
+                        <div x-show="open"
+                             x-transition:enter="transition ease-out duration-100"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             class="absolute right-0 z-30 mt-1 w-72 overflow-hidden rounded-xl border border-white/50 dark:border-white/[0.08] shadow-lg glass-solid dark:glass-solid-dark">
+                            @foreach ($this->searchSuggestions as $suggestion)
+                                <button type="button"
+                                        wire:click="applySearch('{{ addslashes($suggestion['value']) }}')"
+                                        @click="open = false"
+                                        class="w-full flex items-center justify-between px-4 py-2.5 text-sm hover:bg-brand-50/60 dark:hover:bg-brand-900/20 transition-colors text-left {{ !$loop->first ? 'border-t border-white/40 dark:border-white/[0.06]' : '' }}">
+                                    <span class="font-mono font-semibold truncate">{{ $suggestion['label'] }}</span>
+                                    <span class="text-xs text-slate-400 ml-3 shrink-0">{{ $suggestion['sub'] }}</span>
+                                </button>
+                            @endforeach
+                        </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -50,9 +88,9 @@
                     <th>GRN Number</th>
                     <th>PO Number</th>
                     <th>Source</th>
-                    <th>Container / Supplier</th>
+                    <th>Partner</th>
                     <th>Warehouse</th>
-                    <th>Progress</th>
+{{--                    <th>Progress</th>--}}
                     <th>Status</th>
                     <th class="text-right">Actions</th>
                 </tr>
@@ -86,18 +124,18 @@
                             @endif
                         </td>
                         <td>{{ $grn->warehouse?->name }}</td>
-                        <td>
-                            @php
-                                $pct = $grn->progressPercent();
-                                $barColor = $pct >= 100 ? 'bg-emerald-600' : 'bg-simba-500';
-                            @endphp
-                            <div class="flex items-center gap-2">
-                                <div class="progress w-24">
-                                    <div class="{{ $barColor }}" style="width:{{ $pct }}%"></div>
-                                </div>
-                                <span class="text-xs tabular-nums text-slate-500">{{ $pct }}%</span>
-                            </div>
-                        </td>
+{{--                        <td>--}}
+{{--                            @php--}}
+{{--                                $pct = $grn->progressPercent();--}}
+{{--                                $barColor = $pct >= 100 ? 'bg-emerald-600' : 'bg-simba-500';--}}
+{{--                            @endphp--}}
+{{--                            <div class="flex items-center gap-2">--}}
+{{--                                <div class="progress w-24">--}}
+{{--                                    <div class="{{ $barColor }}" style="width:{{ $pct }}%"></div>--}}
+{{--                                </div>--}}
+{{--                                <span class="text-xs tabular-nums text-slate-500">{{ $pct }}%</span>--}}
+{{--                            </div>--}}
+{{--                        </td>--}}
                         <td>
                             <span class="badge {{ $grn->status->color() }}">
                                 <span class="dot"></span>{{ $grn->status->label() }}
@@ -109,7 +147,7 @@
                                    class="btn btn-secondary btn-sm">View</a>
                                 @if ($grn->purchase_order_id && $grn->status->value === 'draft')
                                     <a href="{{ route('inbound.grn.tally', $grn) }}" wire:navigate
-                                       class="btn btn-primary btn-sm">Continue Tally</a>
+                                       class="btn btn-primary btn-sm">Continue Receiving</a>
                                 @elseif (in_array($grn->status->value, ['draft', 'receiving']) && ! $grn->purchase_order_id)
                                     <a href="{{ route('inbound.grn.receive', $grn) }}" wire:navigate
                                        class="btn btn-primary btn-sm">Receive</a>

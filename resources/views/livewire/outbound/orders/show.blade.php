@@ -20,6 +20,7 @@
 
         {{-- Action Buttons --}}
         <div class="flex items-center gap-2 flex-wrap">
+            {{-- Draft: submit + edit --}}
             @if ($this->do->status === \App\Enums\Outbound\DeliveryOrderStatus::Draft)
                 @can('submit', $this->do)
                     <button wire:click="submit" wire:loading.attr="disabled" class="btn btn-primary">
@@ -33,36 +34,38 @@
                 @endcan
             @endif
 
+            {{-- Submitted: pending approval --}}
             @if ($this->do->status === \App\Enums\Outbound\DeliveryOrderStatus::Submitted)
                 @can('approveDepartment', $this->do)
-                    <button wire:click="approveDepartment" wire:loading.attr="disabled" class="btn btn-primary">
-                        <x-ui.icon name="check" class="w-4 h-4" /> Approve (Dept)
-                    </button>
-                @endcan
-                @can('approveWarehouse', $this->do)
-                    <button wire:click="approveWarehouse" wire:loading.attr="disabled" class="btn btn-primary">
-                        <x-ui.icon name="check" class="w-4 h-4" /> Approve (Warehouse)
-                    </button>
-                @endcan
-                @can('cancel', $this->do)
-                    <button wire:click="openRejectModal" class="btn btn-secondary text-red-600 dark:text-red-400">
-                        <x-ui.icon name="x" class="w-4 h-4" /> Reject
+                    <button wire:click="approve" wire:loading.attr="disabled" class="btn btn-primary">
+                        <x-ui.icon name="check" class="w-4 h-4" /> Approve
                     </button>
                 @endcan
             @endif
 
+            {{-- Approved: accept for warehouse processing --}}
             @if ($this->do->status === \App\Enums\Outbound\DeliveryOrderStatus::Approved)
                 @can('allocate', $this->do)
-                    <button wire:click="allocate" wire:loading.attr="disabled" class="btn btn-primary">
-                        <x-ui.icon name="cube" class="w-4 h-4" /> Allocate Stock
+                    <button wire:click="accept" wire:loading.attr="disabled" class="btn btn-primary">
+                        <x-ui.icon name="check-circle" class="w-4 h-4" /> Accept Order
                     </button>
                 @endcan
             @endif
 
+            {{-- Acceptance: allocate stock --}}
+            @if ($this->do->status === \App\Enums\Outbound\DeliveryOrderStatus::Acceptance)
+                @can('allocate', $this->do)
+                    <button wire:click="allocate" wire:loading.attr="disabled" class="btn btn-primary">
+                        <x-ui.icon name="check" class="w-4 h-4" /> Allocate Stock
+                    </button>
+                @endcan
+            @endif
+
+            {{-- Allocated / PartiallyAllocated / Picking: generate or view pick list --}}
             @if (in_array($this->do->status, [
+                    \App\Enums\Outbound\DeliveryOrderStatus::Picking,
                     \App\Enums\Outbound\DeliveryOrderStatus::Allocated,
                     \App\Enums\Outbound\DeliveryOrderStatus::PartiallyAllocated,
-                    \App\Enums\Outbound\DeliveryOrderStatus::Picking,
                 ]))
                 @can('allocate', $this->do)
                     @if ($this->activePickList === null)
@@ -79,6 +82,7 @@
                 @endcan
             @endif
 
+            {{-- Cancel button for all non-terminal states --}}
             @if (! in_array($this->do->status, [
                     \App\Enums\Outbound\DeliveryOrderStatus::Dispatched,
                     \App\Enums\Outbound\DeliveryOrderStatus::Delivered,
@@ -101,19 +105,23 @@
             <div class="flex items-center justify-between overflow-x-auto gap-1">
                 @foreach ($this->stepperStatuses as $step)
                     @php
-                        $currentIdx = array_search($this->do->status, $this->stepperStatuses);
+                        $currentIdx = $this->stepperCurrentIndex();
                         $stepIdx    = array_search($step, $this->stepperStatuses);
-                        $done       = $stepIdx < $currentIdx;
-                        $current    = $stepIdx === $currentIdx;
+                        $isCancelled = $this->do->status === \App\Enums\Outbound\DeliveryOrderStatus::Cancelled;
+                        $done       = ! $isCancelled && $stepIdx < $currentIdx;
+                        $current    = ! $isCancelled && $stepIdx === $currentIdx;
                     @endphp
                     <div class="flex flex-col items-center gap-1 shrink-0">
                         <div @class([
                             'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition',
                             'border-emerald-500 bg-emerald-500 text-white'                       => $done,
                             'border-simba-500 bg-simba-500 text-white'                           => $current,
-                            'border-slate-300 dark:border-slate-600 text-slate-400'              => ! $done && ! $current,
+                            'border-red-400 bg-red-50 dark:bg-red-900/20 text-red-400'           => $isCancelled && $stepIdx === 0,
+                            'border-slate-300 dark:border-slate-600 text-slate-400'              => ! $done && ! $current && ! ($isCancelled && $stepIdx === 0),
                         ])>
-                            @if ($done)
+                            @if ($isCancelled && $stepIdx === 0)
+                                <x-ui.icon name="x" class="w-4 h-4" />
+                            @elseif ($done)
                                 <x-ui.icon name="check" class="w-4 h-4" />
                             @else
                                 {{ $stepIdx + 1 }}
@@ -123,14 +131,15 @@
                             'text-[10px] text-center leading-tight',
                             'text-emerald-600 dark:text-emerald-400 font-semibold' => $done,
                             'text-simba-600 dark:text-simba-400 font-semibold'     => $current,
-                            'text-slate-400'                                       => ! $done && ! $current,
+                            'text-red-400 font-semibold'                            => $isCancelled && $stepIdx === 0,
+                            'text-slate-400'                                        => ! $done && ! $current && ! ($isCancelled && $stepIdx === 0),
                         ])>{{ $step->label() }}</span>
                     </div>
                     @if (! $loop->last)
                         <div @class([
                             'flex-1 h-0.5 min-w-[12px] transition',
-                            'bg-emerald-500'                        => $stepIdx < $currentIdx,
-                            'bg-slate-200 dark:bg-slate-700'        => $stepIdx >= $currentIdx,
+                            'bg-emerald-500'                        => $stepIdx < $currentIdx && ! $isCancelled,
+                            'bg-slate-200 dark:bg-slate-700'        => $stepIdx >= $currentIdx || $isCancelled,
                         ])></div>
                     @endif
                 @endforeach
@@ -548,40 +557,6 @@
         </div>
         @endif
     </div>
-
-    {{-- Reject Modal --}}
-    @if ($showRejectModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md mx-4 p-6 space-y-4">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-base font-semibold text-slate-800 dark:text-slate-200">Reject Order</h3>
-                    <button wire:click="$set('showRejectModal', false)"
-                            class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
-                        <x-ui.icon name="x" class="w-5 h-5" />
-                    </button>
-                </div>
-                <p class="text-sm text-slate-500 dark:text-slate-400">
-                    Provide a reason for rejecting this order. The requester will be notified.
-                </p>
-                <div>
-                    <label class="label">Rejection Notes <span class="text-red-500">*</span></label>
-                    <textarea wire:model="rejectNotes" rows="4"
-                              class="input resize-none"
-                              placeholder="Describe why this order is being rejected…"></textarea>
-                    @error('rejectNotes')
-                        <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
-                    @enderror
-                </div>
-                <div class="flex justify-end gap-3 pt-1">
-                    <button wire:click="$set('showRejectModal', false)" class="btn btn-secondary">Cancel</button>
-                    <button wire:click="confirmReject" wire:loading.attr="disabled"
-                            class="btn btn-primary bg-red-600 hover:bg-red-700 border-red-600">
-                        <x-ui.icon name="x-circle" class="w-4 h-4" /> Confirm Rejection
-                    </button>
-                </div>
-            </div>
-        </div>
-    @endif
 
     {{-- Assign Picker Modal --}}
     @if ($showAssignModal)

@@ -34,16 +34,8 @@ final class DeliveryOrderWorkflow
         $this->assertCanTransition($do, DeliveryOrderStatus::Submitted);
 
         DB::transaction(function () use ($do, $by) {
-            $do->status       = DeliveryOrderStatus::Submitted;
-            $do->submitted_at = now();
-            $do->save();
-
-            activity()->performedOn($do)->causedBy($by)->log('Submitted for approval');
-
-            // Determine if approval required based on item-level settings
             $do->load('lines.item');
 
-            // Stock availability check on each line
             foreach ($do->lines as $line) {
                 $available = \App\Models\Inventory\StockBalance::where('item_id', $line->item_id)
                     ->where('virtual_warehouse_id', $do->virtual_warehouse_id)
@@ -61,46 +53,23 @@ final class DeliveryOrderWorkflow
                 }
             }
 
-            $requiresApproval = false;
+            $do->status       = DeliveryOrderStatus::Submitted;
+            $do->submitted_at = now();
+            $do->save();
 
-            foreach ($do->lines as $line) {
-                $item = $line->item;
-                if ($item === null || ! $item->dispatch_requires_approval) {
-                    continue;
-                }
-                // null dispatch_approval_qty = always require approval
-                if ($item->dispatch_approval_qty === null
-                    || bccomp((string) $line->requested_qty_base, (string) $item->dispatch_approval_qty, 4) > 0
-                ) {
-                    $requiresApproval = true;
-                    break;
-                }
-            }
+            activity()->performedOn($do)->causedBy($by)->log('Submitted for approval');
+        });
+    }
 
-            if (! $requiresApproval) {
-                $this->doApprove($do, $by);
-                return;
-            }
+    public function approveOrder(DeliveryOrder $do, User $by): void
+    {
+        $this->assertCanTransition($do, DeliveryOrderStatus::Approved);
 
-            DeliveryOrderApproval::create([
-                'delivery_order_id' => $do->id,
-                'level'             => 1,
-                'approver_role'     => 'warehouse_manager',
-            ]);
+        DB::transaction(function () use ($do, $by) {
+            $do->status = DeliveryOrderStatus::Approved;
+            $do->save();
 
-            // Notify category responsible users
-            $categoryIds = $do->lines->pluck('item.category_id')->filter()->unique();
-            $notifyUsers = \App\Models\ItemCategoryUser::whereIn('item_category_id', $categoryIds)
-                ->where('warehouse_id', $do->warehouse_id)
-                ->with('user')
-                ->get()
-                ->pluck('user')
-                ->filter();
-            foreach ($notifyUsers as $notifyUser) {
-                $notifyUser->notify(new \App\Notifications\CategoryApprovalNeeded(
-                    'delivery_order', $do->id, $do->number
-                ));
-            }
+            activity()->performedOn($do)->causedBy($by)->log('Approved');
         });
     }
 
@@ -110,18 +79,20 @@ final class DeliveryOrderWorkflow
             $approval = $do->approvals()
                 ->where('approver_role', $approverRole)
                 ->whereNull('decision')
-                ->firstOrFail();
+                ->first();
 
-            $approval->update([
-                'decided_by' => $by->id,
-                'decision'   => 'approved',
-                'notes'      => $notes,
-                'decided_at' => now(),
-            ]);
+            if ($approval !== null) {
+                $approval->update([
+                    'decided_by' => $by->id,
+                    'decision'   => 'approved',
+                    'notes'      => $notes,
+                    'decided_at' => now(),
+                ]);
+            }
 
             activity()->performedOn($do)->causedBy($by)->log("{$approverRole} approved");
 
-            // Check if all levels approved
+            // Check if all levels approved (or no records at all)
             $pendingCount = $do->approvals()->whereNull('decision')->count();
             if ($pendingCount === 0) {
                 $this->doApprove($do, $by);
@@ -177,6 +148,32 @@ final class DeliveryOrderWorkflow
             $do->save();
 
             activity()->performedOn($do)->causedBy($by)->log("Cancelled: {$reason}");
+        });
+    }
+
+    public function accept(DeliveryOrder $do, User $by): void
+    {
+        $this->assertCanTransition($do, DeliveryOrderStatus::Acceptance);
+
+        DB::transaction(function () use ($do, $by) {
+            $do->status        = DeliveryOrderStatus::Acceptance;
+            $do->acceptance_at = now();
+            $do->save();
+
+            activity()->performedOn($do)->causedBy($by)->log('Accepted for processing');
+        });
+    }
+
+    public function assignTeam(DeliveryOrder $do, User $by): void
+    {
+        $this->assertCanTransition($do, DeliveryOrderStatus::Assigned);
+
+        DB::transaction(function () use ($do, $by) {
+            $do->status      = DeliveryOrderStatus::Assigned;
+            $do->assigned_at = now();
+            $do->save();
+
+            activity()->performedOn($do)->causedBy($by)->log('Assigned to warehouse team');
         });
     }
 

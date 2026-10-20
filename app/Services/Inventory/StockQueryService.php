@@ -10,6 +10,7 @@ use App\Models\Inventory\StockTransaction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 
 final class StockQueryService
 {
@@ -27,8 +28,7 @@ final class StockQueryService
         ?string $search = null,
         ?int $categoryId = null,
     ): LengthAwarePaginator {
-        $query = StockBalance::with(['item', 'batch', 'lpn', 'location', 'virtualWarehouse'])
-            ->where('qty_on_hand', '>', 0);
+        $query = StockBalance::where('qty_on_hand', '>', 0);
 
         if ($itemId !== null) {
             $query->where('item_id', $itemId);
@@ -74,10 +74,13 @@ final class StockQueryService
         }
 
         if ($groupByItem) {
-            $query->selectRaw('item_id, SUM(qty_on_hand) as qty_on_hand, SUM(qty_allocated) as qty_allocated')
-                ->groupBy('item_id');
+            $query->selectRaw('item_id, MIN(id) as id, SUM(qty_on_hand) as qty_on_hand, SUM(qty_allocated) as qty_allocated')
+                ->groupBy('item_id')
+                ->with(['item.category', 'item.baseUom']);
+            return $query->orderBy('item_id')->paginate($perPage);
         }
 
+        $query->with(['item.category', 'item.baseUom', 'batch', 'lpn', 'location', 'virtualWarehouse']);
         return $query->orderBy('id')->paginate($perPage);
     }
 
@@ -86,18 +89,28 @@ final class StockQueryService
     {
         $base = StockBalance::where('qty_on_hand', '>', 0);
 
+        $vwIds = null;
         if ($user !== null && ! $user->canAccessAllVirtualWarehouses()) {
             $vwIds = $user->accessibleVirtualWarehouseIds();
             $base->whereIn('virtual_warehouse_id', $vwIds);
         }
 
+        // Total value = qty_on_hand × last known purchase unit price per item
+        $totalValue = DB::table('stock_balances as sb')
+            ->leftJoin(
+                DB::raw('(SELECT item_id, unit_price FROM purchase_order_lines WHERE id IN (SELECT MAX(id) FROM purchase_order_lines GROUP BY item_id)) as lp'),
+                'lp.item_id', '=', 'sb.item_id'
+            )
+            ->where('sb.qty_on_hand', '>', 0)
+            ->when(! empty($vwIds), fn ($q) => $q->whereIn('sb.virtual_warehouse_id', $vwIds))
+            ->sum(DB::raw('sb.qty_on_hand * COALESCE(lp.unit_price, 0)'));
+
         return [
-            'total_skus'      => (clone $base)->distinct('item_id')->count('item_id'),
-            'total_on_hand'   => (clone $base)->sum('qty_on_hand'),
-            'total_allocated' => (clone $base)->sum('qty_allocated'),
-            'below_min'       => (clone $base)->whereHas('item', fn ($q) =>
+            'total_skus'  => (clone $base)->distinct('item_id')->count('item_id'),
+            'total_value' => (float) $totalValue,
+            'below_min'   => (clone $base)->whereHas('item', fn ($q) =>
                 $q->whereNotNull('min_stock')
-                  ->whereColumn('min_stock', '>', \Illuminate\Support\Facades\DB::raw(
+                  ->whereColumn('min_stock', '>', DB::raw(
                       '(SELECT SUM(qty_on_hand) FROM stock_balances sb2 WHERE sb2.item_id = stock_balances.item_id)'
                   ))
             )->distinct('item_id')->count('item_id'),

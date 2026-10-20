@@ -20,6 +20,11 @@ class AppServiceProvider extends ServiceProvider
             \App\Contracts\ContainerReceivingGate::class,
             \App\Services\Inbound\RealContainerReceivingGate::class,
         );
+
+        $this->app->bind(
+            \App\Contracts\AiClient::class,
+            \App\Services\Ai\GeminiClient::class,
+        );
     }
 
     public function boot(): void
@@ -56,6 +61,12 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(
             \App\Events\Inbound\GrnConfirmed::class,
             \App\Listeners\Inbound\NotifyGrnConfirmed::class,
+        );
+
+        // Dashboard: clear cache after stock is posted
+        Event::listen(
+            \App\Events\Inventory\StockPosted::class,
+            \App\Listeners\Dashboard\ClearDashboardCacheOnStockPosted::class,
         );
 
         // Container module: policies

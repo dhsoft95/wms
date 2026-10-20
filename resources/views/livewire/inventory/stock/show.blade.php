@@ -81,12 +81,12 @@
     {{-- ── QUANTITY KPI STRIP ───────────────────────────────────────────────── --}}
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
 
-        {{-- Physical Qty --}}
+        {{-- Total On Hand (all locations) --}}
         <div class="card p-4 flex flex-col justify-between gap-2 bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-900/50">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Physical Qty</span>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Total On Hand</span>
             <div>
                 <p class="text-xl font-bold font-mono tracking-tight text-slate-900 dark:text-white">{{ number_format($info['qtyOnHand'], 2) }}</p>
-                <p class="text-[11px] text-slate-400 mt-0.5">Total on hand</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Across all locations</p>
             </div>
         </div>
 
@@ -110,6 +110,15 @@
             </div>
         </div>
 
+        {{-- Opening Balance --}}
+        <div class="card p-4 flex flex-col justify-between gap-2 bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-900/50">
+            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Opening Balance</span>
+            <div>
+                <p class="text-xl font-bold font-mono tracking-tight text-indigo-600 dark:text-indigo-400">{{ number_format((float) $info['openingBalance'], 2) }}</p>
+                <p class="text-[11px] text-slate-400 mt-0.5">Initial stock posted</p>
+            </div>
+        </div>
+
         {{-- On Order --}}
         <div class="card p-4 flex flex-col justify-between gap-2 bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-900/50">
             <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">On Order</span>
@@ -119,30 +128,24 @@
             </div>
         </div>
 
-        {{-- Damages --}}
-        <div class="card p-4 flex flex-col justify-between gap-2 bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-900/50">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Damages / Hold</span>
-            <div>
-                <p class="text-xl font-bold font-mono tracking-tight {{ (float) $info['damagedQty'] > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400 dark:text-slate-500' }}">
-                    {{ number_format((float) $info['damagedQty'], 2) }}
-                </p>
-                <p class="text-[11px] text-slate-400 mt-0.5">On-hold at location</p>
-            </div>
-        </div>
-
         {{-- Stock Value --}}
         <div class="card p-4 flex flex-col justify-between gap-2 bg-gradient-to-b from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-900/50">
             <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">Stock Value</span>
             <div>
-                <p class="text-xl font-semibold text-slate-400 dark:text-slate-500 tracking-tight">N/A</p>
-                <p class="text-[11px] text-slate-400 mt-0.5">No unit cost set</p>
+                @if ($info['stockValue'] !== null)
+                    <p class="text-xl font-bold font-mono tracking-tight text-simba-700 dark:text-simba-400">{{ number_format($info['stockValue'], 2) }}</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">At last purchase price</p>
+                @else
+                    <p class="text-xl font-semibold text-slate-400 dark:text-slate-500 tracking-tight">N/A</p>
+                    <p class="text-[11px] text-slate-400 mt-0.5">No purchase price found</p>
+                @endif
             </div>
         </div>
 
     </div>
 
-    {{-- ── THREE-COLUMN DETAILS ─────────────────────────────────────────────── --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+    {{-- ── DETAILS: Item Info + Activity Dates ────────────────────────────── --}}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 
         {{-- Item Info --}}
         <div class="card flex flex-col">
@@ -197,55 +200,22 @@
                         <span class="text-xs text-slate-400">No</span>
                     @endif
                 </div>
-            </div>
-        </div>
-
-        {{-- Location & Batch --}}
-        <div class="card flex flex-col">
-            <div class="card-header gap-2.5 border-b border-slate-100 dark:border-slate-800/80">
-                <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 shrink-0">
-                    <x-ui.icon name="map-pin" class="w-3.5 h-3.5" />
-                </span>
-                <h3 class="card-title font-semibold">Location & Batch</h3>
-            </div>
-            <div class="divide-y divide-slate-100 dark:divide-slate-800/60 flex-1">
                 <div class="flex items-center justify-between gap-3 px-5 py-3">
-                    <span class="text-xs text-slate-500 dark:text-slate-400">Warehouse</span>
-                    <span class="text-xs font-medium text-slate-800 dark:text-slate-200 text-right truncate max-w-[160px]">{{ $b->location?->warehouse?->name ?? '—' }}</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">Opening Balance</span>
+                    <span class="text-xs font-semibold tabular-nums text-indigo-600 dark:text-indigo-400">
+                        {{ number_format((float) $info['openingBalance'], 2) }}
+                    </span>
                 </div>
                 <div class="flex items-center justify-between gap-3 px-5 py-3">
-                    <span class="text-xs text-slate-500 dark:text-slate-400">Storage Location</span>
-                    <span class="font-mono font-semibold text-xs text-slate-800 dark:text-slate-200">{{ $b->location?->code ?? '—' }}</span>
+                    <span class="text-xs text-slate-500 dark:text-slate-400">Unit Price <span class="font-normal opacity-60">(last PO)</span></span>
+                    @if ($info['lastUnitPrice'] !== null)
+                        <span class="text-xs font-semibold tabular-nums text-slate-800 dark:text-slate-200">
+                            {{ number_format((float) $info['lastUnitPrice'], 2) }}
+                        </span>
+                    @else
+                        <span class="text-xs text-slate-400">—</span>
+                    @endif
                 </div>
-                <div class="flex items-center justify-between gap-3 px-5 py-3">
-                    <span class="text-xs text-slate-500 dark:text-slate-400">Virtual Warehouse</span>
-                    <span class="text-xs font-medium text-slate-800 dark:text-slate-200 text-right truncate max-w-[160px]">{{ $b->virtualWarehouse?->name ?? '—' }}</span>
-                </div>
-                <div class="flex items-center justify-between gap-3 px-5 py-3">
-                    <span class="text-xs text-slate-500 dark:text-slate-400">Batch Number</span>
-                    <span class="font-mono font-medium text-xs text-slate-800 dark:text-slate-200">{{ $b->batch?->batch_no ?? '—' }}</span>
-                </div>
-                <div class="flex items-center justify-between gap-3 px-5 py-3">
-                    <span class="text-xs text-slate-500 dark:text-slate-400">Expiry Date</span>
-                    <div class="text-right">
-                        @if ($b->batch?->expiry_date)
-                            <span class="text-xs font-medium {{ $expiryClass }}">
-                                {{ $b->batch->expiry_date->format('d M Y') }}
-                            </span>
-                            @if ($daysToExpiry !== null && $daysToExpiry <= 60)
-                                <span class="block text-[10px] {{ $expiryClass }} font-semibold opacity-90">
-                                    {{ $daysToExpiry <= 0 ? 'Expired' : $daysToExpiry . ' day(s) left' }}
-                                </span>
-                            @endif
-                        @else
-                            <span class="text-xs text-slate-400">—</span>
-                        @endif
-                    </div>
-                </div>
-{{--                <div class="flex items-center justify-between gap-3 px-5 py-3">--}}
-{{--                    <span class="text-xs text-slate-500 dark:text-slate-400">LPN</span>--}}
-{{--                    <span class="font-mono font-medium text-xs text-slate-800 dark:text-slate-200">{{ $b->lpn?->number ?? '—' }}</span>--}}
-{{--                </div>--}}
             </div>
         </div>
 
@@ -302,18 +272,112 @@
                         @endif
                     </div>
                 </div>
-                <div class="flex items-center justify-between gap-3 px-5 py-3 bg-slate-50/70 dark:bg-slate-800/30">
-                    <span class="text-xs text-slate-500 dark:text-slate-400">Stock Age</span>
-                    <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">
-                        @if ($b->received_at)
-                            {{ $b->received_at->diffForHumans(null, true, true, 1) }}
-                        @else —
-                        @endif
-                    </span>
-                </div>
+{{--                <div class="flex items-center justify-between gap-3 px-5 py-3 bg-slate-50/70 dark:bg-slate-800/30">--}}
+{{--                    <span class="text-xs text-slate-500 dark:text-slate-400">Stock Age</span>--}}
+{{--                    <span class="text-xs font-semibold text-slate-800 dark:text-slate-200">--}}
+{{--                        @if ($b->received_at)--}}
+{{--                            {{ $b->received_at->diffForHumans(null, true, true, 1) }}--}}
+{{--                        @else —--}}
+{{--                        @endif--}}
+{{--                    </span>--}}
+{{--                </div>--}}
             </div>
         </div>
 
+    </div>
+
+    {{-- ── LOCATIONS & STOCK BREAKDOWN (full width) ───────────────────────── --}}
+    <div class="card overflow-hidden">
+        <div class="card-header gap-2.5 border-b border-slate-100 dark:border-slate-800/80">
+            <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 shrink-0">
+                <x-ui.icon name="map-pin" class="w-3.5 h-3.5" />
+            </span>
+            <h3 class="card-title font-semibold">Locations & Stock Breakdown</h3>
+            <span class="badge badge-slate">{{ $this->allItemBalances->count() }} location(s)</span>
+        </div>
+        <div class="overflow-x-auto">
+            <x-ui.table>
+                <thead>
+                    <tr>
+                        <th>Location</th>
+                        <th>Warehouse</th>
+                        <th>Virtual WH</th>
+                        <th>Batch</th>
+                        <th>Expiry</th>
+                        <th>Status</th>
+                        <th class="text-right">Unit Price</th>
+                        <th class="text-right">On Hand</th>
+                        <th class="text-right">Allocated</th>
+                        <th class="text-right">Available</th>
+                        <th class="text-right">Stock Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse ($this->allItemBalances as $lb)
+                        @php
+                            $lbAvailable = (float) $lb->qty_on_hand - (float) $lb->qty_allocated;
+                            $lbExpiry = $lb->batch?->expiry_date;
+                            $lbDays = $lbExpiry ? (int) now()->diffInDays($lbExpiry, false) : null;
+                            $lbExpiryClass = match(true) {
+                                $lbDays !== null && $lbDays <= 0  => 'text-red-600 dark:text-red-400 font-semibold',
+                                $lbDays !== null && $lbDays <= 30 => 'text-red-600 dark:text-red-400',
+                                $lbDays !== null && $lbDays <= 60 => 'text-amber-600 dark:text-amber-400',
+                                default => 'text-slate-600 dark:text-slate-300',
+                            };
+                            $isCurrentRow = $lb->id === $b->id;
+                        @endphp
+                        <tr wire:key="lb-{{ $lb->id }}"
+                            class="{{ $isCurrentRow ? 'bg-simba-50/50 dark:bg-simba-900/20 ring-1 ring-inset ring-simba-200/60 dark:ring-simba-800/40' : '' }}">
+                            <td class="font-mono font-semibold text-xs text-slate-800 dark:text-slate-200">
+                                {{ $lb->location?->code ?? '—' }}
+                                @if ($isCurrentRow)
+                                    <span class="ml-1 badge badge-simba text-[9px] py-0">current</span>
+                                @endif
+                            </td>
+                            <td class="text-xs text-slate-600 dark:text-slate-300">{{ $lb->location?->warehouse?->name ?? '—' }}</td>
+                            <td class="text-xs text-slate-600 dark:text-slate-300 truncate max-w-[140px]">{{ $lb->virtualWarehouse?->name ?? '—' }}</td>
+                            <td class="font-mono text-xs text-slate-500 dark:text-slate-400">{{ $lb->batch?->batch_no ?? '—' }}</td>
+                            <td class="text-xs {{ $lbExpiryClass }}">
+                                @if ($lbExpiry)
+                                    {{ $lbExpiry->format('d M Y') }}
+                                    @if ($lbDays !== null && $lbDays <= 60)
+                                        <div class="text-[10px] opacity-80">{{ $lbDays <= 0 ? 'Expired' : $lbDays . 'd left' }}</div>
+                                    @endif
+                                @else
+                                    <span class="text-slate-400">—</span>
+                                @endif
+                            </td>
+                            <td>
+                                @if (($lb->stock_status?->value ?? $lb->stock_status) === 'available')
+                                    <span class="badge badge-green text-[10px]">Available</span>
+                                @else
+                                    <span class="badge badge-amber text-[10px]">On Hold</span>
+                                @endif
+                            </td>
+                            <td class="text-right tabular-nums text-xs text-slate-600 dark:text-slate-300">
+                                {{ $info['lastUnitPrice'] !== null ? number_format((float) $info['lastUnitPrice'], 2) : '—' }}
+                            </td>
+                            <td class="text-right tabular-nums text-xs font-semibold text-slate-900 dark:text-slate-100">{{ number_format((float) $lb->qty_on_hand, 2) }}</td>
+                            <td class="text-right tabular-nums text-xs text-amber-600 dark:text-amber-400">{{ number_format((float) $lb->qty_allocated, 2) }}</td>
+                            <td class="text-right tabular-nums text-xs font-bold {{ $lbAvailable <= 0 ? 'text-red-600 dark:text-red-400' : 'text-emerald-600 dark:text-emerald-400' }}">
+                                {{ number_format($lbAvailable, 2) }}
+                            </td>
+                            <td class="text-right tabular-nums text-xs font-semibold text-simba-700 dark:text-simba-400">
+                                @if ($info['lastUnitPrice'] !== null)
+                                    {{ number_format((float) $lb->qty_on_hand * (float) $info['lastUnitPrice'], 2) }}
+                                @else
+                                    <span class="text-slate-400 font-normal">—</span>
+                                @endif
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="11" class="py-10 text-center text-xs text-slate-400">No location records found.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </x-ui.table>
+        </div>
     </div>
 
     {{-- ── INBOUND + OUTBOUND HISTORY ─────────────────────────────────────── --}}
@@ -430,16 +494,15 @@
                             <th>Type</th>
                             <th>Consignee</th>
                             <th>Warehouse</th>
-                            <th class="text-right">Qty</th>
+                            <th class="text-right">Dispatched Qty</th>
                             <th>By</th>
                         </tr>
                     </thead>
                     <tbody>
                         @forelse ($this->outboundHistory as $movement)
                             @php
-                                $pos      = (float) $movement->qty >= 0;
-                                $dispatch = $movement->transaction?->getRelation('dispatch');
-                                $pickTask = $movement->transaction?->getRelation('pickTask');
+                                $dispatch = $movement->transaction?->relationLoaded('dispatch') ? $movement->transaction->getRelation('dispatch') : null;
+                                $pickTask = $movement->transaction?->relationLoaded('pickTask') ? $movement->transaction->getRelation('pickTask') : null;
                                 $do       = $dispatch?->deliveryOrder ?? $pickTask?->pickList?->deliveryOrder;
                             @endphp
                             <tr>
@@ -476,8 +539,8 @@
                                         <span class="text-xs text-slate-400">—</span>
                                     @endif
                                 </td>
-                                <td class="text-right tabular-nums font-bold text-xs {{ $pos ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' }}">
-                                    {{ $pos ? '+' : '' }}{{ number_format((float) $movement->qty, 2) }}
+                                <td class="text-right tabular-nums font-bold text-xs text-red-600 dark:text-red-400">
+                                    {{ number_format(abs((float) $movement->qty), 2) }}
                                 </td>
                                 <td class="text-xs text-slate-500 dark:text-slate-400">
                                     {{ $movement->transaction?->postedBy?->name ?? '—' }}
@@ -504,72 +567,72 @@
     </div>
 
     {{-- ── MOVEMENT HISTORY (full width) ───────────────────────────────────── --}}
-    <div class="card overflow-hidden">
-        <div class="card-header border-b border-slate-100 dark:border-slate-800/80">
-            <div class="flex items-center gap-2.5">
-                <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shrink-0">
-                    <x-ui.icon name="arrow-path" class="w-3.5 h-3.5" />
-                </span>
-                <h3 class="card-title font-semibold">All Movements</h3>
-            </div>
-            <span class="badge badge-slate">{{ $this->movements->total() }} record(s)</span>
-        </div>
-        <div class="overflow-x-auto">
-            <x-ui.table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Transaction</th>
-                        <th>Type</th>
-                        <th>Reference</th>
-                        <th class="text-right">Qty</th>
-                        <th>By</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse ($this->movements as $movement)
-                        @php $pos = (float) $movement->qty >= 0; @endphp
-                        <tr>
-                            <td class="tabular-nums text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
-                                {{ $movement->transaction?->posted_at?->format('d M Y, H:i') ?? '—' }}
-                            </td>
-                            <td class="font-mono text-xs font-semibold text-simba-700 dark:text-simba-400">
-                                {{ $movement->transaction?->number ?? '—' }}
-                            </td>
-                            <td>
-                                @if ($movement->transaction?->type)
-                                    <span class="badge badge-slate text-[11px]">{{ $movement->transaction->type->label() }}</span>
-                                @else
-                                    <span class="text-slate-400">—</span>
-                                @endif
-                            </td>
-                            <td class="font-mono text-xs text-slate-500 dark:text-slate-400">
-                                {{ $movement->transaction?->reference_no ?? '—' }}
-                            </td>
-                            <td class="text-right tabular-nums font-bold text-xs {{ $pos ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' }}">
-                                {{ $pos ? '+' : '' }}{{ number_format((float) $movement->qty, 2) }}
-                            </td>
-                            <td class="text-xs text-slate-500 dark:text-slate-400">
-                                {{ $movement->transaction?->postedBy?->name ?? '—' }}
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="6" class="py-12 text-center">
-                                <x-ui.icon name="arrow-path" class="mx-auto w-8 h-8 text-slate-300 dark:text-slate-600 mb-2" />
-                                <p class="text-xs font-medium text-slate-500">No movements found for this stock record.</p>
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </x-ui.table>
-        </div>
-        @if ($this->movements->hasPages())
-            <div class="px-4 py-3 border-t border-slate-100 dark:border-slate-800">
-                {{ $this->movements->links() }}
-            </div>
-        @endif
-    </div>
+{{--    <div class="card overflow-hidden">--}}
+{{--        <div class="card-header border-b border-slate-100 dark:border-slate-800/80">--}}
+{{--            <div class="flex items-center gap-2.5">--}}
+{{--                <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 shrink-0">--}}
+{{--                    <x-ui.icon name="arrow-path" class="w-3.5 h-3.5" />--}}
+{{--                </span>--}}
+{{--                <h3 class="card-title font-semibold">All Movements</h3>--}}
+{{--            </div>--}}
+{{--            <span class="badge badge-slate">{{ $this->movements->total() }} record(s)</span>--}}
+{{--        </div>--}}
+{{--        <div class="overflow-x-auto">--}}
+{{--            <x-ui.table>--}}
+{{--                <thead>--}}
+{{--                    <tr>--}}
+{{--                        <th>Date</th>--}}
+{{--                        <th>Transaction</th>--}}
+{{--                        <th>Type</th>--}}
+{{--                        <th>Reference</th>--}}
+{{--                        <th class="text-right">Qty</th>--}}
+{{--                        <th>By</th>--}}
+{{--                    </tr>--}}
+{{--                </thead>--}}
+{{--                <tbody>--}}
+{{--                    @forelse ($this->movements as $movement)--}}
+{{--                        @php $pos = (float) $movement->qty >= 0; @endphp--}}
+{{--                        <tr>--}}
+{{--                            <td class="tabular-nums text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">--}}
+{{--                                {{ $movement->transaction?->posted_at?->format('d M Y, H:i') ?? '—' }}--}}
+{{--                            </td>--}}
+{{--                            <td class="font-mono text-xs font-semibold text-simba-700 dark:text-simba-400">--}}
+{{--                                {{ $movement->transaction?->number ?? '—' }}--}}
+{{--                            </td>--}}
+{{--                            <td>--}}
+{{--                                @if ($movement->transaction?->type)--}}
+{{--                                    <span class="badge badge-slate text-[11px]">{{ $movement->transaction->type->label() }}</span>--}}
+{{--                                @else--}}
+{{--                                    <span class="text-slate-400">—</span>--}}
+{{--                                @endif--}}
+{{--                            </td>--}}
+{{--                            <td class="font-mono text-xs text-slate-500 dark:text-slate-400">--}}
+{{--                                {{ $movement->transaction?->reference_no ?? '—' }}--}}
+{{--                            </td>--}}
+{{--                            <td class="text-right tabular-nums font-bold text-xs {{ $pos ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' }}">--}}
+{{--                                {{ $pos ? '+' : '' }}{{ number_format((float) $movement->qty, 2) }}--}}
+{{--                            </td>--}}
+{{--                            <td class="text-xs text-slate-500 dark:text-slate-400">--}}
+{{--                                {{ $movement->transaction?->postedBy?->name ?? '—' }}--}}
+{{--                            </td>--}}
+{{--                        </tr>--}}
+{{--                    @empty--}}
+{{--                        <tr>--}}
+{{--                            <td colspan="6" class="py-12 text-center">--}}
+{{--                                <x-ui.icon name="arrow-path" class="mx-auto w-8 h-8 text-slate-300 dark:text-slate-600 mb-2" />--}}
+{{--                                <p class="text-xs font-medium text-slate-500">No movements found for this stock record.</p>--}}
+{{--                            </td>--}}
+{{--                        </tr>--}}
+{{--                    @endforelse--}}
+{{--                </tbody>--}}
+{{--            </x-ui.table>--}}
+{{--        </div>--}}
+{{--        @if ($this->movements->hasPages())--}}
+{{--            <div class="px-4 py-3 border-t border-slate-100 dark:border-slate-800">--}}
+{{--                {{ $this->movements->links() }}--}}
+{{--            </div>--}}
+{{--        @endif--}}
+{{--    </div>--}}
 
     {{-- Serial Numbers --}}
     @if ($b->item?->track_serial && $this->serials->isNotEmpty())
@@ -638,6 +701,8 @@
                                     <tr>
                                         <th class="w-10">#</th>
                                         <th>Serial No.</th>
+                                        <th>Location</th>
+                                        <th>Stock Age</th>
                                         <th>Status</th>
                                     </tr>
                                 </thead>
@@ -656,6 +721,18 @@
                                                 <template x-if="search === ''">
                                                     <span>{{ $sn->serial_no }}</span>
                                                 </template>
+                                            </td>
+                                            <td>
+                                                <span class="font-mono text-xs text-slate-600 dark:text-slate-300">{{ $sn->location?->code ?? '—' }}</span>
+                                            </td>
+                                            <td class="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                                                @if ($sn->first_received_at)
+                                                    <span title="{{ $sn->first_received_at->format('d M Y, H:i') }}">
+                                                        {{ $sn->first_received_at->diffForHumans(null, true, false, 1) }}
+                                                    </span>
+                                                @else
+                                                    <span class="text-slate-300 dark:text-slate-600">—</span>
+                                                @endif
                                             </td>
                                             <td>
                                                 <span class="badge badge-{{ $sn->status->color() }} text-[11px]">{{ $sn->status->label() }}</span>

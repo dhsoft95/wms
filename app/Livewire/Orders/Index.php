@@ -71,7 +71,15 @@ class Index extends Component
                 'purchase_orders.warehouse_id',
                 DB::raw('povw.name as department_name'),
                 DB::raw('expected_date as doc_date'),
-                'purchase_orders.status', 'purchase_orders.created_at'
+                'purchase_orders.status', 'purchase_orders.created_at',
+                DB::raw('(
+                    SELECT ROUND(
+                        COALESCE(SUM(gl.received_good_qty), 0) / NULLIF(SUM(pl.qty), 0) * 100, 0
+                    )
+                    FROM purchase_order_lines pl
+                    LEFT JOIN grn_lines gl ON gl.purchase_order_line_id = pl.id
+                    WHERE pl.purchase_order_id = purchase_orders.id
+                ) as progress_pct')
             )
             ->when($this->tab !== 'all' && $this->tab !== 'po', fn ($q) => $q->whereRaw('1=0'))
             ->when($this->search, fn ($q) => $q->where('purchase_orders.number', 'like', "%{$this->search}%"))
@@ -79,6 +87,13 @@ class Index extends Component
             ->when($this->dateFrom, fn ($q) => $q->whereDate('purchase_orders.created_at', '>=', $this->dateFrom))
             ->when($this->dateTo, fn ($q) => $q->whereDate('purchase_orders.created_at', '<=', $this->dateTo))
             ->when(! $isUnrestricted, function ($q) use ($user) {
+                // Department users see only their own department's POs
+                if ($user->hasRole('department-user') && $user->department_id) {
+                    $q->where('purchase_orders.department_id', $user->department_id);
+                    return;
+                }
+
+                // Other restricted roles are scoped by item-category warehouse assignments
                 $whIds = \App\Models\ItemCategoryUser::where('user_id', $user->id)
                     ->pluck('warehouse_id')->unique()->values()->all();
                 if (! empty($whIds)) {
@@ -99,7 +114,8 @@ class Index extends Component
                 'delivery_orders.warehouse_id',
                 'departments.name as department_name',
                 DB::raw('delivery_orders.required_date as doc_date'),
-                'delivery_orders.status', 'delivery_orders.created_at'
+                'delivery_orders.status', 'delivery_orders.created_at',
+                DB::raw('0 as progress_pct')
             )
             ->when($this->tab !== 'all' && $this->tab !== 'mrn', fn ($q) => $q->whereRaw('1=0'))
             ->when($this->search, fn ($q) => $q->where('delivery_orders.number', 'like', "%{$this->search}%"))
@@ -119,7 +135,8 @@ class Index extends Component
                 DB::raw('NULL as warehouse_id'),
                 DB::raw('mvw.name as department_name'),
                 DB::raw('internal_movements.created_at as doc_date'),
-                'internal_movements.status', 'internal_movements.created_at'
+                'internal_movements.status', 'internal_movements.created_at',
+                DB::raw('0 as progress_pct')
             )
             ->whereNull('internal_movements.deleted_at')
             ->when($this->tab !== 'all' && $this->tab !== 'transfer', fn ($q) => $q->whereRaw('1=0'))
@@ -140,7 +157,8 @@ class Index extends Component
                 DB::raw('NULL as warehouse_id'),
                 DB::raw('fvw.name as department_name'),
                 DB::raw('stock_transfers.created_at as doc_date'),
-                'stock_transfers.status', 'stock_transfers.created_at'
+                'stock_transfers.status', 'stock_transfers.created_at',
+                DB::raw('0 as progress_pct')
             )
             ->when($this->tab !== 'all' && $this->tab !== 'transfer', fn ($q) => $q->whereRaw('1=0'))
             ->when($this->search, fn ($q) => $q->where('stock_transfers.number', 'like', "%{$this->search}%"))
@@ -163,7 +181,8 @@ class Index extends Component
                 'warehouse_transfers.from_warehouse_id as warehouse_id',
                 DB::raw('fvw2.name as department_name'),
                 DB::raw('warehouse_transfers.created_at as doc_date'),
-                'warehouse_transfers.status', 'warehouse_transfers.created_at'
+                'warehouse_transfers.status', 'warehouse_transfers.created_at',
+                DB::raw('0 as progress_pct')
             )
             ->whereNull('warehouse_transfers.deleted_at')
             ->when($this->tab !== 'all' && $this->tab !== 'transfer', fn ($q) => $q->whereRaw('1=0'))

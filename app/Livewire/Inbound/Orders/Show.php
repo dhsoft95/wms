@@ -53,11 +53,11 @@ class Show extends Component
     public string $receiveDriverLicence      = '';
     public string $receiveTransporter        = '';
     public string $receiveDeliveryType       = 'full';
-    public string $receiveSealCheck          = 'match';
-    public string $receiveSealMismatchReason = '';
     // Container-specific fields (shown when PO package_type = container)
     public string $receiveContainerNo       = '';
     public string $receiveContainerSizeType = '';
+    public string $receiveContainerSealNo          = '';
+    public string $receiveContainerShippingLineId  = '';
 
     public function mount(PurchaseOrder $purchaseOrder): void
     {
@@ -78,7 +78,7 @@ class Show extends Component
             'assignedSupervisor',
             'assignedClerk',
             'approvals.user',
-            'grns',
+            'grns.lines',
             'issues.raisedBy',
         ]);
     }
@@ -126,26 +126,54 @@ class Show extends Component
     }
 
     #[Computed]
+    public function shippingLines(): \Illuminate\Database\Eloquent\Collection
+    {
+        return \App\Models\Partner::where('is_active', true)
+            ->where('type', 'like', '%"shipping_line"%')
+            ->orderBy('name')
+            ->get(['id', 'name']);
+    }
+
+    #[Computed]
     public function canActOnApprovals(): bool
     {
-        return app(ApprovalChainService::class)->canActAtCurrentLevel($this->purchaseOrder, auth()->user())
-            || app(ApprovalChainService::class)->canActOnCategoryLevel($this->purchaseOrder, auth()->user());
+        $svc = app(ApprovalChainService::class);
+        return $svc->canActAtCurrentLevel($this->purchaseOrder, auth()->user())
+            || $svc->canActOnCategoryLevel($this->purchaseOrder, auth()->user())
+            || $svc->canActAsFallbackApprover($this->purchaseOrder, auth()->user());
     }
 
     #[Computed]
     public function timelineSteps(): array
     {
         return [
-            ['status' => PurchaseOrderStatus::Draft,                       'label' => 'Draft'],
-            ['status' => PurchaseOrderStatus::PendingApproval,             'label' => 'Approval'],
-            ['status' => PurchaseOrderStatus::ApprovedPendingAcceptance,   'label' => 'Acceptance'],
-            ['status' => PurchaseOrderStatus::AcceptedPendingAssignment,   'label' => 'Assignment'],
-            ['status' => PurchaseOrderStatus::AssignedPendingReceiving,    'label' => 'Receiving'],
-            ['status' => PurchaseOrderStatus::PendingPutaway,              'label' => 'Putaway'],
-            ['status' => PurchaseOrderStatus::PendingSupervisorValidation, 'label' => 'Validation'],
-            ['status' => PurchaseOrderStatus::CompletedPendingVerification,'label' => 'Verification'],
-            ['status' => PurchaseOrderStatus::VerifiedClosed,              'label' => 'Closed'],
+            ['status' => PurchaseOrderStatus::Draft,                     'label' => 'Draft'],
+            ['status' => PurchaseOrderStatus::PendingApproval,           'label' => 'Approval'],
+            ['status' => PurchaseOrderStatus::ApprovedPendingAcceptance, 'label' => 'Acceptance'],
+            ['status' => PurchaseOrderStatus::AcceptedPendingAssignment, 'label' => 'Assignment'],
+            ['status' => PurchaseOrderStatus::AssignedPendingReceiving,  'label' => 'Receiving'],
+            ['status' => PurchaseOrderStatus::VerifiedClosed,            'label' => 'Closed'],
         ];
+    }
+
+    /**
+     * Map every internal status onto the 6-step visible timeline.
+     * Putaway, validation and verification are internal warehouse processes
+     * — all fold back into the Receiving step until the PO is closed.
+     */
+    public function timelineStatus(): PurchaseOrderStatus
+    {
+        return match ($this->purchaseOrder->status) {
+            PurchaseOrderStatus::ReceivingInProgress,
+            PurchaseOrderStatus::PartiallyReceived,
+            PurchaseOrderStatus::PendingPutaway,
+            PurchaseOrderStatus::PutawayInProgress,
+            PurchaseOrderStatus::PendingSupervisorValidation,
+            PurchaseOrderStatus::CompletedPendingVerification,
+            PurchaseOrderStatus::IssueRaised,
+            PurchaseOrderStatus::IssueResolved => PurchaseOrderStatus::AssignedPendingReceiving,
+            default                            => $this->purchaseOrder->status,
+        };
     }
 
     // ─── Submit ───────────────────────────────────────────────────────────────
@@ -298,10 +326,11 @@ class Show extends Component
         $this->receiveDriverLicence      = '';
         $this->receiveTransporter        = '';
         $this->receiveDeliveryType       = 'full';
-        $this->receiveSealCheck          = 'match';
-        $this->receiveSealMismatchReason = '';
+
         $this->receiveContainerNo        = '';
         $this->receiveContainerSizeType  = '';
+        $this->receiveContainerSealNo         = '';
+        $this->receiveContainerShippingLineId = '';
         $this->showReceiveModal          = true;
         unset($this->receivingDocks, $this->vehicleTypes);
     }
@@ -329,10 +358,12 @@ class Show extends Component
                 'driver_licence'        => $this->receiveDriverLicence ?: null,
                 'transporter_name'      => $this->receiveTransporter ?: null,
                 'delivery_type'         => $this->receiveDeliveryType,
-                'seal_check_result'     => $this->receiveSealCheck,
-                'seal_mismatch_reason'  => $this->receiveSealCheck === 'mismatch' ? $this->receiveSealMismatchReason : null,
+                'seal_check_result'     => null,
+                'seal_mismatch_reason'  => null,
                 'container_no'          => $isContainer ? strtoupper($this->receiveContainerNo) : null,
                 'container_size_type'   => $isContainer ? $this->receiveContainerSizeType : null,
+                'container_seal_no'            => $isContainer ? ($this->receiveContainerSealNo ?: null) : null,
+                'container_shipping_line_id'   => $isContainer ? ($this->receiveContainerShippingLineId ?: null) : null,
             ];
 
             $grn = app(GrnWorkflow::class)->createDraftForPO(
@@ -437,6 +468,17 @@ class Show extends Component
     }
 
     // ─── Cancel / close short ─────────────────────────────────────────────────
+
+    public function closeOrder(): void
+    {
+        try {
+            app(PurchaseOrderWorkflow::class)->closeOrder($this->purchaseOrder, auth()->user());
+            $this->reload();
+            $this->dispatch('toast', message: 'Purchase order closed.', type: 'success');
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
 
     public function cancel(): void
     {

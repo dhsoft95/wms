@@ -1,4 +1,4 @@
-<div class="space-y-6" x-data="{ compact: $persist(false).as('soh-density') }">
+<div class="space-y-6">
 
     {{-- Page Header --}}
     <div class="page-header">
@@ -7,7 +7,7 @@
                 Stock on Hand
                 <span class="ml-2 align-middle text-sm font-medium text-slate-400 dark:text-slate-500">{{ $this->balances->total() }}</span>
             </h2>
-            <p class="page-sub">Live balances by SKU, location and virtual warehouse.</p>
+            <p class="page-sub">Live balances by SKU. Click a row to see location breakdown.</p>
         </div>
         <button type="button" disabled
                 title="Available in Module 10"
@@ -17,18 +17,14 @@
     </div>
 
     {{-- Stats Cards --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div class="card p-4">
-            <p class="text-xs text-slate-500 dark:text-slate-400">Active SKUs</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Number of SKUs</p>
             <p class="mt-1 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{{ number_format($this->stats['total_skus']) }}</p>
         </div>
         <div class="card p-4">
-            <p class="text-xs text-slate-500 dark:text-slate-400">Total On Hand</p>
-            <p class="mt-1 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{{ number_format($this->stats['total_on_hand']) }}</p>
-        </div>
-        <div class="card p-4">
-            <p class="text-xs text-slate-500 dark:text-slate-400">Allocated</p>
-            <p class="mt-1 text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-400">{{ number_format($this->stats['total_allocated']) }}</p>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Stock Value <span class="font-normal opacity-60">(at last purchase price)</span></p>
+            <p class="mt-1 text-2xl font-bold tabular-nums text-simba-700 dark:text-simba-400">{{ number_format($this->stats['total_value'], 2) }}</p>
         </div>
         <div class="card p-4">
             <p class="text-xs text-slate-500 dark:text-slate-400">Below Min Stock</p>
@@ -37,7 +33,7 @@
     </div>
 
     {{-- Filters + Table --}}
-    <div class="card overflow-hidden" :class="compact ? 'density-compact' : ''">
+    <div class="card overflow-hidden">
 
         {{-- Filter Bar --}}
         <div class="flex flex-col gap-3 p-4 lg:flex-row border-b border-white/40 dark:border-white/[0.08]">
@@ -92,60 +88,42 @@
                 <option value="30">Expiring in 30 days</option>
             </select>
 
-            {{-- Density Toggle --}}
-            <div class="flex items-center gap-1 tabs shrink-0">
-                <button type="button" @click="compact = false" :class="!compact ? 'tab-active' : ''" class="tab text-xs">Comfortable</button>
-                <button type="button" @click="compact = true"  :class="compact  ? 'tab-active' : ''" class="tab text-xs">Compact</button>
-            </div>
-
         </div>
 
         {{-- Table --}}
         <div wire:loading.class="opacity-50">
-            <x-ui.table class="min-w-[1100px]">
+            <x-ui.table>
                 <thead>
                     <tr>
-                        <th class="px-4 py-3">SKU</th>
-                        <th class="px-4 py-3">Item / Category</th>
-                        <th class="px-4 py-3">Batch</th>
-                        <th class="px-4 py-3">Expiry</th>
-                        <th class="px-4 py-3">Location</th>
-                        <th class="px-4 py-3">Warehouse</th>
-                        <th class="px-4 py-3">Status</th>
-                        <th class="px-4 py-3 text-right">On Hand</th>
-                        <th class="px-4 py-3 text-right">Allocated</th>
-                        <th class="px-4 py-3 text-right">Available</th>
-                        <th class="px-4 py-3">UoM</th>
-                        <th class="px-4 py-3 w-14 sr-only">Actions</th>
+                        <th>SKU</th>
+                        <th>Item / Category</th>
+                        <th class="text-right">On Hand</th>
+                        <th class="text-right">Allocated</th>
+                        <th class="text-right">Available</th>
+                        <th>UoM</th>
+                        <th class="w-14 sr-only">Actions</th>
                     </tr>
                 </thead>
 
                 <tbody wire:loading.remove class="divide-y divide-white/50 dark:divide-white/[0.06]">
                 @forelse ($this->balances as $balance)
                     @php
-                        $isLowStock = $balance->item?->min_stock !== null && $balance->qty_on_hand < $balance->item->min_stock;
                         $available  = $balance->qty_on_hand - $balance->qty_allocated;
-
-                        $expiryClass = '';
-                        if ($balance->batch?->expiry_date) {
-                            $daysToExpiry = now()->diffInDays($balance->batch->expiry_date, false);
-                            if ($daysToExpiry <= 30) {
-                                $expiryClass = $daysToExpiry <= 0 ? 'text-red-600 dark:text-red-400 font-semibold' : 'text-red-600 dark:text-red-400';
-                            } elseif ($daysToExpiry <= 60) {
-                                $expiryClass = 'text-amber-600 dark:text-amber-400';
-                            }
-                        }
+                        $isLowStock = $balance->item?->min_stock !== null && $balance->qty_on_hand < $balance->item->min_stock;
                     @endphp
-                    <tr wire:key="bal-{{ $balance->id }}"
+                    <tr wire:key="item-{{ $balance->item_id }}"
                         class="transition hover:bg-white/30 dark:hover:bg-white/[0.04] {{ $isLowStock ? 'bg-red-50/50 dark:bg-red-950/20' : '' }}">
 
                         {{-- SKU --}}
                         <td class="px-4 py-3.5">
                             @if ($balance->item)
-                                <a href="{{ route('admin.items.show', $balance->item) }}" wire:navigate
+                                <a href="{{ route('inventory.stock.show', $balance->id) }}" wire:navigate
                                    class="mono font-semibold text-simba-700 dark:text-simba-400 hover:underline text-xs">
                                     {{ $balance->item->sku }}
                                 </a>
+                                @if ($isLowStock)
+                                    <span class="ml-1 badge badge-red text-[10px] px-1">Low</span>
+                                @endif
                             @else
                                 <span class="mono text-xs text-slate-400">—</span>
                             @endif
@@ -156,41 +134,6 @@
                             <div class="font-medium text-slate-900 dark:text-slate-100">{{ $balance->item?->name ?? '—' }}</div>
                             @if ($balance->item?->category)
                                 <p class="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{{ $balance->item->category->name }}</p>
-                            @endif
-                        </td>
-
-                        {{-- Batch --}}
-                        <td class="px-4 py-3.5">
-                            @if ($balance->batch)
-                                <span class="mono text-xs text-slate-700 dark:text-slate-300">{{ $balance->batch->batch_no }}</span>
-                            @else
-                                <span class="text-slate-400">—</span>
-                            @endif
-                        </td>
-
-                        {{-- Expiry --}}
-                        <td class="px-4 py-3.5 tabular-nums text-sm {{ $expiryClass }}">
-                            {{ $balance->batch?->expiry_date?->format('d M Y') ?? '—' }}
-                        </td>
-
-                        {{-- Location --}}
-                        <td class="px-4 py-3.5">
-                            <span class="mono text-xs text-slate-700 dark:text-slate-300">{{ $balance->location?->code ?? '—' }}</span>
-                        </td>
-
-                        {{-- Virtual Warehouse --}}
-                        <td class="px-4 py-3.5 text-sm text-slate-600 dark:text-slate-300">
-                            {{ $balance->virtualWarehouse?->name ?? '—' }}
-                        </td>
-
-                        {{-- Status --}}
-                        <td class="px-4 py-3.5">
-                            @if ($balance->stock_status?->value === 'available' || $balance->stock_status === 'available')
-                                <span class="badge badge-green"><span class="dot"></span> Available</span>
-                            @elseif ($balance->stock_status?->value === 'on_hold' || $balance->stock_status === 'on_hold')
-                                <span class="badge badge-amber">On Hold</span>
-                            @else
-                                <span class="badge badge-slate">{{ $balance->stock_status }}</span>
                             @endif
                         </td>
 
@@ -218,29 +161,19 @@
                             @endif
                         </td>
 
-                        {{-- Row actions --}}
-                        <td class="px-4 py-3.5 w-20">
-                            <div class="flex items-center gap-1">
-                                <a href="{{ route('inventory.stock.show', $balance) }}" wire:navigate
-                                   title="View Details"
-                                   class="flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:text-simba-600 hover:bg-simba-50 dark:hover:bg-simba-900/20 transition">
-                                    <x-ui.icon name="eye" class="h-4 w-4" />
-                                </a>
-                                @if ($balance->item?->track_serial)
-                                    <button type="button"
-                                            wire:click="viewSerials({{ $balance->id }})"
-                                            title="View Serials"
-                                            class="flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:text-simba-600 hover:bg-simba-50 dark:hover:bg-simba-900/20 transition">
-                                        <x-ui.icon name="list" class="h-4 w-4" />
-                                    </button>
-                                @endif
-                            </div>
+                        {{-- Actions --}}
+                        <td class="px-4 py-3.5 w-14">
+                            <a href="{{ route('inventory.stock.show', $balance->id) }}" wire:navigate
+                               title="View Details"
+                               class="flex h-7 w-7 items-center justify-center rounded text-slate-400 hover:text-simba-600 hover:bg-simba-50 dark:hover:bg-simba-900/20 transition">
+                                <x-ui.icon name="eye" class="h-4 w-4" />
+                            </a>
                         </td>
 
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="11" class="px-5 py-16 text-center">
+                        <td colspan="7" class="px-5 py-16 text-center">
                             <x-ui.icon name="package" class="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600" />
                             @if ($search || $filterCategory || $filterLocation || $filterVw || $filterStatus || $filterExpiring)
                                 <p class="mt-3 font-medium text-slate-900 dark:text-white">No stock records match your filters</p>
@@ -264,15 +197,11 @@
                         <tr class="skeleton-row">
                             <td class="px-4"><div class="skeleton-cell w-24"></div></td>
                             <td class="px-4"><div class="skeleton-cell w-40"></div></td>
-                            <td class="px-4"><div class="skeleton-cell w-20"></div></td>
-                            <td class="px-4"><div class="skeleton-cell w-24"></div></td>
-                            <td class="px-4"><div class="skeleton-cell w-28"></div></td>
-                            <td class="px-4"><div class="skeleton-cell w-32"></div></td>
-                            <td class="px-4"><div class="skeleton-cell w-20"></div></td>
                             <td class="px-4"><div class="skeleton-cell w-16 ml-auto"></div></td>
                             <td class="px-4"><div class="skeleton-cell w-16 ml-auto"></div></td>
                             <td class="px-4"><div class="skeleton-cell w-16 ml-auto"></div></td>
                             <td class="px-4"><div class="skeleton-cell w-10"></div></td>
+                            <td class="px-4 w-14"><div class="skeleton-cell w-6 ml-auto"></div></td>
                         </tr>
                     @endfor
                 </tbody>

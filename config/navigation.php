@@ -2,6 +2,8 @@
 
 return [
     'groups' => [
+
+        // ── Overview ──────────────────────────────────────────────────────────
         [
             'key'   => 'overview',
             'label' => 'Overview',
@@ -26,6 +28,8 @@ return [
                 ],
             ],
         ],
+
+        // ── Orders ────────────────────────────────────────────────────────────
         [
             'key'   => 'orders',
             'label' => 'Orders',
@@ -41,40 +45,62 @@ return [
                 ],
             ],
         ],
+
+        // ── Inbound ───────────────────────────────────────────────────────────
         [
-            // "Warehouse Tasks" replaces the old Inbound group.
-            // Items with 'enabled' => false are kept for easy re-activation but
-            // are hidden from the sidebar; their routes remain fully functional.
-            'key'   => 'warehouse-tasks',
-            'label' => 'Warehouse Tasks',
-            'can'   => 'grn.view',   // dept-user lacks this; all warehouse roles have it
+            'key'   => 'inbound',
+            'label' => 'Inbound',
+            'can'   => 'grn.view',
             'items' => [
                 [
                     'key'           => 'grn',
-                    'label'         => 'Receiving (GRN)',
+                    'label'         => 'GRN',
                     'icon'          => 'clipboard',
                     'route'         => 'inbound.grn.index',
                     'active_routes' => ['inbound.grn.*'],
                     'can'           => 'grn.view',
-                    'enabled'       => true,
                 ],
                 [
                     'key'           => 'putaway',
-                    'label'         => 'Put-Away',
+                    'label'         => 'Putaway',
                     'icon'          => 'archive',
                     'route'         => 'inbound.putaway.index',
                     'active_routes' => ['inbound.putaway.*', 'warehouse.putaway.*'],
                     'can'           => 'putaway.view',
-                    'enabled'       => true,
                 ],
                 [
-                    'key'           => 'pick-lists',
+                    'key'           => 'inbound-return',
+                    'label'         => 'Return',
+                    'icon'          => 'arrow-uturn-left',
+                    'route'         => 'dashboard',        // placeholder – no route yet
+                    'active_routes' => ['inbound.returns.*'],
+                    'can'           => 'grn.view',
+                    'enabled'       => false,
+                ],
+            ],
+        ],
+
+        // ── Outbound ──────────────────────────────────────────────────────────
+        [
+            'key'   => 'outbound',
+            'label' => 'Outbound',
+            'can'   => 'orders.view',
+            'items' => [
+                [
+                    'key'           => 'mrn',
+                    'label'         => 'MRN',
+                    'icon'          => 'document-text',
+                    'route'         => 'outbound.orders.index',
+                    'active_routes' => ['outbound.orders.*'],
+                    'can'           => 'orders.view',
+                ],
+                [
+                    'key'           => 'picking',
                     'label'         => 'Picking',
                     'icon'          => 'clipboard-list',
                     'route'         => 'outbound.pick-lists.index',
                     'active_routes' => ['outbound.pick-lists.*'],
                     'can'           => 'picking.view',
-                    'enabled'       => true,
                 ],
                 [
                     'key'           => 'dispatch',
@@ -83,51 +109,23 @@ return [
                     'route'         => 'outbound.dispatch.index',
                     'active_routes' => ['outbound.dispatch.*'],
                     'can'           => 'dispatch.view',
-                    'enabled'       => true,
                 ],
                 [
-                    'key'           => 'yard',
-                    'label'         => 'Yard Map',
-                    'icon'          => 'map-pin',
-                    'route'         => 'inbound.yard.index',
-                    'active_routes' => ['inbound.yard.*'],
-                    'can'           => 'containers.view',
-                    'enabled'       => true,
-                ],
-                // ── Hidden items (routes/code unchanged; set enabled => true to restore) ──
-                [
-                    'key'           => 'containers',
-                    'label'         => 'Containers',
-                    'icon'          => 'package',
-                    'route'         => 'inbound.containers.index',
-                    'active_routes' => ['inbound.containers.*'],
-                    'can'           => 'containers.view',
-                    'enabled'       => true,
-                ],
-                [
-                    'key'           => 'dwell',
-                    'label'         => 'Dwell Time',
-                    'icon'          => 'clock',
-                    'route'         => 'inbound.dwell.index',
-                    'active_routes' => ['inbound.dwell.*'],
-                    'can'           => 'containers.view',
-                    'enabled'       => false,
-                ],
-                [
-                    'key'           => 'inspections',
-                    'label'         => 'Inspections',
-                    'icon'          => 'search',
-                    'route'         => 'inbound.inspections.index',
-                    'active_routes' => ['inbound.inspections.*'],
-                    'can'           => 'inspections.view',
-                    'enabled'       => false,
+                    'key'           => 'pod',
+                    'label'         => 'Proof of Delivery',
+                    'icon'          => 'badge-check',
+                    'route'         => 'outbound.pod.index',
+                    'active_routes' => ['outbound.pod.*'],
+                    'can'           => 'pod.upload',
                 ],
             ],
         ],
+
+        // ── Stock Transfers (was: Operations) ─────────────────────────────────
         [
-            'key'   => 'warehouse',
-            'label' => 'Operations',
-            'can'   => null,  // shown if any item passes its own can gate
+            'key'   => 'stock-transfers',
+            'label' => 'Stock Transfers',
+            'can'   => null,
             'items' => [
                 [
                     'key'           => 'movements',
@@ -153,37 +151,24 @@ return [
                     'active_routes' => ['warehouse.wtr.*'],
                     'can'           => 'transfers.view',
                 ],
+                [
+                    'key'           => 'stock-return',
+                    'label'         => 'Return',
+                    'icon'          => 'arrow-uturn-left',
+                    'route'         => 'dashboard',        // placeholder – no route yet
+                    'active_routes' => ['warehouse.returns.*'],
+                    'can'           => 'movements.view',
+                    'enabled'       => false,
+                ],
             ],
         ],
+
+        // ── Inventory Control ─────────────────────────────────────────────────
         [
             'key'   => 'inventory',
             'label' => 'Inventory Control',
             'can'   => 'stock.view',
             'items' => [
-                [
-                    'key'           => 'stock',
-                    'label'         => 'Stock on Hand',
-                    'icon'          => 'list',
-                    'route'         => 'inventory.stock.index',
-                    'active_routes' => ['inventory.stock.*'],
-                    'can'           => 'stock.view',
-                ],
-                [
-                    'key'           => 'movements',
-                    'label'         => 'Movement History',
-                    'icon'          => 'arrows',
-                    'route'         => 'inventory.movements.index',
-                    'active_routes' => ['inventory.movements.*'],
-                    'can'           => 'stock.movements.view',
-                ],
-                [
-                    'key'           => 'opening-balance',
-                    'label'         => 'Opening Balance',
-                    'icon'          => 'clipboard',
-                    'route'         => 'inventory.opening-balance',
-                    'active_routes' => ['inventory.opening-balance'],
-                    'can'           => 'stock.opening-balance',
-                ],
                 [
                     'key'           => 'adjustments',
                     'label'         => 'Stock Adjustments',
@@ -218,28 +203,39 @@ return [
                 ],
             ],
         ],
-        [
-            'key'   => 'outbound',
-            'label' => 'Outbound',
-            'can'   => 'orders.view',
-            'items' => [
-                [
-                    'key'           => 'pod',
-                    'label'         => 'Proof of Delivery',
-                    'icon'          => 'badge-check',
-                    'route'         => 'outbound.pod.index',
-                    'active_routes' => ['outbound.pod.*'],
-                    'can'           => 'pod.upload',
-                ],
-            ],
-        ],
+
+        // ── Reports & Documents ───────────────────────────────────────────────
         [
             'key'   => 'reports',
             'label' => 'Reports & Documents',
-            'can'   => 'reports.view',
+            'can'   => 'stock.view',
             'items' => [
                 [
-                    'key'           => 'reports',
+                    'key'           => 'stock',
+                    'label'         => 'Stock on Hand',
+                    'icon'          => 'list',
+                    'route'         => 'inventory.stock.index',
+                    'active_routes' => ['inventory.stock.*'],
+                    'can'           => 'stock.view',
+                ],
+                [
+                    'key'           => 'yard',
+                    'label'         => 'Yard Map',
+                    'icon'          => 'map-pin',
+                    'route'         => 'inbound.yard.index',
+                    'active_routes' => ['inbound.yard.*'],
+                    'can'           => 'containers.view',
+                ],
+                [
+                    'key'           => 'containers',
+                    'label'         => 'Containers',
+                    'icon'          => 'package',
+                    'route'         => 'inbound.containers.index',
+                    'active_routes' => ['inbound.containers.*'],
+                    'can'           => 'containers.view',
+                ],
+                [
+                    'key'           => 'reports-library',
                     'label'         => 'Reports Library',
                     'icon'          => 'chart-bar',
                     'route'         => 'reports.index',
@@ -264,6 +260,8 @@ return [
                 ],
             ],
         ],
+
+        // ── Master Data ───────────────────────────────────────────────────────
         [
             'key'   => 'master-data',
             'label' => 'Master Data',
@@ -311,10 +309,12 @@ return [
                 ],
             ],
         ],
+
+        // ── Administration ────────────────────────────────────────────────────
         [
             'key'   => 'admin',
             'label' => 'Administration',
-            'can'   => null,  // shown if any item passes its own can gate
+            'can'   => null,
             'items' => [
                 [
                     'key'           => 'settings',
@@ -390,5 +390,6 @@ return [
                 ],
             ],
         ],
+
     ],
 ];
