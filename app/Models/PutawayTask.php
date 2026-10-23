@@ -113,6 +113,6 @@ class PutawayTask extends Model
 
     public function isExecutable(): bool
     {
-        return in_array($this->status, [PutawayTaskStatus::Assigned, PutawayTaskStatus::InProgress], true);
+        return in_array($this->status, [PutawayTaskStatus::Open, PutawayTaskStatus::Assigned, PutawayTaskStatus::InProgress], true);
     }
 }
