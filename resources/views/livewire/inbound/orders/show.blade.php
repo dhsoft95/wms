@@ -46,13 +46,17 @@
                 @endcan
             @endif
 
-            {{-- Returned for correction --}}
+            {{-- Returned for correction — HOD's turn to review and forward --}}
             @if ($purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::ReturnedForCorrection)
                 @if ($this->canForwardReturn)
                     <button wire:click="openForwardModal" class="btn btn-secondary">
                         <x-ui.icon name="arrow-uturn-left" class="w-4 h-4" /> Send Back to Requester
                     </button>
                 @endif
+            @endif
+
+            {{-- Awaiting requester correction — requester's turn to fix and resubmit --}}
+            @if ($purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::AwaitingRequesterCorrection)
                 @can('update', $purchaseOrder)
                     <a href="{{ route('inbound.orders.edit', $purchaseOrder) }}" wire:navigate class="btn btn-secondary">
                         <x-ui.icon name="pencil" class="w-4 h-4" /> Edit
@@ -207,6 +211,7 @@
             \App\Enums\Inbound\PurchaseOrderStatus::Rejected,
             \App\Enums\Inbound\PurchaseOrderStatus::Cancelled,
             \App\Enums\Inbound\PurchaseOrderStatus::ReturnedForCorrection,
+            \App\Enums\Inbound\PurchaseOrderStatus::AwaitingRequesterCorrection,
         ], true);
     @endphp
     <div class="card">

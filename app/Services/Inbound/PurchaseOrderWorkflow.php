@@ -106,14 +106,14 @@ final class PurchaseOrderWorkflow
 
     public function submit(PurchaseOrder $po, User $by): void
     {
-        $this->assertStatus($po, PurchaseOrderStatus::Draft, PurchaseOrderStatus::ReturnedForCorrection);
+        $this->assertStatus($po, PurchaseOrderStatus::Draft, PurchaseOrderStatus::AwaitingRequesterCorrection);
 
         if ($by->id !== $po->requested_by && ! $by->hasAnyRole(['system-admin', 'warehouse-manager'])) {
             throw new \DomainException('Only the creator may submit this purchase order.');
         }
 
         DB::transaction(function () use ($po, $by) {
-            if ($po->status === PurchaseOrderStatus::ReturnedForCorrection) {
+            if ($po->status === PurchaseOrderStatus::AwaitingRequesterCorrection) {
                 $this->chainService->resetApprovals($po);
             }
 
@@ -282,8 +282,8 @@ final class PurchaseOrderWorkflow
     }
 
     /**
-     * HOD forwards the warehouse's return notice to the requester with a comment.
-     * No state change — PO stays in ReturnedForCorrection.
+     * HOD forwards the return to the requester — transitions to AwaitingRequesterCorrection
+     * so the HOD's "Send Back" button disappears and the requester gains edit/resubmit access.
      */
     public function forwardReturnToRequester(PurchaseOrder $po, User $by, string $comment): void
     {
@@ -293,11 +293,16 @@ final class PurchaseOrderWorkflow
             throw new \DomainException('Only the department head may forward this return.');
         }
 
-        $this->chainService->record($po, $by, PurchaseOrderApprovalAction::Returned, 1, null, null, $comment);
+        DB::transaction(function () use ($po, $by, $comment) {
+            $this->chainService->record($po, $by, PurchaseOrderApprovalAction::Returned, 1, null, null, $comment);
 
-        activity()->performedOn($po)->causedBy($by)
-            ->withProperties(['comment' => $comment])
-            ->log('Return forwarded to requester by dept head');
+            $po->status = PurchaseOrderStatus::AwaitingRequesterCorrection;
+            $po->save();
+
+            activity()->performedOn($po)->causedBy($by)
+                ->withProperties(['comment' => $comment])
+                ->log('Return forwarded to requester by dept head');
+        });
 
         $this->tryNotify($po->requestedBy, new PoStatusChangedNotification(
             $po, 'returned',

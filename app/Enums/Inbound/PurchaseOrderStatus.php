@@ -10,7 +10,8 @@ enum PurchaseOrderStatus: string
 {
     case Draft                            = 'draft';
     case PendingApproval                  = 'pending_approval';                   // awaiting dept-head
-    case ReturnedForCorrection            = 'returned_for_correction';
+    case ReturnedForCorrection            = 'returned_for_correction';            // HOD's turn to review
+    case AwaitingRequesterCorrection      = 'awaiting_requester_correction';      // requester's turn to fix
     case Rejected                         = 'rejected';
     case ApprovedPendingAcceptance        = 'approved_pending_acceptance';
     case AcceptedPendingAssignment        = 'accepted_pending_assignment';
@@ -40,6 +41,9 @@ enum PurchaseOrderStatus: string
                 ], true),
 
             self::ReturnedForCorrection =>
+                in_array($new, [self::AwaitingRequesterCorrection, self::Cancelled], true),
+
+            self::AwaitingRequesterCorrection =>
                 in_array($new, [self::PendingApproval, self::Cancelled], true),
 
             self::ApprovedPendingAcceptance =>
@@ -88,7 +92,7 @@ enum PurchaseOrderStatus: string
 
     public function isEditable(): bool
     {
-        return in_array($this, [self::Draft, self::ReturnedForCorrection], true);
+        return in_array($this, [self::Draft, self::AwaitingRequesterCorrection], true);
     }
 
     public function isCancellable(): bool
@@ -97,6 +101,7 @@ enum PurchaseOrderStatus: string
             self::Draft,
             self::PendingApproval,
             self::ReturnedForCorrection,
+            self::AwaitingRequesterCorrection,
             self::ApprovedPendingAcceptance,
             self::AcceptedPendingAssignment,
             self::AssignedPendingReceiving,
@@ -120,6 +125,7 @@ enum PurchaseOrderStatus: string
             self::Draft                           => 'Draft',
             self::PendingApproval                 => 'Pending Dept Head Approval',
             self::ReturnedForCorrection           => 'Returned for Correction',
+            self::AwaitingRequesterCorrection     => 'Awaiting Requester Correction',
             self::Rejected                        => 'Rejected',
             self::ApprovedPendingAcceptance       => 'Approved  Pending Acceptance',
             self::AcceptedPendingAssignment       => 'Accepted  Pending Assignment',
@@ -143,6 +149,7 @@ enum PurchaseOrderStatus: string
             self::Draft                           => 'badge-slate',
             self::PendingApproval                 => 'badge-amber',
             self::ReturnedForCorrection           => 'badge-amber',
+            self::AwaitingRequesterCorrection     => 'badge-orange',
             self::Rejected                        => 'badge-red',
             self::ApprovedPendingAcceptance       => 'badge-green',
             self::AcceptedPendingAssignment       => 'badge-green',

@@ -53,13 +53,11 @@
                 <tbody>
                     @foreach ($this->pendingPoApprovals as $po)
                         @php
-                            $user      = auth()->user();
-                            $isHod     = $po->department?->head_user_id === $user->id;
-                            $isAdmin   = $user->hasRole('system-admin');
-                            $canApprove = ($isHod || $isAdmin) && $po->status === \App\Enums\Inbound\PurchaseOrderStatus::PendingApproval;
-                            $isReturned = $po->status === \App\Enums\Inbound\PurchaseOrderStatus::ReturnedForCorrection;
-                            $isOwner    = $po->requested_by === $user->id;
                             $lastAction = $po->approvals->first();
+                            $isReturned = in_array($po->status, [
+                                \App\Enums\Inbound\PurchaseOrderStatus::ReturnedForCorrection,
+                                \App\Enums\Inbound\PurchaseOrderStatus::AwaitingRequesterCorrection,
+                            ], true);
                         @endphp
                         <tr wire:key="po-{{ $po->id }}">
                             <td>
@@ -81,38 +79,9 @@
                             <td class="text-sm text-slate-600 dark:text-slate-400">{{ $po->requestedBy?->name ?? '—' }}</td>
                             <td class="text-xs text-slate-500">{{ $po->submitted_at?->format('d M Y') ?? '—' }}</td>
                             <td class="text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    @if ($isReturned && ($isOwner || $isAdmin))
-                                        {{-- Requester / admin: fix and resubmit --}}
-                                        <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate class="btn btn-primary btn-sm">
-                                            <x-ui.icon name="pencil" class="w-3.5 h-3.5" /> Fix &amp; Resubmit
-                                        </a>
-                                    @elseif ($isReturned && $isHod)
-                                        {{-- HOD: open the order to review and send back --}}
-                                        <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate
-                                           class="btn btn-secondary btn-sm text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700">
-                                            <x-ui.icon name="eye" class="w-3.5 h-3.5" /> View
-                                        </a>
-                                    @elseif ($canApprove)
-                                        {{-- HOD / admin: approve, send back, reject --}}
-                                        <button wire:click="approvePo({{ $po->id }})"
-                                                wire:loading.attr="disabled"
-                                                wire:confirm="Approve PO {{ $po->number }}?"
-                                                class="btn btn-primary btn-sm">
-                                            <x-ui.icon name="check" class="w-3.5 h-3.5" /> Approve
-                                        </button>
-                                        <button wire:click="openPoReturnModal({{ $po->id }})" class="btn btn-secondary btn-sm">
-                                            <x-ui.icon name="arrow-uturn-left" class="w-3.5 h-3.5" /> Send Back
-                                        </button>
-                                        <button wire:click="openPoRejectModal({{ $po->id }})" class="btn btn-secondary btn-sm text-red-600 dark:text-red-400">
-                                            <x-ui.icon name="x-circle" class="w-3.5 h-3.5" /> Reject
-                                        </button>
-                                    @else
-                                        <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate class="btn btn-secondary btn-sm">
-                                            <x-ui.icon name="eye" class="w-3.5 h-3.5" /> View
-                                        </a>
-                                    @endif
-                                </div>
+                                <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate class="btn btn-secondary btn-sm">
+                                    <x-ui.icon name="eye" class="w-3.5 h-3.5" /> View
+                                </a>
                             </td>
                         </tr>
                     @endforeach

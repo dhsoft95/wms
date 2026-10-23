@@ -62,6 +62,7 @@ class Index extends Component
             $query->whereIn('status', [
                 PurchaseOrderStatus::PendingApproval,
                 PurchaseOrderStatus::ReturnedForCorrection,
+                PurchaseOrderStatus::AwaitingRequesterCorrection,
                 PurchaseOrderStatus::ApprovedPendingAcceptance,
             ]);
         } else {
@@ -80,7 +81,7 @@ class Index extends Component
                     && $po->status === PurchaseOrderStatus::ApprovedPendingAcceptance) {
                     return true;
                 }
-                // HOD always sees ReturnedForCorrection POs for their dept
+                // HOD sees ReturnedForCorrection POs for their dept (their turn to forward)
                 if ($po->status === PurchaseOrderStatus::ReturnedForCorrection
                     && $po->department?->head_user_id === $user->id) {
                     return true;
@@ -91,13 +92,16 @@ class Index extends Component
                     && $po->department?->head_user_id !== $user->id) {
                     return false;
                 }
-                // Requester: only sees ReturnedForCorrection after HOD explicitly forwards it — both tabs
+                // Requester: ReturnedForCorrection is HOD's turn — hide from requester
                 if ($po->status === PurchaseOrderStatus::ReturnedForCorrection
                     && $po->requested_by === $user->id
                     && $po->department?->head_user_id !== $user->id) {
-                    return $po->approvals->contains(
-                        fn ($a) => $a->action === \App\Enums\Inbound\PurchaseOrderApprovalAction::Returned
-                    );
+                    return false;
+                }
+                // Requester: AwaitingRequesterCorrection means HOD forwarded — requester can act
+                if ($po->status === PurchaseOrderStatus::AwaitingRequesterCorrection
+                    && $po->requested_by === $user->id) {
+                    return true;
                 }
                 if ($this->tab === 'all') {
                     if ($po->requested_by === $user->id) {
