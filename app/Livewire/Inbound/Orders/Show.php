@@ -25,6 +25,7 @@ class Show extends Component
     public bool $showReturnModal      = false;
     public bool $showRejectModal      = false;
     public bool $showWmRejectModal    = false;
+    public bool $showForwardModal     = false;
     public bool $showAssignModal      = false;
     public bool $showReceiveModal     = false;
     public bool $showSendBackModal    = false;
@@ -36,6 +37,7 @@ class Show extends Component
     public string $returnComment        = '';
     public string $rejectReason         = '';
     public string $wmRejectReason       = '';
+    public string $forwardComment       = '';
     public string $assignType           = 'supervisor';
     public string $assignUserId         = '';
     public string $sendBackComment      = '';
@@ -271,6 +273,22 @@ class Show extends Component
             $this->reload();
             $this->showWmRejectModal = false;
             $this->dispatch('toast', message: 'Sent back to department.', type: 'info');
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function openForwardModal(): void  { $this->forwardComment = ''; $this->showForwardModal = true; }
+    public function closeForwardModal(): void { $this->showForwardModal = false; }
+
+    public function forwardToRequester(): void
+    {
+        $this->validate(['forwardComment' => ['required', 'string', 'min:5']]);
+        try {
+            app(PurchaseOrderWorkflow::class)->forwardReturnToRequester($this->purchaseOrder, auth()->user(), $this->forwardComment);
+            $this->reload();
+            $this->showForwardModal = false;
+            $this->dispatch('toast', message: 'Sent back to requester with your note.', type: 'info');
         } catch (\Exception $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }

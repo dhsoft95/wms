@@ -48,6 +48,12 @@
 
             {{-- Returned for correction --}}
             @if ($purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::ReturnedForCorrection)
+                @php $isHod = auth()->id() === $purchaseOrder->department?->head_user_id; @endphp
+                @if ($isHod || auth()->user()->hasRole('system-admin'))
+                    <button wire:click="openForwardModal" class="btn btn-secondary">
+                        <x-ui.icon name="arrow-uturn-left" class="w-4 h-4" /> Send Back to Requester
+                    </button>
+                @endif
                 @can('update', $purchaseOrder)
                     <a href="{{ route('inbound.orders.edit', $purchaseOrder) }}" wire:navigate class="btn btn-secondary">
                         <x-ui.icon name="pencil" class="w-4 h-4" /> Edit
@@ -671,6 +677,35 @@
                     <button wire:click="rejectByWarehouse" wire:loading.attr="disabled" class="btn btn-secondary text-amber-600">
                         <span wire:loading.remove wire:target="rejectByWarehouse">Send Back</span>
                         <span wire:loading wire:target="rejectByWarehouse">Sending…</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- HOD: forward return to requester --}}
+    @if ($showForwardModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4"
+             x-data wire:click.self="closeForwardModal">
+            <div class="card w-full max-w-md p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-900 dark:text-white">Send Back to Requester</h3>
+                    <button wire:click="closeForwardModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
+                </div>
+                <p class="text-sm text-slate-500 dark:text-slate-400">
+                    Notify the requester of what needs to be corrected before resubmitting.
+                </p>
+                <div>
+                    <label class="label">Your Note <span class="text-red-500">*</span></label>
+                    <textarea wire:model="forwardComment" rows="3" class="input resize-none"
+                              placeholder="Explain what the requester needs to fix…"></textarea>
+                    @error('forwardComment') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button wire:click="closeForwardModal" class="btn btn-ghost">Cancel</button>
+                    <button wire:click="forwardToRequester" wire:loading.attr="disabled" class="btn btn-secondary">
+                        <span wire:loading.remove wire:target="forwardToRequester">Send Back</span>
+                        <span wire:loading wire:target="forwardToRequester">Sending…</span>
                     </button>
                 </div>
             </div>

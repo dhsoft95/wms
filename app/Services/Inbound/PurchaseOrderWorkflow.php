@@ -108,8 +108,10 @@ final class PurchaseOrderWorkflow
     {
         $this->assertStatus($po, PurchaseOrderStatus::Draft, PurchaseOrderStatus::ReturnedForCorrection);
 
-        if ($by->id !== $po->requested_by && ! $by->hasAnyRole(['system-admin', 'warehouse-manager'])) {
-            throw new \DomainException('Only the creator may submit this purchase order.');
+        if ($by->id !== $po->requested_by
+            && ! $by->hasAnyRole(['system-admin', 'warehouse-manager'])
+            && $po->department?->head_user_id !== $by->id) {
+            throw new \DomainException('Only the creator or department head may submit this purchase order.');
         }
 
         DB::transaction(function () use ($po, $by) {
@@ -278,6 +280,31 @@ final class PurchaseOrderWorkflow
             $po, 'returned',
             "PO {$po->number} has been sent back for correction by the warehouse.",
             $reason,
+        ));
+    }
+
+    /**
+     * HOD forwards the warehouse's return notice to the requester with a comment.
+     * No state change — PO stays in ReturnedForCorrection.
+     */
+    public function forwardReturnToRequester(PurchaseOrder $po, User $by, string $comment): void
+    {
+        $this->assertStatus($po, PurchaseOrderStatus::ReturnedForCorrection);
+
+        if ($po->department?->head_user_id !== $by->id && ! $by->hasRole('system-admin')) {
+            throw new \DomainException('Only the department head may forward this return.');
+        }
+
+        $this->chainService->record($po, $by, PurchaseOrderApprovalAction::Returned, 1, null, null, $comment);
+
+        activity()->performedOn($po)->causedBy($by)
+            ->withProperties(['comment' => $comment])
+            ->log('Return forwarded to requester by dept head');
+
+        $this->tryNotify($po->requestedBy, new PoStatusChangedNotification(
+            $po, 'returned',
+            "PO {$po->number} has been forwarded to you for correction by the department head.",
+            $comment,
         ));
     }
 
