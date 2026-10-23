@@ -80,11 +80,19 @@ class Index extends Component
                     && $po->status === PurchaseOrderStatus::ApprovedPendingAcceptance) {
                     return true;
                 }
-                // Returned POs: visible to the requester AND the dept head
+                // HOD always sees ReturnedForCorrection POs in their queue
                 if ($po->status === PurchaseOrderStatus::ReturnedForCorrection
-                    && ($po->requested_by === $user->id
-                        || $po->department?->head_user_id === $user->id)) {
+                    && $po->department?->head_user_id === $user->id) {
                     return true;
+                }
+                // Requester sees ReturnedForCorrection in pending ONLY after HOD has forwarded it
+                // (evidenced by a 'returned' approval record). In 'all' tab, fall through to tab check.
+                if ($this->tab === 'pending'
+                    && $po->status === PurchaseOrderStatus::ReturnedForCorrection
+                    && $po->requested_by === $user->id) {
+                    return $po->approvals->contains(
+                        fn ($a) => ($a->action?->value ?? $a->action) === 'returned'
+                    );
                 }
                 if ($this->tab === 'all') {
                     if ($po->requested_by === $user->id) {

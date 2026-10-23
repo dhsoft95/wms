@@ -108,10 +108,8 @@ final class PurchaseOrderWorkflow
     {
         $this->assertStatus($po, PurchaseOrderStatus::Draft, PurchaseOrderStatus::ReturnedForCorrection);
 
-        if ($by->id !== $po->requested_by
-            && ! $by->hasAnyRole(['system-admin', 'warehouse-manager'])
-            && $po->department?->head_user_id !== $by->id) {
-            throw new \DomainException('Only the creator or department head may submit this purchase order.');
+        if ($by->id !== $po->requested_by && ! $by->hasAnyRole(['system-admin', 'warehouse-manager'])) {
+            throw new \DomainException('Only the creator may submit this purchase order.');
         }
 
         DB::transaction(function () use ($po, $by) {

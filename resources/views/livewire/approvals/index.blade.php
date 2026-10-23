@@ -82,10 +82,15 @@
                             <td class="text-xs text-slate-500">{{ $po->submitted_at?->format('d M Y') ?? '—' }}</td>
                             <td class="text-right">
                                 <div class="flex items-center justify-end gap-2">
-                                    @if ($isReturned && ($isOwner || $isHod || $isAdmin))
-                                        {{-- Requester: fix and resubmit --}}
+                                    @if ($isReturned && ($isOwner || $isAdmin))
+                                        {{-- Requester / admin: fix and resubmit --}}
                                         <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate class="btn btn-primary btn-sm">
                                             <x-ui.icon name="pencil" class="w-3.5 h-3.5" /> Fix &amp; Resubmit
+                                        </a>
+                                    @elseif ($isReturned && $isHod)
+                                        {{-- HOD: review and send back to requester --}}
+                                        <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate class="btn btn-secondary btn-sm">
+                                            <x-ui.icon name="arrow-uturn-left" class="w-3.5 h-3.5" /> Send Back to Requester
                                         </a>
                                     @elseif ($canApprove)
                                         {{-- HOD / admin: approve, send back, reject --}}

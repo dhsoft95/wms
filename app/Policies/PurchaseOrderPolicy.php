@@ -62,18 +62,14 @@ class PurchaseOrderPolicy
     {
         return $user->can('po.create')
             && $po->status->isEditable()
-            && ($po->requested_by === $user->id
-                || $user->hasAnyRole(['system-admin', 'warehouse-manager'])
-                || $po->department?->head_user_id === $user->id);
+            && ($po->requested_by === $user->id || $user->hasAnyRole(['system-admin', 'warehouse-manager']));
     }
 
     public function submit(User $user, PurchaseOrder $po): bool
     {
         return $user->can('po.create')
             && $po->status->isEditable()
-            && ($po->requested_by === $user->id
-                || $user->hasAnyRole(['system-admin', 'warehouse-manager'])
-                || $po->department?->head_user_id === $user->id);
+            && ($po->requested_by === $user->id || $user->hasAnyRole(['system-admin', 'warehouse-manager']));
     }
 
     public function approve(User $user, PurchaseOrder $po): bool
