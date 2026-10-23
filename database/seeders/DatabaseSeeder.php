@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             DemoUsersSeeder::class,
             TestMasterDataSeeder::class,
             YasTanzaniaDemoSeeder::class,
+            YasNetworkUsersSeeder::class,
 //            FoundationDemoSeeder::class,
 //            StockDemoSeeder::class,
 //            ContainerDemoSeeder::class,

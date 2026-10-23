@@ -592,26 +592,30 @@
 
     {{-- ─── Modals ────────────────────────────────────────────────────────────── --}}
 
-    {{-- Return for Correction --}}
+    {{-- Send Back --}}
     @if ($showReturnModal)
         <div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4"
              x-data wire:click.self="closeReturnModal">
             <div class="card w-full max-w-md p-6 space-y-4">
                 <div class="flex items-center justify-between">
-                    <h3 class="font-bold text-slate-900 dark:text-white">Return for Correction</h3>
+                    <h3 class="font-bold text-slate-900 dark:text-white">Send Back</h3>
                     <button wire:click="closeReturnModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
                 </div>
+                <p class="text-sm text-slate-500 dark:text-slate-400">
+                    This will send the order back to the previous approver with your remark.
+                    If there is no previous level, it will be returned to the requester.
+                </p>
                 <div>
-                    <label class="label">Comment <span class="text-red-500">*</span></label>
+                    <label class="label">Remark <span class="text-red-500">*</span></label>
                     <textarea wire:model="returnComment" rows="3" class="input resize-none"
-                              placeholder="Explain what needs to be corrected…"></textarea>
+                              placeholder="Explain why you are sending this back…"></textarea>
                     @error('returnComment') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="closeReturnModal" class="btn btn-ghost">Cancel</button>
-                    <button wire:click="returnForCorrection" wire:loading.attr="disabled" class="btn btn-secondary">
-                        <span wire:loading.remove wire:target="returnForCorrection">Return</span>
-                        <span wire:loading wire:target="returnForCorrection">Returning…</span>
+                    <button wire:click="returnToPreviousLevel" wire:loading.attr="disabled" class="btn btn-secondary">
+                        <span wire:loading.remove wire:target="returnToPreviousLevel">Send Back</span>
+                        <span wire:loading wire:target="returnToPreviousLevel">Sending…</span>
                     </button>
                 </div>
             </div>

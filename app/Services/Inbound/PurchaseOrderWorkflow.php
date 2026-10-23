@@ -248,6 +248,88 @@ final class PurchaseOrderWorkflow
         });
     }
 
+    /**
+     * Send the PO back one step in the approval chain.
+     * - If there is a previously-approved dept level: revoke it and re-notify those approvers.
+     * - If there are only category approvals: revoke them and return to the last dept level.
+     * - If nothing has been approved yet (level 1 or no chain): return to the requester.
+     */
+    public function returnToPreviousLevel(PurchaseOrder $po, User $by, string $comment): void
+    {
+        $this->assertStatus($po, PurchaseOrderStatus::PendingApproval);
+
+        DB::transaction(function () use ($po, $by, $comment) {
+            $chains = $this->chainService->getDepartmentChains($po);
+
+            // Find the last dept level that has an approved record
+            $lastApprovedChain = null;
+            foreach ($chains->sortByDesc('level') as $chain) {
+                $exists = \App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)
+                    ->where('approval_chain_id', $chain->id)
+                    ->where('action', PurchaseOrderApprovalAction::Approved->value)
+                    ->exists();
+                if ($exists) {
+                    $lastApprovedChain = $chain;
+                    break;
+                }
+            }
+
+            // If only category approvals exist (no approved dept level found but categories approved)
+            $hasCategoryApprovals = \App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)
+                ->whereNull('approval_chain_id')
+                ->whereNotNull('item_category_id')
+                ->where('action', PurchaseOrderApprovalAction::Approved->value)
+                ->exists();
+
+            if ($lastApprovedChain === null && ! $hasCategoryApprovals) {
+                // Nothing approved yet → return all the way to the requester
+                $this->returnForCorrection($po, $by, $comment);
+                return;
+            }
+
+            // Record the send-back in history
+            $currentLevel = $this->chainService->currentDepartmentLevel($po) ?? 99;
+            $this->chainService->record(
+                $po, $by, PurchaseOrderApprovalAction::Returned,
+                $currentLevel, null, null, $comment,
+            );
+
+            // Wipe category approvals (always reset these when stepping back)
+            \App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)
+                ->whereNull('approval_chain_id')
+                ->whereNotNull('item_category_id')
+                ->where('action', PurchaseOrderApprovalAction::Approved->value)
+                ->delete();
+
+            if ($lastApprovedChain !== null) {
+                // Revoke the last approved dept level
+                \App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)
+                    ->where('approval_chain_id', $lastApprovedChain->id)
+                    ->where('action', PurchaseOrderApprovalAction::Approved->value)
+                    ->delete();
+
+                activity()->performedOn($po)->causedBy($by)
+                    ->withProperties(['comment' => $comment])
+                    ->log("Sent back to level {$lastApprovedChain->level}");
+
+                // Notify the approvers at that level
+                $users = $this->chainService->usersForDepartmentLevel($po, $lastApprovedChain->level);
+                foreach ($users as $user) {
+                    $user->notify(new PoStatusChangedNotification(
+                        $po, 'returned',
+                        "PO {$po->number} has been sent back to you for review. Remark: {$comment}",
+                        $comment,
+                    ));
+                }
+            } else {
+                // Had only category approvals, no dept level → notify current dept level approvers
+                $this->notifyNextApprovers($po);
+            }
+
+            // PO stays in PendingApproval — no status change needed
+        });
+    }
+
     public function returnForCorrection(PurchaseOrder $po, User $by, string $comment): void
     {
         $this->assertStatus($po, PurchaseOrderStatus::PendingApproval);

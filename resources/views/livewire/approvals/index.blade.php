@@ -10,6 +10,27 @@
         @endif
     </div>
 
+    {{-- Tabs --}}
+    <div class="flex gap-1 border-b border-slate-200 dark:border-white/[0.06]">
+        <button wire:click="setTab('pending')"
+                class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors
+                       {{ $tab === 'pending'
+                           ? 'border-simba-500 text-simba-600 dark:text-simba-400'
+                           : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200' }}">
+            Pending Approval
+            @if ($this->totalPendingCount > 0 && $tab !== 'pending')
+                <span class="ml-1.5 badge badge-amber !text-xs !px-1.5 !py-0.5">{{ $this->totalPendingCount }}</span>
+            @endif
+        </button>
+        <button wire:click="setTab('all')"
+                class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors
+                       {{ $tab === 'all'
+                           ? 'border-simba-500 text-simba-600 dark:text-simba-400'
+                           : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200' }}">
+            All
+        </button>
+    </div>
+
     {{-- Purchase Orders section --}}
     @if ($this->pendingPoApprovals->isNotEmpty())
         <div class="card">
@@ -42,18 +63,9 @@
                             <td class="text-sm text-slate-600 dark:text-slate-400">{{ $po->requestedBy?->name ?? '—' }}</td>
                             <td class="text-xs text-slate-500">{{ $po->submitted_at?->format('d M Y') ?? '—' }}</td>
                             <td class="text-right">
-                                <div class="flex items-center justify-end gap-2">
-                                    <button wire:click="openPoReturnModal({{ $po->id }})" class="btn btn-ghost btn-sm text-slate-500">
-                                        Return
-                                    </button>
-                                    <button wire:click="openPoRejectModal({{ $po->id }})" class="btn btn-ghost btn-sm text-red-500">
-                                        Reject
-                                    </button>
-                                    <button wire:click="approvePo({{ $po->id }})" wire:loading.attr="disabled" class="btn btn-primary btn-sm">
-                                        <span wire:loading.remove wire:target="approvePo({{ $po->id }})">Approve</span>
-                                        <span wire:loading wire:target="approvePo({{ $po->id }})">…</span>
-                                    </button>
-                                </div>
+                                <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate class="btn btn-secondary btn-sm">
+                                    <x-ui.icon name="eye" class="w-3.5 h-3.5" /> View
+                                </a>
                             </td>
                         </tr>
                     @endforeach
@@ -73,6 +85,7 @@
                 <thead>
                     <tr>
                         <th>Number</th>
+                        <th>Status</th>
                         <th>Department</th>
                         <th>VW</th>
                         <th>Method</th>
@@ -88,6 +101,11 @@
                             <a href="{{ route('inventory.disposals.show', $req) }}" wire:navigate
                                class="mono font-semibold text-simba-600 hover:underline">{{ $req->number }}</a>
                         </td>
+                        <td>
+                            <span class="badge {{ $req->status?->badge() ?? 'badge-slate' }}">
+                                <span class="dot"></span>{{ $req->status?->label() ?? '—' }}
+                            </span>
+                        </td>
                         <td class="text-sm">{{ $req->department?->name ?? '—' }}</td>
                         <td class="text-sm">{{ $req->virtualWarehouse?->name ?? '—' }}</td>
                         <td class="text-sm">{{ $req->method?->label() ?? '—' }}</td>
@@ -96,9 +114,11 @@
                         <td class="text-right">
                             <div class="flex items-center justify-end gap-2">
                                 <a href="{{ route('inventory.disposals.show', $req) }}" wire:navigate class="btn btn-ghost btn-sm">View</a>
-                                <button wire:click="approveDisposal({{ $req->id }})" wire:loading.attr="disabled" class="btn btn-primary btn-sm">
-                                    Approve
-                                </button>
+                                @if ($req->status === \App\Enums\Inventory\DisposalStatus::Submitted)
+                                    <button wire:click="approveDisposal({{ $req->id }})" wire:loading.attr="disabled" class="btn btn-primary btn-sm">
+                                        Approve
+                                    </button>
+                                @endif
                             </div>
                         </td>
                     </tr>
@@ -119,6 +139,7 @@
                 <thead>
                     <tr>
                         <th>Number</th>
+                        <th>Status</th>
                         <th>Type</th>
                         <th>Department</th>
                         <th>VW</th>
@@ -135,6 +156,11 @@
                                class="mono font-semibold text-simba-600 hover:underline">{{ $req->number }}</a>
                         </td>
                         <td>
+                            <span class="badge {{ $req->status?->badge() ?? 'badge-slate' }}">
+                                <span class="dot"></span>{{ $req->status?->label() ?? '—' }}
+                            </span>
+                        </td>
+                        <td>
                             <span class="badge {{ $req->type === \App\Enums\Inventory\StockStatusRequestType::MarkObsolete ? 'badge-red' : 'badge-green' }}">
                                 {{ $req->type?->label() }}
                             </span>
@@ -146,9 +172,11 @@
                         <td class="text-right">
                             <div class="flex items-center justify-end gap-2">
                                 <a href="{{ route('inventory.stock-status.show', $req) }}" wire:navigate class="btn btn-ghost btn-sm">View</a>
-                                <button wire:click="approveSsr({{ $req->id }})" wire:loading.attr="disabled" class="btn btn-primary btn-sm">
-                                    Approve
-                                </button>
+                                @if ($req->status === \App\Enums\Inventory\StockStatusRequestStatus::Submitted)
+                                    <button wire:click="approveSsr({{ $req->id }})" wire:loading.attr="disabled" class="btn btn-primary btn-sm">
+                                        Approve
+                                    </button>
+                                @endif
                             </div>
                         </td>
                     </tr>
@@ -164,8 +192,12 @@
             <div class="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                 <x-ui.icon name="check" class="w-7 h-7 text-emerald-600" />
             </div>
-            <p class="font-semibold text-slate-700 dark:text-slate-200">No pending approvals</p>
-            <p class="text-sm text-slate-400">All delivery orders have been reviewed. Check back later.</p>
+            <p class="font-semibold text-slate-700 dark:text-slate-200">
+                {{ $tab === 'pending' ? 'No pending approvals' : 'No records found' }}
+            </p>
+            <p class="text-sm text-slate-400">
+                {{ $tab === 'pending' ? 'All documents have been reviewed. Check back later.' : 'There are no documents to display.' }}
+            </p>
         </div>
     @elseif($this->pendingDoApprovals->isNotEmpty())
         <div class="card">

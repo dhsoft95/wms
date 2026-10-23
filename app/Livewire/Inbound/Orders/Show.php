@@ -213,15 +213,15 @@ class Show extends Component
     public function openReturnModal(): void  { $this->returnComment = ''; $this->showReturnModal = true; }
     public function closeReturnModal(): void { $this->showReturnModal = false; }
 
-    public function returnForCorrection(): void
+    public function returnToPreviousLevel(): void
     {
         $this->validate(['returnComment' => ['required', 'string', 'min:5']]);
         $this->authorize('approve', $this->purchaseOrder);
         try {
-            app(PurchaseOrderWorkflow::class)->returnForCorrection($this->purchaseOrder, auth()->user(), $this->returnComment);
+            app(PurchaseOrderWorkflow::class)->returnToPreviousLevel($this->purchaseOrder, auth()->user(), $this->returnComment);
             $this->reload();
             $this->showReturnModal = false;
-            $this->dispatch('toast', message: 'Returned for correction.', type: 'info');
+            $this->dispatch('toast', message: 'Sent back with remark.', type: 'info');
         } catch (\Exception $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }

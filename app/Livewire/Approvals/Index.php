@@ -22,7 +22,19 @@ use Livewire\Component;
 
 class Index extends Component
 {
-    public string $typeFilter = 'all';
+    public string $tab = 'pending';
+
+    public function setTab(string $tab): void
+    {
+        $this->tab = $tab;
+        unset(
+            $this->pendingPoApprovals,
+            $this->pendingDoApprovals,
+            $this->pendingDisposalApprovals,
+            $this->pendingStockStatusApprovals,
+            $this->totalPendingCount,
+        );
+    }
 
     // DO approval state
     public bool   $showDoRejectModal = false;
@@ -44,9 +56,15 @@ class Index extends Component
         $user    = auth()->user();
         $service = app(ApprovalChainService::class);
 
-        return PurchaseOrder::with(['warehouse', 'department', 'requestedBy', 'lines.item.category'])
-            ->where('status', PurchaseOrderStatus::PendingApproval)
-            ->get()
+        $query = PurchaseOrder::with(['warehouse', 'department', 'requestedBy', 'lines.item.category']);
+
+        if ($this->tab === 'pending') {
+            $query->where('status', PurchaseOrderStatus::PendingApproval);
+        } else {
+            $query->whereNotIn('status', [PurchaseOrderStatus::Draft]);
+        }
+
+        return $query->get()
             ->filter(fn ($po) =>
                 $user->hasRole('system-admin') ||
                 $service->canActAtCurrentLevel($po, $user) ||
@@ -59,9 +77,12 @@ class Index extends Component
     #[Computed]
     public function pendingDoApprovals(): \Illuminate\Database\Eloquent\Collection
     {
-        $query = DeliveryOrderApproval::with(['deliveryOrder.consigneePartner', 'deliveryOrder.requestedBy', 'deliveryOrder.virtualWarehouse'])
-            ->whereNull('decision')
-            ->whereHas('deliveryOrder', fn ($q) => $q->where('status', \App\Enums\Outbound\DeliveryOrderStatus::Submitted->value));
+        $query = DeliveryOrderApproval::with(['deliveryOrder.consigneePartner', 'deliveryOrder.requestedBy', 'deliveryOrder.virtualWarehouse']);
+
+        if ($this->tab === 'pending') {
+            $query->whereNull('decision')
+                ->whereHas('deliveryOrder', fn ($q) => $q->where('status', \App\Enums\Outbound\DeliveryOrderStatus::Submitted->value));
+        }
 
         $user = auth()->user();
 
@@ -80,10 +101,15 @@ class Index extends Component
         $user     = auth()->user();
         $workflow = app(DisposalWorkflow::class);
 
-        return DisposalRequest::with(['virtualWarehouse', 'createdBy', 'department'])
+        $query = DisposalRequest::with(['virtualWarehouse', 'createdBy', 'department'])
             ->withCount('lines')
-            ->where('status', DisposalStatus::Submitted->value)
-            ->get()
+            ->whereNotIn('status', [DisposalStatus::Completed->value, DisposalStatus::Rejected->value]);
+
+        if ($this->tab === 'pending') {
+            $query->where('status', DisposalStatus::Submitted->value);
+        }
+
+        return $query->get()
             ->filter(fn ($req) => $workflow->canApprove($req, $user))
             ->values();
     }
@@ -94,10 +120,15 @@ class Index extends Component
         $user     = auth()->user();
         $workflow = app(StockStatusRequestWorkflow::class);
 
-        return StockStatusRequest::with(['virtualWarehouse', 'createdBy', 'department'])
+        $query = StockStatusRequest::with(['virtualWarehouse', 'createdBy', 'department'])
             ->withCount('lines')
-            ->where('status', StockStatusRequestStatus::Submitted->value)
-            ->get()
+            ->whereNotIn('status', [StockStatusRequestStatus::Approved->value, StockStatusRequestStatus::Rejected->value]);
+
+        if ($this->tab === 'pending') {
+            $query->where('status', StockStatusRequestStatus::Submitted->value);
+        }
+
+        return $query->get()
             ->filter(fn ($req) => $workflow->canApprove($req, $user))
             ->values();
     }
