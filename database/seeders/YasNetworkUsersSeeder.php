@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\ApprovalChain;
+use App\Models\ApprovalChainUser;
 use App\Models\Department;
 use App\Models\User;
 use App\Models\VirtualWarehouse;
@@ -92,6 +94,27 @@ class YasNetworkUsersSeeder extends Seeder
             $invite = $isNew ? ' · invitation queued' : '';
             $head   = $def['is_head'] ? ' · set as Yas Network head' : '';
             $this->command->line("  [{$action}] {$user->name} | role: {$def['role']} | VW: {$vwTag}{$invite}{$head}");
+        }
+
+        // PO approval chain: Level 1 = HOD (Raphael) only.
+        // Warehouse manager accepts after approval — no Level 2 chain needed.
+        $raphael = User::where('email', 'raphael.luhelo@simbalogistic.co.tz')->first();
+        if ($raphael) {
+            $chain1 = \App\Models\ApprovalChain::firstOrCreate([
+                'department_id' => $deptNet->id,
+                'document_type' => 'po',
+                'level'         => 1,
+            ]);
+            \App\Models\ApprovalChainUser::firstOrCreate([
+                'approval_chain_id' => $chain1->id,
+                'user_id'           => $raphael->id,
+            ]);
+            // Remove Level 2 if it exists (WM accepts, not approves)
+            \App\Models\ApprovalChain::where('department_id', $deptNet->id)
+                ->where('document_type', 'po')
+                ->where('level', '>', 1)
+                ->delete();
+            $this->command->line('  Approval chain: Level 1 → Raphael Luhelo (HOD)');
         }
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
