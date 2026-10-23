@@ -352,6 +352,152 @@ $hasLogo = !empty($logoUrl);
 {{-- Toast notifications --}}
 <livewire:toast />
 
+{{-- ─── Global loading indicator ───────────────────────────────────────────── --}}
+
+{{-- Top progress bar --}}
+<div id="wms-bar"
+     class="fixed top-0 left-0 right-0 pointer-events-none z-[9999]"
+     style="height:3px; opacity:0; transition:opacity 0.2s;">
+    <div id="wms-bar-fill"
+         style="height:100%; width:0%;
+                background:linear-gradient(90deg,#a22631,#cf545b,#f08080);
+                box-shadow:0 0 14px 3px rgba(162,38,49,0.55);
+                transition:width 0.35s ease-out;">
+    </div>
+</div>
+
+{{-- Page transition overlay — only for wire:navigate (shown after 200 ms delay) --}}
+<div id="wms-nav-overlay"
+     class="fixed inset-0 pointer-events-none z-[9990] flex items-center justify-center"
+     style="opacity:0; background:rgba(0,0,0,0.05); backdrop-filter:blur(0px);
+            transition:opacity 0.25s, backdrop-filter 0.3s;">
+    <div id="wms-nav-card"
+         class="glass-solid dark:glass-solid-dark rounded-2xl p-5 shadow-2xl flex items-center gap-3"
+         style="opacity:0; transform:scale(0.94); transition:opacity 0.2s, transform 0.2s;">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+             style="color:#a22631; flex-shrink:0;
+                    animation:wms-spin 0.75s linear infinite;">
+            <circle cx="12" cy="12" r="9.5" stroke="currentColor" stroke-width="2" stroke-opacity="0.18"/>
+            <path d="M12 2.5A9.5 9.5 0 0 1 21.5 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
+        <span class="text-xs font-medium text-slate-500 dark:text-slate-400 tracking-wide">Loading…</span>
+    </div>
+</div>
+
+<style>
+    @keyframes wms-spin { to { transform: rotate(360deg); } }
+</style>
+
+<script>
+(function () {
+    var activeCount  = 0;
+    var barTimer     = null;
+    var barProgress  = 0;
+    var overlayTimer = null;
+    var navigating   = false;
+
+    function bar()     { return document.getElementById('wms-bar'); }
+    function fill()    { return document.getElementById('wms-bar-fill'); }
+    function overlay() { return document.getElementById('wms-nav-overlay'); }
+    function card()    { return document.getElementById('wms-nav-card'); }
+
+    function startBar() {
+        activeCount++;
+        if (activeCount > 1) return;
+
+        var b = bar(), f = fill();
+        if (!b || !f) return;
+
+        clearInterval(barTimer);
+        barProgress = 0;
+        b.style.opacity  = '1';
+        f.style.transition = 'none';
+        f.style.width      = '0%';
+
+        requestAnimationFrame(function () {
+            f.style.transition = 'width 0.35s ease-out';
+            f.style.width      = '22%';
+            barProgress = 22;
+
+            barTimer = setInterval(function () {
+                if (barProgress < 82) {
+                    var step = Math.max((82 - barProgress) * 0.05, 0.4);
+                    barProgress = Math.min(barProgress + step, 82);
+                    f.style.transition = 'width 0.7s ease-out';
+                    f.style.width = barProgress + '%';
+                }
+            }, 500);
+        });
+    }
+
+    function finishBar() {
+        activeCount = Math.max(0, activeCount - 1);
+        if (activeCount > 0) return;
+
+        var b = bar(), f = fill();
+        if (!b || !f) return;
+
+        clearInterval(barTimer);
+        f.style.transition = 'width 0.18s ease-in';
+        f.style.width = '100%';
+
+        setTimeout(function () {
+            b.style.opacity = '0';
+            setTimeout(function () {
+                f.style.transition = 'none';
+                f.style.width = '0%';
+            }, 220);
+        }, 180);
+    }
+
+    function showOverlay() {
+        clearTimeout(overlayTimer);
+        overlayTimer = setTimeout(function () {
+            var o = overlay(), c = card();
+            if (!o || !c) return;
+            o.style.opacity        = '1';
+            o.style.backdropFilter = 'blur(2px)';
+            c.style.opacity        = '1';
+            c.style.transform      = 'scale(1)';
+        }, 200);
+    }
+
+    function hideOverlay() {
+        clearTimeout(overlayTimer);
+        var o = overlay(), c = card();
+        if (!o || !c) return;
+        o.style.opacity        = '0';
+        o.style.backdropFilter = 'blur(0px)';
+        c.style.opacity        = '0';
+        c.style.transform      = 'scale(0.94)';
+    }
+
+    // ── wire:navigate events ─────────────────────────────────────────────────
+    document.addEventListener('livewire:navigating', function () {
+        navigating = true;
+        startBar();
+        showOverlay();
+    });
+
+    document.addEventListener('livewire:navigated', function () {
+        navigating = false;
+        finishBar();
+        hideOverlay();
+    });
+
+    // ── Component-level Livewire requests ────────────────────────────────────
+    document.addEventListener('livewire:init', function () {
+        Livewire.hook('commit', function (ctx) {
+            if (navigating) return;    // navigation already owns the bar
+            startBar();
+            ctx.respond(function () {
+                finishBar();
+            });
+        });
+    });
+}());
+</script>
+
 @fluxScripts
 @livewireScripts
 </body>
