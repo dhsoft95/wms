@@ -32,7 +32,9 @@ class Index extends Component
             $this->pendingDoApprovals,
             $this->pendingDisposalApprovals,
             $this->pendingStockStatusApprovals,
+            $this->returnedPoApprovals,
             $this->totalPendingCount,
+            $this->totalReturnedCount,
         );
     }
 
@@ -160,12 +162,42 @@ class Index extends Component
     }
 
     #[Computed]
+    public function returnedPoApprovals(): \Illuminate\Database\Eloquent\Collection
+    {
+        $user = auth()->user();
+
+        $query = PurchaseOrder::with(['warehouse', 'department', 'requestedBy', 'approvals' => fn ($q) => $q->latest()])
+            ->where('status', PurchaseOrderStatus::ReturnedForCorrection)
+            ->orderByDesc('updated_at');
+
+        if (! $user->hasRole('system-admin')) {
+            $query->where('requested_by', $user->id);
+        }
+
+        return $query->get();
+    }
+
+    #[Computed]
     public function totalPendingCount(): int
     {
         return $this->pendingPoApprovals->count()
             + $this->pendingDoApprovals->count()
             + $this->pendingDisposalApprovals->count()
             + $this->pendingStockStatusApprovals->count();
+    }
+
+    #[Computed]
+    public function totalReturnedCount(): int
+    {
+        $user = auth()->user();
+
+        $query = PurchaseOrder::where('status', PurchaseOrderStatus::ReturnedForCorrection);
+
+        if (! $user->hasRole('system-admin')) {
+            $query->where('requested_by', $user->id);
+        }
+
+        return $query->count();
     }
 
     // ─── PO approval actions ──────────────────────────────────────────────────
