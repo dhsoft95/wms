@@ -39,6 +39,10 @@ class PurchaseOrderPolicy
             return $po->assigned_clerk_id === $user->id;
         }
 
+        if ($user->hasAnyRole(['department-head', 'department-manager'])) {
+            return $po->department?->head_user_id === $user->id;
+        }
+
         if ($user->hasRole('department-user')) {
             return $po->requested_by === $user->id
                 || PurchaseOrderApproval::where('purchase_order_id', $po->id)
@@ -58,14 +62,18 @@ class PurchaseOrderPolicy
     {
         return $user->can('po.create')
             && $po->status->isEditable()
-            && ($po->requested_by === $user->id || $user->hasAnyRole(['system-admin', 'warehouse-manager']));
+            && ($po->requested_by === $user->id
+                || $user->hasAnyRole(['system-admin', 'warehouse-manager'])
+                || $po->department?->head_user_id === $user->id);
     }
 
     public function submit(User $user, PurchaseOrder $po): bool
     {
         return $user->can('po.create')
             && $po->status->isEditable()
-            && ($po->requested_by === $user->id || $user->hasAnyRole(['system-admin', 'warehouse-manager']));
+            && ($po->requested_by === $user->id
+                || $user->hasAnyRole(['system-admin', 'warehouse-manager'])
+                || $po->department?->head_user_id === $user->id);
     }
 
     public function approve(User $user, PurchaseOrder $po): bool

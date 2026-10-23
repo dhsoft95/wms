@@ -138,13 +138,13 @@
                         <x-ui.icon name="check-badge" class="w-4 h-4" /> Validate
                     </button>
                 @endcan
-                @canany(['warehouse-manager', 'system-admin'])
+                @if (auth()->user()->hasAnyRole(['warehouse-manager', 'system-admin']))
                     <button wire:click="closeOrder"
                             wire:confirm="Close this purchase order now? This skips validation and marks it as closed."
                             class="btn btn-secondary">
                         <x-ui.icon name="lock-closed" class="w-4 h-4" /> Close Order
                     </button>
-                @endcanany
+                @endif
             @endif
 
             {{-- Completed / issue raised / issue resolved — approver verifies --}}
@@ -172,13 +172,13 @@
                         @endforeach
                     @endif
                 @endcan
-                @canany(['warehouse-manager', 'system-admin'])
+                @if (auth()->user()->hasAnyRole(['warehouse-manager', 'system-admin']))
                     <button wire:click="closeOrder"
                             wire:confirm="Close this purchase order now?"
                             class="btn btn-secondary">
                         <x-ui.icon name="lock-closed" class="w-4 h-4" /> Close Order
                     </button>
-                @endcanany
+                @endif
             @endif
 
             {{-- Cancel (if status is cancellable) --}}
