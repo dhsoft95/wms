@@ -195,6 +195,8 @@ class RolePermissionSeeder extends Seeder
             'po.view', 'po.create', 'po.approve',
             // GRN
             'grn.view',
+            // Approvals inbox
+            'approvals.view',
         ],
 
         'storekeeper' => [
