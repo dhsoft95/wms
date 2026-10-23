@@ -296,8 +296,6 @@
                                 <span class="font-semibold text-emerald-600 dark:text-emerald-400">
                                     {{ $task->actualLocation->code }}
                                 </span>
-                            @elseif ($task->suggestedLocation)
-                                <span class="text-slate-400">{{ $task->suggestedLocation->code }}</span>
                             @else
                                 <span class="text-slate-400">—</span>
                             @endif
@@ -659,10 +657,6 @@
                         <div class="flex items-center justify-between text-sm">
                             <span class="text-slate-500">From</span>
                             <span class="font-mono font-semibold">{{ $dt->fromLocation?->code ?? '—' }}</span>
-                        </div>
-                        <div class="flex items-center justify-between text-sm">
-                            <span class="text-slate-500">Suggested</span>
-                            <span class="font-mono">{{ $dt->suggestedLocation?->code ?? '—' }}</span>
                         </div>
                         <div class="flex items-center justify-between text-sm">
                             <span class="text-slate-500">Actual</span>

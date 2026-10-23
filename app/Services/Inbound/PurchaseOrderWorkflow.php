@@ -441,15 +441,10 @@ final class PurchaseOrderWorkflow
     {
         $this->assertStatus($po, PurchaseOrderStatus::PutawayInProgress);
 
-        $po->status = PurchaseOrderStatus::PendingSupervisorValidation;
+        $po->status = PurchaseOrderStatus::CompletedPendingVerification;
         $po->save();
 
-        activity()->performedOn($po)->causedBy($by)->log('Putaway complete  awaiting supervisor validation');
-
-        $this->tryNotify($po->assignedSupervisor, new PoStatusChangedNotification(
-            $po, 'pending_validation',
-            "PO {$po->number} putaway is complete. Please validate.",
-        ));
+        activity()->performedOn($po)->causedBy($by)->log('Putaway complete — awaiting GRN close');
     }
 
     public function validateBySupevisor(PurchaseOrder $po, User $by): void

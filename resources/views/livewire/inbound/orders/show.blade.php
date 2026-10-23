@@ -137,79 +137,31 @@
                 @endcan
             @endif
 
-            {{-- Pending putaway — start putaway --}}
-            @if ($purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::PendingPutaway)
-                @can('putaway', $purchaseOrder)
-                    <button wire:click="startPutaway" wire:loading.attr="disabled"
-                            wire:confirm="Start putaway for this purchase order?"
-                            class="btn btn-primary">
-                        <x-ui.icon name="arrow-down-tray" class="w-4 h-4" /> Start Putaway
-                    </button>
-                @endcan
-            @endif
+            {{-- Putaway in progress / pending putaway — informational only, actions are on the putaway task list --}}
 
-            {{-- Putaway in progress — mark complete --}}
-            @if ($purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::PutawayInProgress)
-                @can('putaway', $purchaseOrder)
-                    <button wire:click="completePutaway" wire:loading.attr="disabled"
-                            wire:confirm="Mark putaway as complete? The supervisor will be notified to validate."
-                            class="btn btn-primary">
-                        <x-ui.icon name="check-badge" class="w-4 h-4" /> Complete Putaway
-                    </button>
-                @endcan
-            @endif
-
-            {{-- Pending supervisor validation --}}
-            @if ($purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::PendingSupervisorValidation)
-                @can('validate', $purchaseOrder)
-                    <button wire:click="openSendBackModal" class="btn btn-secondary">
-                        <x-ui.icon name="arrow-uturn-left" class="w-4 h-4" /> Send Back
-                    </button>
-                    <button wire:click="validateReceiving" wire:loading.attr="disabled" class="btn btn-primary">
-                        <x-ui.icon name="check-badge" class="w-4 h-4" /> Validate
-                    </button>
-                @endcan
-                @if (auth()->user()->hasAnyRole(['warehouse-manager', 'system-admin']))
-                    <button wire:click="closeOrder"
-                            wire:confirm="Close this purchase order now? This skips validation and marks it as closed."
-                            class="btn btn-secondary">
-                        <x-ui.icon name="lock-closed" class="w-4 h-4" /> Close Order
-                    </button>
-                @endif
-            @endif
-
-            {{-- Completed / issue raised / issue resolved — approver verifies --}}
+            {{-- Completed — WM closes the order (or close via GRN show page) --}}
             @if (in_array($purchaseOrder->status, [
                     \App\Enums\Inbound\PurchaseOrderStatus::CompletedPendingVerification,
+                    \App\Enums\Inbound\PurchaseOrderStatus::PendingSupervisorValidation,
                     \App\Enums\Inbound\PurchaseOrderStatus::IssueRaised,
                     \App\Enums\Inbound\PurchaseOrderStatus::IssueResolved,
                 ], true))
-                @can('verify', $purchaseOrder)
-                    @if ($purchaseOrder->status !== \App\Enums\Inbound\PurchaseOrderStatus::IssueRaised)
-                        <button wire:click="openIssueModal" class="btn btn-secondary text-amber-600 dark:text-amber-400">
-                            <x-ui.icon name="exclamation-triangle" class="w-4 h-4" /> Raise Issue
-                        </button>
-                        <button wire:click="verifyAndClose" wire:loading.attr="disabled" class="btn btn-primary">
-                            <x-ui.icon name="check-badge" class="w-4 h-4" /> Verify & Close
-                        </button>
-                    @endif
-                @endcan
+                @if (auth()->user()->hasAnyRole(['warehouse-manager', 'system-admin']))
+                    <button wire:click="closeOrder"
+                            wire:confirm="Close this purchase order?"
+                            class="btn btn-primary">
+                        <x-ui.icon name="lock-closed" class="w-4 h-4" /> Close Order
+                    </button>
+                @endif
                 @can('resolveIssue', $purchaseOrder)
                     @if ($purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::IssueRaised)
                         @foreach ($purchaseOrder->issues->where('status.value', 'open') as $openIssue)
-                            <button wire:click="openResolveModal({{ $openIssue->id }})" class="btn btn-primary">
+                            <button wire:click="openResolveModal({{ $openIssue->id }})" class="btn btn-secondary">
                                 <x-ui.icon name="check" class="w-4 h-4" /> Resolve Issue
                             </button>
                         @endforeach
                     @endif
                 @endcan
-                @if (auth()->user()->hasAnyRole(['warehouse-manager', 'system-admin']))
-                    <button wire:click="closeOrder"
-                            wire:confirm="Close this purchase order now?"
-                            class="btn btn-secondary">
-                        <x-ui.icon name="lock-closed" class="w-4 h-4" /> Close Order
-                    </button>
-                @endif
             @endif
 
             {{-- Cancel (if status is cancellable) --}}
@@ -234,6 +186,7 @@
             \App\Enums\Inbound\PurchaseOrderStatus::Cancelled,
             \App\Enums\Inbound\PurchaseOrderStatus::ReturnedForCorrection,
             \App\Enums\Inbound\PurchaseOrderStatus::AwaitingRequesterCorrection,
+            \App\Enums\Inbound\PurchaseOrderStatus::PendingSupervisorValidation,
         ], true);
     @endphp
     <div class="card">

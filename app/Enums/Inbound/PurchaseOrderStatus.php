@@ -65,7 +65,7 @@ enum PurchaseOrderStatus: string
                 $new === self::PutawayInProgress,
 
             self::PutawayInProgress =>
-                $new === self::PendingSupervisorValidation,
+                $new === self::CompletedPendingVerification,
 
             self::PendingSupervisorValidation =>
                 in_array($new, [self::PutawayInProgress, self::CompletedPendingVerification], true),
