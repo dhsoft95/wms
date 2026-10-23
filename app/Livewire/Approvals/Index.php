@@ -59,18 +59,26 @@ class Index extends Component
         $query = PurchaseOrder::with(['warehouse', 'department', 'requestedBy', 'lines.item.category', 'approvals']);
 
         if ($this->tab === 'pending') {
-            $query->where('status', PurchaseOrderStatus::PendingApproval);
+            $query->whereIn('status', [
+                PurchaseOrderStatus::PendingApproval,
+                PurchaseOrderStatus::ApprovedPendingAcceptance,
+            ]);
         } else {
             $query->whereNotIn('status', [PurchaseOrderStatus::Draft]);
         }
 
+        $canAccept = $user->can('po.accept');
+
         return $query->get()
-            ->filter(function ($po) use ($user, $service) {
+            ->filter(function ($po) use ($user, $service, $canAccept) {
                 if ($user->hasRole('system-admin')) {
                     return true;
                 }
+                // Warehouse manager sees POs awaiting their acceptance
+                if ($canAccept && $po->status === PurchaseOrderStatus::ApprovedPendingAcceptance) {
+                    return true;
+                }
                 if ($this->tab === 'all') {
-                    // Show POs the user submitted or previously acted on
                     if ($po->requested_by === $user->id) {
                         return true;
                     }

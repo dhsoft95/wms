@@ -42,6 +42,7 @@
                 <thead>
                     <tr>
                         <th>PO Number</th>
+                        <th>Status</th>
                         <th>Department</th>
                         <th>Warehouse</th>
                         <th>Requested By</th>
@@ -58,6 +59,7 @@
                                     {{ $po->number }}
                                 </a>
                             </td>
+                            <td><span class="badge {{ $po->status->color() }}">{{ $po->status->label() }}</span></td>
                             <td class="text-sm text-slate-600 dark:text-slate-400">{{ $po->department?->name ?? '—' }}</td>
                             <td class="text-sm text-slate-600 dark:text-slate-400">{{ $po->warehouse?->name ?? '—' }}</td>
                             <td class="text-sm text-slate-600 dark:text-slate-400">{{ $po->requestedBy?->name ?? '—' }}</td>
