@@ -107,7 +107,7 @@
         </div>
     </div>
 
-    {{-- Execute Modal --}}
+    {{-- Execute Putaway Modal --}}
     @if ($showExecuteModal && $this->executingTask)
     @php
         $task           = $this->executingTask;
@@ -123,91 +123,109 @@
             $allocOk = abs($alloc - $taskQty) < 0.0001 && $taskQty > 0;
         }
     @endphp
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-        <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[90vh]">
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[90vh]">
 
             {{-- Header --}}
-            <div class="flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
-                <div>
-                    <h3 class="text-base font-semibold">Execute Putaway</h3>
-                    <p class="text-xs text-slate-500 mt-0.5">
-                        GRN: <span class="font-mono">{{ $task->grn?->number }}</span> · Split across multiple bins if needed
-                    </p>
+            <div class="flex items-start justify-between px-6 pt-5 pb-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-simba-50 dark:bg-simba-900/30 flex items-center justify-center shrink-0">
+                        <x-ui.icon name="arrow-down-tray" class="w-4.5 h-4.5 text-simba-600 dark:text-simba-400" />
+                    </div>
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900 dark:text-white">Execute Putaway</h3>
+                        <p class="text-xs text-slate-500 mt-0.5 font-mono">GRN: {{ $task->grn?->number }}</p>
+                    </div>
                 </div>
-                <button wire:click="closeExecute" class="icon-btn">
+                <button wire:click="closeExecute" class="icon-btn mt-0.5">
                     <x-ui.icon name="x" class="w-4 h-4" />
                 </button>
             </div>
 
-            {{-- Task Summary --}}
-            <div class="px-5 py-3 bg-slate-50 dark:bg-slate-800/40 border-b border-slate-200 dark:border-slate-700 shrink-0">
-                <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+            {{-- Item info strip --}}
+            <div class="px-6 py-3 grid grid-cols-3 gap-4 bg-slate-50 dark:bg-white/[0.03] border-b border-slate-200 dark:border-slate-700 shrink-0 text-sm">
+                <div class="col-span-2">
+                    <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">Item</p>
+                    <p class="font-mono font-bold text-slate-800 dark:text-slate-100 text-sm">{{ $task->item?->sku }}</p>
+                    <p class="text-slate-500 dark:text-slate-400 text-xs truncate">{{ $task->item?->name }}</p>
+                </div>
+                <div class="space-y-2">
                     <div>
-                        <span class="text-slate-400 text-xs">Item</span>
-                        <div class="font-mono font-semibold">{{ $task->item?->sku }}</div>
-                    </div>
-                    <div class="flex-1 min-w-0">
-                        <span class="text-slate-400 text-xs">Description</span>
-                        <div class="truncate">{{ $task->item?->name }}</div>
-                    </div>
-                    <div>
-                        <span class="text-slate-400 text-xs">Qty</span>
-                        <div class="tabular-nums font-semibold">{{ number_format($taskQty, 2) }}</div>
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">Total Qty</p>
+                        <p class="tabular-nums font-bold text-slate-800 dark:text-slate-100">{{ number_format($taskQty, 2) }}</p>
                     </div>
                     <div>
-                        <span class="text-slate-400 text-xs">From</span>
-                        <div class="font-mono">{{ $task->fromLocation?->code }}</div>
+                        <p class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-0.5">From</p>
+                        <p class="font-mono text-slate-700 dark:text-slate-300 text-xs">{{ $task->fromLocation?->code ?? '—' }}</p>
                     </div>
                 </div>
             </div>
 
             {{-- Draft restored banner --}}
             @if ($hasDraft)
-            <div class="px-5 py-2.5 shrink-0 flex items-center justify-between bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/50">
+            <div class="px-6 py-2.5 shrink-0 flex items-center justify-between bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-800/50">
                 <div class="flex items-center gap-2 text-sm text-amber-800 dark:text-amber-300">
                     <x-ui.icon name="clock" class="w-4 h-4 shrink-0" />
                     <span>Draft restored from a previous session.</span>
                 </div>
                 <button wire:click="discardDraft"
-                        class="text-xs text-amber-700 dark:text-amber-400 hover:text-amber-900 dark:hover:text-amber-200 font-medium underline">
+                        class="text-xs font-semibold text-amber-700 dark:text-amber-400 hover:underline">
                     Start fresh
                 </button>
             </div>
             @endif
 
-            {{-- Allocated counter --}}
-            <div class="px-5 py-2.5 shrink-0 flex items-center justify-between text-sm border-b border-slate-200 dark:border-slate-700">
-                <span class="text-slate-500">{{ $serialDriven ? 'Serials selected' : 'Allocated' }}</span>
-                <span @class([
-                    'tabular-nums font-semibold',
-                    'text-emerald-600 dark:text-emerald-400' => $allocOk,
-                    'text-amber-600 dark:text-amber-400'     => !$allocOk && $alloc > 0,
-                    'text-slate-500'                          => $alloc == 0,
-                ])>
-                    @if ($serialDriven)
-                        {{ $alloc }} / {{ (int) $taskQty }}
-                    @else
-                        {{ number_format($alloc, 2) }} / {{ number_format($taskQty, 2) }}
-                    @endif
-                </span>
+            {{-- Allocation progress bar --}}
+            <div class="px-6 py-3 shrink-0 border-b border-slate-200 dark:border-slate-700">
+                <div class="flex items-center justify-between text-xs mb-1.5">
+                    <span class="text-slate-500 font-medium">{{ $serialDriven ? 'Serials assigned' : 'Quantity allocated' }}</span>
+                    <span @class([
+                        'tabular-nums font-bold',
+                        'text-emerald-600 dark:text-emerald-400' => $allocOk,
+                        'text-amber-600 dark:text-amber-400'     => !$allocOk && $alloc > 0,
+                        'text-slate-400'                          => $alloc == 0,
+                    ])>
+                        @if ($serialDriven)
+                            {{ $alloc }} / {{ (int) $taskQty }}
+                        @else
+                            {{ number_format($alloc, 2) }} / {{ number_format($taskQty, 2) }}
+                        @endif
+                    </span>
+                </div>
+                @php
+                    $pct = $taskQty > 0 ? min(100, ($alloc / $taskQty) * 100) : 0;
+                @endphp
+                <div class="h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                    <div @class([
+                        'h-full rounded-full transition-all duration-300',
+                        'bg-emerald-500' => $allocOk,
+                        'bg-amber-400'   => !$allocOk && $alloc > 0,
+                        'bg-slate-300'   => $alloc == 0,
+                    ]) style="width: {{ $pct }}%"></div>
+                </div>
             </div>
 
-            {{-- Split Rows --}}
-            <div class="overflow-y-auto flex-1 px-5 py-4 space-y-3">
+            {{-- Bin rows --}}
+            <div class="overflow-y-auto flex-1 px-6 py-4 space-y-3">
                 @foreach ($splitRows as $i => $row)
-                    <div wire:key="split-row-{{ $i }}" class="rounded-xl border border-slate-200 dark:border-slate-700 p-3 space-y-3">
+                    <div wire:key="split-row-{{ $i }}"
+                         class="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
 
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-semibold text-slate-400 uppercase tracking-wide">Bin {{ $i + 1 }}</span>
+                        {{-- Row header --}}
+                        <div class="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-white/[0.03] border-b border-slate-200 dark:border-slate-700">
+                            <span class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                Destination {{ $i + 1 }}
+                            </span>
                             @if (count($splitRows) > 1)
                                 <button wire:click="removeSplitRow({{ $i }})"
-                                        class="text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex items-center gap-1">
-                                    <x-ui.icon name="x" class="w-3 h-3" /> Remove
+                                        class="text-xs text-red-500 hover:text-red-700 dark:text-red-400 flex items-center gap-1">
+                                    <x-ui.icon name="trash" class="w-3 h-3" /> Remove
                                 </button>
                             @endif
                         </div>
 
-                        <div class="grid grid-cols-5 gap-2">
+                        <div class="p-3 grid grid-cols-5 gap-3">
+                            {{-- Bin selector --}}
                             <div class="{{ $serialDriven ? 'col-span-5' : 'col-span-3' }}"
                                  wire:key="bin-sel-{{ $i }}"
                                  x-data="{
@@ -218,13 +236,14 @@
                                          this.open = this.results.length > 0;
                                      }
                                  }">
-                                <label class="label text-xs">Destination Bin <span class="text-red-500">*</span></label>
+                                <label class="label text-xs">Bin / Location <span class="text-red-500">*</span></label>
 
                                 @if (empty($row['locationId']))
                                     <div class="relative">
+                                        <x-ui.icon name="map-pin" class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                         <input type="text"
-                                               placeholder="Search bin…"
-                                               class="input w-full font-mono text-sm"
+                                               placeholder="Search bin code…"
+                                               class="input w-full font-mono text-sm !pl-8"
                                                autocomplete="off"
                                                @focus="fetch('')"
                                                @input.debounce.200ms="fetch($el.value)"
@@ -232,24 +251,28 @@
                                         <div x-show="open"
                                              x-cloak
                                              @click.outside="open = false"
-                                             class="absolute z-30 w-full mt-1 overflow-hidden rounded-xl border border-white/50 dark:border-white/[0.08] shadow-lg glass-solid dark:glass-solid-dark">
+                                             class="absolute z-30 w-full mt-1 overflow-hidden rounded-xl border border-slate-200 dark:border-white/[0.08] shadow-xl bg-white dark:bg-zinc-900">
                                             <template x-for="loc in results" :key="loc.id">
                                                 <button type="button"
                                                         @mousedown.prevent="$wire.selectSplitBin({{ $i }}, loc.id, loc.code); open = false"
-                                                        class="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-brand-50/60 dark:hover:bg-brand-900/20 transition-colors border-t first:border-0 border-white/40 dark:border-white/[0.06]">
-                                                    <span x-text="loc.code" class="font-mono font-semibold"></span>
+                                                        class="w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors border-t first:border-0 border-slate-100 dark:border-white/[0.06]">
+                                                    <div class="flex items-center gap-2">
+                                                        <x-ui.icon name="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                        <span x-text="loc.code" class="font-mono font-semibold text-slate-800 dark:text-slate-200"></span>
+                                                    </div>
                                                     <span x-show="loc.barcode && loc.barcode !== loc.code"
                                                           x-text="loc.barcode"
-                                                          class="text-xs text-slate-400 font-mono truncate ml-2"></span>
+                                                          class="text-xs text-slate-400 font-mono ml-2"></span>
                                                 </button>
                                             </template>
                                         </div>
                                     </div>
                                 @else
-                                    <div class="flex items-center gap-2 input bg-slate-50 dark:bg-slate-800/50">
-                                        <span class="font-mono text-sm font-semibold flex-1">{{ $row['locationCode'] }}</span>
+                                    <div class="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2">
+                                        <x-ui.icon name="map-pin" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                                        <span class="font-mono text-sm font-bold text-emerald-700 dark:text-emerald-300 flex-1">{{ $row['locationCode'] }}</span>
                                         <button wire:click="clearSplitBin({{ $i }})"
-                                                class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                                                class="text-emerald-500 hover:text-red-500 transition-colors">
                                             <x-ui.icon name="x" class="w-3.5 h-3.5" />
                                         </button>
                                     </div>
@@ -258,13 +281,13 @@
 
                             @if (! $serialDriven)
                             <div class="col-span-2">
-                                <label class="label text-xs">Qty <span class="text-red-500">*</span></label>
+                                <label class="label text-xs">Quantity <span class="text-red-500">*</span></label>
                                 <input wire:model.live="splitRows.{{ $i }}.qty"
                                        type="number"
                                        min="0.0001"
                                        step="any"
-                                       placeholder="0"
-                                       class="input w-full tabular-nums text-sm" />
+                                       placeholder="0.00"
+                                       class="input w-full tabular-nums text-sm text-right" />
                             </div>
                             @endif
                         </div>
@@ -278,64 +301,73 @@
                                     ->flatMap(fn($r) => (array)($r['serials'] ?? []))
                                     ->toArray();
                             @endphp
-                            <div>
-                                <div class="flex items-center justify-between mb-1.5">
-                                    <label class="label text-xs mb-0">Serials</label>
-                                    <span class="text-xs tabular-nums {{ count($rowSelected) > 0 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : 'text-slate-400' }}">
-                                        {{ count($rowSelected) }} selected
-                                    </span>
+                            <div class="px-3 pb-3 border-t border-slate-100 dark:border-slate-700/60 pt-3">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-semibold text-slate-500 uppercase tracking-wide">Serial Numbers</span>
+                                    <span @class([
+                                        'text-xs tabular-nums font-bold',
+                                        'text-emerald-600 dark:text-emerald-400' => count($rowSelected) > 0,
+                                        'text-slate-400' => count($rowSelected) === 0,
+                                    ])>{{ count($rowSelected) }} selected</span>
                                 </div>
-                                <div class="max-h-36 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-white/[0.05]">
+                                <div class="max-h-32 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 divide-y divide-slate-100 dark:divide-white/[0.05]">
                                     @foreach ($taskSerials as $serial)
                                         @php
                                             $isChecked = in_array($serial, $rowSelected, true);
                                             $isTaken   = in_array($serial, $takenByOthers, true);
                                         @endphp
                                         <label @class([
-                                            'flex items-center gap-2.5 px-3 py-1.5 cursor-pointer select-none',
-                                            'bg-emerald-50 dark:bg-emerald-900/20'         => $isChecked,
-                                            'opacity-40 cursor-not-allowed'                => $isTaken,
-                                            'hover:bg-slate-50 dark:hover:bg-white/[0.03]' => !$isTaken && !$isChecked,
+                                            'flex items-center gap-2.5 px-3 py-1.5 cursor-pointer select-none transition-colors',
+                                            'bg-emerald-50 dark:bg-emerald-900/20'           => $isChecked,
+                                            'opacity-40 cursor-not-allowed'                  => $isTaken,
+                                            'hover:bg-slate-50 dark:hover:bg-white/[0.03]'   => !$isTaken && !$isChecked,
                                         ])>
                                             <input type="checkbox"
                                                    wire:click="toggleRowSerial({{ $i }}, '{{ $serial }}')"
                                                    @checked($isChecked)
                                                    @disabled($isTaken)
                                                    class="rounded border-slate-300 dark:border-slate-600 text-simba-600 focus:ring-simba-500 shrink-0" />
-                                            <span class="font-mono text-xs {{ $isChecked ? 'text-emerald-700 dark:text-emerald-300 font-semibold' : 'text-slate-700 dark:text-slate-300' }}">
-                                                {{ $serial }}
-                                            </span>
+                                            <span @class([
+                                                'font-mono text-xs flex-1',
+                                                'text-emerald-700 dark:text-emerald-300 font-bold' => $isChecked,
+                                                'text-slate-700 dark:text-slate-300'               => !$isChecked,
+                                            ])>{{ $serial }}</span>
                                             @if ($isTaken)
-                                                <span class="ml-auto text-[10px] text-slate-400">assigned</span>
+                                                <span class="text-[10px] text-slate-400 italic">in use</span>
                                             @endif
                                         </label>
                                     @endforeach
                                 </div>
                             </div>
                         @endif
-
                     </div>
                 @endforeach
 
                 <button wire:click="addSplitRow"
-                        class="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 py-2.5 text-sm text-slate-500 hover:border-simba-400 hover:text-simba-600 dark:hover:border-simba-600 dark:hover:text-simba-400 transition-colors">
+                        class="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 py-3 text-sm font-medium text-slate-500 hover:border-simba-400 hover:text-simba-600 dark:hover:border-simba-600 dark:hover:text-simba-400 transition-colors">
                     <x-ui.icon name="plus" class="w-4 h-4" />
-                    Add another bin
+                    Add another destination
                 </button>
             </div>
 
             {{-- Footer --}}
-            <div class="flex items-center justify-between px-5 py-4 border-t border-slate-200 dark:border-slate-800 shrink-0">
+            <div class="flex items-center justify-between px-6 py-4 border-t border-slate-200 dark:border-slate-800 shrink-0 bg-slate-50 dark:bg-white/[0.02] rounded-b-2xl">
                 <button wire:click="saveDraft"
-                        class="btn btn-secondary text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/60 hover:bg-amber-50 dark:hover:bg-amber-950/30">
-                    <x-ui.icon name="clock" class="w-4 h-4" /> Save as Draft
+                        class="btn btn-secondary text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/60 hover:bg-amber-50 dark:hover:bg-amber-950/30 gap-1.5">
+                    <x-ui.icon name="clock" class="w-4 h-4" /> Save Draft
                 </button>
-                <div class="flex gap-3">
-                    <button wire:click="closeExecute" class="btn btn-secondary">Cancel</button>
+                <div class="flex gap-2">
+                    <button wire:click="closeExecute" class="btn btn-ghost">Cancel</button>
                     <button wire:click="executeSplitTask"
-                            class="btn btn-primary"
+                            wire:loading.attr="disabled"
+                            @class([
+                                'btn btn-primary gap-1.5',
+                                'opacity-50 cursor-not-allowed' => !$allocOk,
+                            ])
                             @disabled(! $allocOk)>
-                        <x-ui.icon name="check" class="w-4 h-4" /> Confirm Putaway
+                        <x-ui.icon name="check-badge" class="w-4 h-4" />
+                        <span wire:loading.remove wire:target="executeSplitTask">Confirm Putaway</span>
+                        <span wire:loading wire:target="executeSplitTask">Processing…</span>
                     </button>
                 </div>
             </div>
