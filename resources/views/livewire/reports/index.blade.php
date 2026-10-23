@@ -321,11 +321,21 @@
                                 <td class="text-xs text-slate-500">{{ $req->created_at->diffForHumans() }}</td>
                                 <td class="text-right">
                                     @if ($req->isReady() && $req->file_path)
-                                        <a href="{{ route('reports.download', $req) }}"
-                                           class="btn btn-secondary btn-xs">
-                                            <x-ui.icon name="download" class="w-3 h-3" />
-                                            Download
-                                        </a>
+                                        <div class="inline-flex items-center gap-1.5">
+                                            @if (($req->format ?? 'excel') === 'pdf')
+                                                <a href="{{ route('reports.view', $req) }}"
+                                                   target="_blank"
+                                                   class="btn btn-secondary btn-xs">
+                                                    <x-ui.icon name="eye" class="w-3 h-3" />
+                                                    View
+                                                </a>
+                                            @endif
+                                            <a href="{{ route('reports.download', $req) }}"
+                                               class="btn btn-secondary btn-xs">
+                                                <x-ui.icon name="download" class="w-3 h-3" />
+                                                Download
+                                            </a>
+                                        </div>
                                     @endif
                                 </td>
                             </tr>
