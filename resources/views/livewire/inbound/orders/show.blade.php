@@ -48,8 +48,7 @@
 
             {{-- Returned for correction --}}
             @if ($purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::ReturnedForCorrection)
-                @php $isHod = auth()->id() === $purchaseOrder->department?->head_user_id; @endphp
-                @if ($isHod || auth()->user()->hasRole('system-admin'))
+                @if ($this->canForwardReturn)
                     <button wire:click="openForwardModal" class="btn btn-secondary">
                         <x-ui.icon name="arrow-uturn-left" class="w-4 h-4" /> Send Back to Requester
                     </button>

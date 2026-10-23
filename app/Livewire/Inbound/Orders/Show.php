@@ -88,7 +88,7 @@ class Show extends Component
     private function reload(): void
     {
         $this->loadPo($this->purchaseOrder->refresh());
-        unset($this->receivingDocks, $this->supervisors, $this->clerks, $this->vehicleTypes, $this->canActOnApprovals);
+        unset($this->receivingDocks, $this->supervisors, $this->clerks, $this->vehicleTypes, $this->canActOnApprovals, $this->canForwardReturn);
     }
 
     // ─── Computed ─────────────────────────────────────────────────────────────
@@ -134,6 +134,17 @@ class Show extends Component
             ->where('type', 'like', '%"shipping_line"%')
             ->orderBy('name')
             ->get(['id', 'name']);
+    }
+
+    #[Computed]
+    public function canForwardReturn(): bool
+    {
+        if ($this->purchaseOrder->status !== PurchaseOrderStatus::ReturnedForCorrection) {
+            return false;
+        }
+        $user = auth()->user();
+        return $user->hasRole('system-admin')
+            || $this->purchaseOrder->department?->head_user_id === $user->id;
     }
 
     #[Computed]

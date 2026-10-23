@@ -91,7 +91,7 @@ class Index extends Component
                     && $po->status === PurchaseOrderStatus::ReturnedForCorrection
                     && $po->requested_by === $user->id) {
                     return $po->approvals->contains(
-                        fn ($a) => ($a->action?->value ?? $a->action) === 'returned'
+                        fn ($a) => $a->action === \App\Enums\Inbound\PurchaseOrderApprovalAction::Returned
                     );
                 }
                 if ($this->tab === 'all') {

@@ -88,9 +88,10 @@
                                             <x-ui.icon name="pencil" class="w-3.5 h-3.5" /> Fix &amp; Resubmit
                                         </a>
                                     @elseif ($isReturned && $isHod)
-                                        {{-- HOD: review and send back to requester --}}
-                                        <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate class="btn btn-secondary btn-sm">
-                                            <x-ui.icon name="arrow-uturn-left" class="w-3.5 h-3.5" /> Send Back to Requester
+                                        {{-- HOD: open the order to review and send back --}}
+                                        <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate
+                                           class="btn btn-secondary btn-sm text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700">
+                                            <x-ui.icon name="eye" class="w-3.5 h-3.5" /> View
                                         </a>
                                     @elseif ($canApprove)
                                         {{-- HOD / admin: approve, send back, reject --}}
