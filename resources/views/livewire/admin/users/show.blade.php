@@ -73,6 +73,10 @@
                         <x-ui.icon name="shield" class="h-4 w-4" /> Reset 2FA
                     </button>
                 @endif
+
+                <button wire:click="openPasswordModal" class="btn btn-secondary">
+                    <x-ui.icon name="lock-closed" class="h-4 w-4" /> Set Password
+                </button>
             @endcan
         </div>
     </div>
@@ -358,5 +362,45 @@
             </section>
         </aside>
     </div>
+
+    {{-- Set Password Modal --}}
+    @if ($showPasswordModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4"
+             x-data wire:click.self="closePasswordModal">
+            <div class="card w-full max-w-sm p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-900 dark:text-white">Set Password</h3>
+                    <button wire:click="closePasswordModal" class="icon-btn">
+                        <x-ui.icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+                <p class="text-sm text-slate-500 dark:text-slate-400">
+                    Setting a new password for <strong>{{ $user->name }}</strong>.
+                    They will be able to log in with it immediately.
+                </p>
+                <div class="space-y-3">
+                    <div>
+                        <label class="label">New Password <span class="text-red-500">*</span></label>
+                        <input wire:model="newPassword" type="password" class="input"
+                               placeholder="Min. 8 characters" autocomplete="new-password" />
+                        @error('newPassword') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label class="label">Confirm Password <span class="text-red-500">*</span></label>
+                        <input wire:model="newPasswordConfirmation" type="password" class="input"
+                               placeholder="Repeat password" autocomplete="new-password" />
+                        @error('newPasswordConfirmation') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button wire:click="closePasswordModal" class="btn btn-ghost">Cancel</button>
+                    <button wire:click="updatePassword" wire:loading.attr="disabled" class="btn btn-primary">
+                        <span wire:loading.remove wire:target="updatePassword">Save Password</span>
+                        <span wire:loading wire:target="updatePassword">Saving…</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 
 </div>

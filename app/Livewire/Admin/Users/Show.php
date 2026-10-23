@@ -4,11 +4,46 @@ namespace App\Livewire\Admin\Users;
 
 use App\Models\User;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Component;
 
 class Show extends Component
 {
     public User $user;
+
+    public bool   $showPasswordModal        = false;
+    public string $newPassword              = '';
+    public string $newPasswordConfirmation  = '';
+
+    public function openPasswordModal(): void
+    {
+        $this->newPassword             = '';
+        $this->newPasswordConfirmation = '';
+        $this->resetValidation();
+        $this->showPasswordModal = true;
+    }
+
+    public function closePasswordModal(): void
+    {
+        $this->showPasswordModal = false;
+    }
+
+    public function updatePassword(): void
+    {
+        $this->authorize('update', $this->user);
+
+        $this->validate([
+            'newPassword' => ['required', 'string', 'min:8', 'same:newPasswordConfirmation'],
+            'newPasswordConfirmation' => ['required', 'string'],
+        ], [
+            'newPassword.same' => 'Passwords do not match.',
+        ]);
+
+        $this->user->update(['password' => Hash::make($this->newPassword)]);
+
+        $this->showPasswordModal = false;
+        $this->dispatch('toast', message: 'Password updated for ' . $this->user->name . '.', type: 'success');
+    }
 
     public function mount(User $user): void
     {
