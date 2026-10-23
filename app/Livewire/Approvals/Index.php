@@ -7,7 +7,8 @@ namespace App\Livewire\Approvals;
 use App\Enums\Inbound\PurchaseOrderStatus;
 use App\Enums\Inventory\DisposalStatus;
 use App\Enums\Inventory\StockStatusRequestStatus;
-use App\Models\DeliveryOrderApproval;
+use App\Enums\Outbound\DeliveryOrderStatus;
+use App\Models\DeliveryOrder;
 use App\Models\DisposalRequest;
 use App\Models\PurchaseOrder;
 use App\Models\StockStatusRequest;
@@ -15,7 +16,6 @@ use App\Services\Inbound\ApprovalChainService;
 use App\Services\Inbound\PurchaseOrderWorkflow;
 use App\Services\Inventory\DisposalWorkflow;
 use App\Services\Inventory\StockStatusRequestWorkflow;
-use App\Services\Outbound\DeliveryOrderWorkflow;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -35,11 +35,6 @@ class Index extends Component
             $this->totalPendingCount,
         );
     }
-
-    // DO approval state
-    public bool   $showDoRejectModal = false;
-    public ?int   $rejectApprovalId  = null;
-    public string $rejectNotes       = '';
 
     // PO action state
     public bool   $showPoReturnModal = false;
@@ -121,22 +116,54 @@ class Index extends Component
     #[Computed]
     public function pendingDoApprovals(): \Illuminate\Database\Eloquent\Collection
     {
-        $query = DeliveryOrderApproval::with(['deliveryOrder.consigneePartner', 'deliveryOrder.requestedBy', 'deliveryOrder.virtualWarehouse']);
+        $user  = auth()->user();
+
+        $query = DeliveryOrder::with(['department', 'consigneePartner', 'requestedBy', 'virtualWarehouse', 'approvals' => fn ($q) => $q->latest()]);
 
         if ($this->tab === 'pending') {
-            $query->whereNull('decision')
-                ->whereHas('deliveryOrder', fn ($q) => $q->where('status', \App\Enums\Outbound\DeliveryOrderStatus::Submitted->value));
+            $query->whereIn('status', [
+                DeliveryOrderStatus::Submitted,
+                DeliveryOrderStatus::ReturnedForCorrection,
+                DeliveryOrderStatus::AwaitingRequesterCorrection,
+            ]);
+        } else {
+            $query->whereNotIn('status', [DeliveryOrderStatus::Draft]);
         }
 
-        $user = auth()->user();
-
-        if ($user->hasRole('department-manager') || $user->hasRole('department-head')) {
-            $query->where('approver_role', 'department');
-        } elseif ($user->hasRole('warehouse-manager') || $user->hasRole('warehouse-supervisor')) {
-            $query->where('approver_role', 'warehouse');
-        }
-
-        return $query->orderBy('created_at')->get();
+        return $query->get()
+            ->filter(function ($do) use ($user) {
+                if ($user->hasRole('system-admin')) {
+                    return true;
+                }
+                // HOD sees ReturnedForCorrection for their dept (their turn to forward)
+                if ($do->status === DeliveryOrderStatus::ReturnedForCorrection
+                    && $do->department?->head_user_id === $user->id) {
+                    return true;
+                }
+                // Requester: PendingApproval is not their action — hide
+                if ($do->status === DeliveryOrderStatus::Submitted
+                    && $do->requested_by === $user->id
+                    && $do->department?->head_user_id !== $user->id) {
+                    return false;
+                }
+                // Requester: AwaitingRequesterCorrection — show to requester
+                if ($do->status === DeliveryOrderStatus::AwaitingRequesterCorrection
+                    && $do->requested_by === $user->id) {
+                    return true;
+                }
+                if ($this->tab === 'all') {
+                    if ($do->requested_by === $user->id) {
+                        return true;
+                    }
+                    if ($do->approvals->contains('decided_by', $user->id)) {
+                        return true;
+                    }
+                }
+                // HOD sees Submitted DOs for their department
+                return $do->status === DeliveryOrderStatus::Submitted
+                    && $do->department?->head_user_id === $user->id;
+            })
+            ->values();
     }
 
     #[Computed]
@@ -258,51 +285,6 @@ class Index extends Component
         } catch (\Exception $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }
-    }
-
-    // ─── DO approval actions ──────────────────────────────────────────────────
-
-    public function approveOrder(int $approvalId): void
-    {
-        $approval = DeliveryOrderApproval::with('deliveryOrder')->findOrFail($approvalId);
-        $this->authorize('approveDepartment', $approval->deliveryOrder);
-
-        app(DeliveryOrderWorkflow::class)->approve(
-            $approval->deliveryOrder,
-            auth()->user(),
-            (int) $approval->level,
-        );
-
-        $this->dispatch('toast', message: "Order {$approval->deliveryOrder->number} approved.", type: 'success');
-        unset($this->pendingDoApprovals, $this->totalPendingCount);
-    }
-
-    public function openRejectModal(int $approvalId): void
-    {
-        $this->rejectApprovalId  = $approvalId;
-        $this->rejectNotes       = '';
-        $this->showDoRejectModal = true;
-    }
-
-    public function confirmReject(): void
-    {
-        $this->validate(['rejectNotes' => ['required', 'string', 'min:5']]);
-
-        $approval = DeliveryOrderApproval::with('deliveryOrder')->findOrFail($this->rejectApprovalId);
-        $this->authorize('cancel', $approval->deliveryOrder);
-
-        app(DeliveryOrderWorkflow::class)->reject(
-            $approval->deliveryOrder,
-            auth()->user(),
-            $this->rejectNotes,
-        );
-
-        $this->showDoRejectModal = false;
-        $this->rejectApprovalId  = null;
-        $this->rejectNotes       = '';
-
-        $this->dispatch('toast', message: "Order {$approval->deliveryOrder->number} rejected.", type: 'success');
-        unset($this->pendingDoApprovals, $this->totalPendingCount);
     }
 
     // ─── Disposal approval actions ────────────────────────────────────────────

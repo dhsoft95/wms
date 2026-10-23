@@ -41,7 +41,7 @@ class DeliveryOrderPolicy
             return false;
         }
 
-        if ($do->status !== DeliveryOrderStatus::Draft) {
+        if (! $do->status->isEditable()) {
             return false;
         }
 
@@ -60,6 +60,10 @@ class DeliveryOrderPolicy
             return false;
         }
 
+        if (! $do->status->isEditable()) {
+            return false;
+        }
+
         if ($user->canAccessAllVirtualWarehouses()) {
             return true;
         }
@@ -75,12 +79,41 @@ class DeliveryOrderPolicy
             return false;
         }
 
-        // Must be the department head of the DO's department
+        if ($user->hasRole('system-admin')) {
+            return true;
+        }
+
         if ($do->department_id && $do->department) {
             return $do->department->head_user_id === $user->id;
         }
 
-        return $user->hasRole('warehouse-manager') || $user->hasRole('system-admin');
+        return $user->hasRole('warehouse-manager');
+    }
+
+    public function returnOrder(User $user, DeliveryOrder $do): bool
+    {
+        if ($do->status !== DeliveryOrderStatus::Submitted) {
+            return false;
+        }
+
+        if ($user->hasRole('system-admin')) {
+            return true;
+        }
+
+        return $do->department?->head_user_id === $user->id;
+    }
+
+    public function forwardReturn(User $user, DeliveryOrder $do): bool
+    {
+        if ($do->status !== DeliveryOrderStatus::ReturnedForCorrection) {
+            return false;
+        }
+
+        if ($user->hasRole('system-admin')) {
+            return true;
+        }
+
+        return $do->department?->head_user_id === $user->id;
     }
 
     public function approveWarehouse(User $user, DeliveryOrder $do): bool

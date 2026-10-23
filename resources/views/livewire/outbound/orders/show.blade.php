@@ -20,8 +20,10 @@
 
         {{-- Action Buttons --}}
         <div class="flex items-center gap-2 flex-wrap">
+            @php $S = \App\Enums\Outbound\DeliveryOrderStatus::class; @endphp
+
             {{-- Draft: submit + edit --}}
-            @if ($this->do->status === \App\Enums\Outbound\DeliveryOrderStatus::Draft)
+            @if ($this->do->status === $S::Draft)
                 @can('submit', $this->do)
                     <button wire:click="submit" wire:loading.attr="disabled" class="btn btn-primary">
                         <x-ui.icon name="paper-airplane" class="w-4 h-4" /> Submit for Approval
@@ -34,17 +36,46 @@
                 @endcan
             @endif
 
-            {{-- Submitted: pending approval --}}
-            @if ($this->do->status === \App\Enums\Outbound\DeliveryOrderStatus::Submitted)
+            {{-- AwaitingRequesterCorrection: requester edits and resubmits --}}
+            @if ($this->do->status === $S::AwaitingRequesterCorrection)
+                @can('submit', $this->do)
+                    <button wire:click="submit" wire:loading.attr="disabled" class="btn btn-primary">
+                        <x-ui.icon name="paper-airplane" class="w-4 h-4" /> Resubmit for Approval
+                    </button>
+                @endcan
+                @can('update', $this->do)
+                    <a href="{{ route('outbound.orders.edit', $this->do) }}" wire:navigate class="btn btn-secondary">
+                        <x-ui.icon name="pencil" class="w-4 h-4" /> Edit
+                    </a>
+                @endcan
+            @endif
+
+            {{-- ReturnedForCorrection: HOD forwards to requester --}}
+            @if ($this->do->status === $S::ReturnedForCorrection)
+                @can('forwardReturn', $this->do)
+                    <button wire:click="forwardToRequester" wire:loading.attr="disabled" class="btn btn-secondary">
+                        <x-ui.icon name="arrow-right" class="w-4 h-4" /> Send Back to Requester
+                    </button>
+                @endcan
+            @endif
+
+            {{-- Submitted: HOD approves / returns / rejects --}}
+            @if ($this->do->status === $S::Submitted)
                 @can('approveDepartment', $this->do)
                     <button wire:click="approve" wire:loading.attr="disabled" class="btn btn-primary">
                         <x-ui.icon name="check" class="w-4 h-4" /> Approve
+                    </button>
+                    <button wire:click="$set('showReturnModal', true)" class="btn btn-secondary">
+                        <x-ui.icon name="arrow-uturn-left" class="w-4 h-4" /> Return
+                    </button>
+                    <button wire:click="$set('showRejectModal', true)" class="btn btn-secondary text-red-600 dark:text-red-400">
+                        <x-ui.icon name="x-circle" class="w-4 h-4" /> Reject
                     </button>
                 @endcan
             @endif
 
             {{-- Approved: accept for warehouse processing --}}
-            @if ($this->do->status === \App\Enums\Outbound\DeliveryOrderStatus::Approved)
+            @if ($this->do->status === $S::Approved)
                 @can('allocate', $this->do)
                     <button wire:click="accept" wire:loading.attr="disabled" class="btn btn-primary">
                         <x-ui.icon name="check-circle" class="w-4 h-4" /> Accept Order
@@ -53,7 +84,7 @@
             @endif
 
             {{-- Acceptance: allocate stock --}}
-            @if ($this->do->status === \App\Enums\Outbound\DeliveryOrderStatus::Acceptance)
+            @if ($this->do->status === $S::Acceptance)
                 @can('allocate', $this->do)
                     <button wire:click="allocate" wire:loading.attr="disabled" class="btn btn-primary">
                         <x-ui.icon name="check" class="w-4 h-4" /> Allocate Stock
@@ -62,11 +93,7 @@
             @endif
 
             {{-- Allocated / PartiallyAllocated / Picking: generate or view pick list --}}
-            @if (in_array($this->do->status, [
-                    \App\Enums\Outbound\DeliveryOrderStatus::Picking,
-                    \App\Enums\Outbound\DeliveryOrderStatus::Allocated,
-                    \App\Enums\Outbound\DeliveryOrderStatus::PartiallyAllocated,
-                ]))
+            @if (in_array($this->do->status, [$S::Picking, $S::Allocated, $S::PartiallyAllocated]))
                 @can('allocate', $this->do)
                     @if ($this->activePickList === null)
                         <button wire:click="$set('showAssignModal', true)" class="btn btn-primary">
@@ -82,12 +109,8 @@
                 @endcan
             @endif
 
-            {{-- Cancel button for all non-terminal states --}}
-            @if (! in_array($this->do->status, [
-                    \App\Enums\Outbound\DeliveryOrderStatus::Dispatched,
-                    \App\Enums\Outbound\DeliveryOrderStatus::Delivered,
-                    \App\Enums\Outbound\DeliveryOrderStatus::Cancelled,
-                ]))
+            {{-- Cancel button for cancellable states --}}
+            @if ($this->do->status->isCancellable())
                 @can('cancel', $this->do)
                     <button wire:click="cancel"
                             wire:confirm="Cancel this order? All reservations will be released."
@@ -557,6 +580,60 @@
         </div>
         @endif
     </div>
+
+    {{-- Return for Correction Modal --}}
+    @if ($showReturnModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4"
+             x-data wire:click.self="$set('showReturnModal', false)">
+            <div class="card w-full max-w-md p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-bold text-slate-900 dark:text-white">Return for Correction</h3>
+                    <button wire:click="$set('showReturnModal', false)" class="icon-btn">
+                        <x-ui.icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+                <div>
+                    <label class="label">Comment <span class="text-red-500">*</span></label>
+                    <textarea wire:model="returnNotes" rows="3" class="input resize-none"
+                              placeholder="What needs to be corrected…"></textarea>
+                    @error('returnNotes') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button wire:click="$set('showReturnModal', false)" class="btn btn-ghost">Cancel</button>
+                    <button wire:click="returnForCorrection" wire:loading.attr="disabled" class="btn btn-secondary">Return</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Reject Modal --}}
+    @if ($showRejectModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4"
+             x-data wire:click.self="$set('showRejectModal', false)">
+            <div class="card w-full max-w-md p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <x-ui.icon name="x-circle" class="w-5 h-5 text-red-500" />
+                        <h3 class="font-bold text-slate-900 dark:text-white">Reject Order</h3>
+                    </div>
+                    <button wire:click="$set('showRejectModal', false)" class="icon-btn">
+                        <x-ui.icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+                <div>
+                    <label class="label">Reason <span class="text-red-500">*</span></label>
+                    <textarea wire:model="rejectNotes" rows="3" class="input resize-none"
+                              placeholder="Explain why this order is being rejected…"></textarea>
+                    @error('rejectNotes') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button wire:click="$set('showRejectModal', false)" class="btn btn-ghost">Cancel</button>
+                    <button wire:click="rejectOrder" wire:loading.attr="disabled"
+                            class="btn btn-primary !bg-red-600 hover:!bg-red-700">Reject</button>
+                </div>
+            </div>
+        </div>
+    @endif
 
     {{-- Assign Picker Modal --}}
     @if ($showAssignModal)
