@@ -9,7 +9,6 @@ use App\Models\CycleCountLine;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 
 final class StockCountReport implements ReportDefinition
 {
@@ -22,15 +21,30 @@ final class StockCountReport implements ReportDefinition
     public function columns(): array
     {
         return [
-            ['key' => 'count.number',    'label' => 'Count No.',    'align' => 'left',   'format' => 'text'],
-            ['key' => 'location.code',   'label' => 'Location',     'align' => 'left',   'format' => 'text'],
-            ['key' => 'item.sku',        'label' => 'SKU',          'align' => 'left',   'format' => 'text'],
-            ['key' => 'item.name',       'label' => 'Item',         'align' => 'left',   'format' => 'text'],
-            ['key' => 'system_qty',      'label' => 'System Qty',   'align' => 'right',  'format' => 'number'],
-            ['key' => 'counted_qty',     'label' => 'Counted Qty',  'align' => 'right',  'format' => 'number'],
-            ['key' => 'variance',        'label' => 'Variance',     'align' => 'right',  'format' => 'number'],
-            ['key' => 'accuracy_pct',    'label' => 'Accuracy %',   'align' => 'right',  'format' => 'number'],
+            ['key' => 'count.number',          'label' => 'Count No.',   'align' => 'left',  'format' => 'text'],
+            ['key' => 'location.code',          'label' => 'Location',    'align' => 'left',  'format' => 'text'],
+            ['key' => 'item.sku',               'label' => 'SKU',         'align' => 'left',  'format' => 'text'],
+            ['key' => 'item.name',              'label' => 'Item',        'align' => 'left',  'format' => 'text'],
+            ['key' => 'batch.batch_no',         'label' => 'Lot/Batch',   'align' => 'left',  'format' => 'text'],
+            ['key' => 'uom.code',               'label' => 'UOM',         'align' => 'left',  'format' => 'text'],
+            ['key' => 'system_qty',             'label' => 'System Qty',  'align' => 'right', 'format' => 'number', 'total' => true],
+            ['key' => 'counted_qty',            'label' => 'Counted Qty', 'align' => 'right', 'format' => 'number', 'total' => true],
+            ['key' => 'variance',               'label' => 'Variance',    'align' => 'right', 'format' => 'signed', 'total' => true],
+            ['key' => 'accuracy_pct',           'label' => 'Accuracy %',  'align' => 'right', 'format' => 'percent'],
         ];
+    }
+
+    public function groupBy(): string
+    {
+        return 'count.virtualWarehouse.name';
+    }
+
+    public function rowClass($row): string
+    {
+        if ($row->counted_qty !== null && bccomp((string) ($row->variance ?? '0'), '0', 4) !== 0) {
+            return 'warn';
+        }
+        return '';
     }
 
     public function query(array $filters, User $user): Builder
@@ -46,11 +60,11 @@ final class StockCountReport implements ReportDefinition
             ->selectRaw(
                 'CASE
                     WHEN cycle_count_lines.system_qty = 0 AND cycle_count_lines.counted_qty = 0 THEN 100.00
-                    WHEN cycle_count_lines.system_qty = 0 THEN 0.00
+                    WHEN cycle_count_lines.system_qty = 0 THEN NULL
                     ELSE ROUND((1 - ABS(cycle_count_lines.variance) / cycle_count_lines.system_qty) * 100, 2)
                 END as accuracy_pct'
             )
-            ->with(['count', 'location', 'item']);
+            ->with(['count.virtualWarehouse', 'location', 'item', 'batch', 'uom']);
 
         if (! $user->canAccessAllVirtualWarehouses()) {
             $vwIds = $user->accessibleVirtualWarehouseIds();
@@ -65,13 +79,15 @@ final class StockCountReport implements ReportDefinition
             $query->whereHas('count', fn ($q) => $q->whereHas('virtualWarehouse', fn ($q2) => $q2->where('department_id', $filters['department_id'])));
         }
 
-        return $query->orderBy('cycle_count_lines.updated_at', 'desc');
+        return $query->orderBy('cycle_counts.virtual_warehouse_id')->orderBy('cycle_count_lines.updated_at', 'desc');
     }
 
     public function summary(Collection $rows): array
     {
-        $total    = $rows->count();
-        $accurate = $rows->filter(fn ($r) => (float) ($r->accuracy_pct ?? 0) >= 95.0)->count();
+        $counted  = $rows->whereNotNull('counted_qty');
+        $total    = $counted->count();
+        $accurate = $counted->filter(fn ($r) => $r->accuracy_pct !== null && (float) $r->accuracy_pct >= 95.0)->count();
+
         return [
             'Lines Counted'  => $total,
             'Accuracy ≥ 95%' => $total > 0 ? number_format($accurate / $total * 100, 1) . '%' : '—',

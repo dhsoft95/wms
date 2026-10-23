@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\Grn;
+use App\Support\PdfBrand;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
 
@@ -25,8 +26,8 @@ class GrnDocumentController extends Controller
         ]);
 
         $pdf = Pdf::loadView('pdf.grn', [
-            'brandName' => config('app.name'),
-            'grn'       => $grn,
+            'brand' => PdfBrand::make(),
+            'grn'   => $grn,
         ])->setPaper([0, 0, 595.28, 841.89], 'portrait');
 
         return $pdf->stream($grn->number . '.pdf');

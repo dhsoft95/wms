@@ -15,6 +15,9 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    'company_name'    => env('COMPANY_NAME', 'SIMBA COURIER'),
+    'company_address' => env('COMPANY_ADDRESS', ''),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

@@ -9,6 +9,7 @@
     /** @var string $generatedAt */
     /** @var string|null $notes */
 
+    $brand    = $brand ?? \App\Support\PdfBrand::make();
     $summary  = $summary ?? [];
     $totals   = $totals ?? null;
     $meta     = $meta ?? [];

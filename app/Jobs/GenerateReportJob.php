@@ -16,6 +16,7 @@ use App\Models\ReportRequest;
 use App\Notifications\ReportReadyNotification;
 use App\Services\Foundation\SettingsService;
 use App\Services\Reports\ReportRegistry;
+use App\Support\PdfBrand;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -101,7 +102,7 @@ class GenerateReportJob implements ShouldQueue
         $disk->makeDirectory('reports');
 
         if ($format === 'excel') {
-            $brand   = SettingsService::getCompanyBrand();
+            $brand   = PdfBrand::make();
             $rows    = $definition->query($filters, $user)->get();
 
             $tmpPath = tempnam(sys_get_temp_dir(), 'wms_report_');
@@ -122,21 +123,13 @@ class GenerateReportJob implements ShouldQueue
             $isLandscape = $colCount > 7;
             $paper       = $isLandscape ? [0, 0, 841.89, 595.28] : [0, 0, 595.28, 841.89];
             $orient      = $isLandscape ? 'landscape' : 'portrait';
-            $signatures  = match ($definition->key()) {
-                'stock-count'    => ['Count Supervisor', 'Warehouse Manager', 'Finance / Auditor'],
-                'asset-disposal' => ['Requesting Department', 'Approving Authority', 'HSE / Witness'],
-                'pending-orders' => ['Prepared By', 'Reviewed By', 'Approved By'],
-                default          => [],
-            };
-
             $pdf = Pdf::loadView('reports.layouts.pdf', [
                 'definition'  => $definition,
                 'rows'        => $rows,
                 'filters'     => $filters,
-                'brand'       => SettingsService::getCompanyBrand(),
+                'brand'       => PdfBrand::make(),
                 'summary'     => $definition->summary($rows),
                 'totals'      => $definition->totals($rows),
-                'signatures'  => $signatures,
                 'generatedAt' => now()->format('d M Y H:i'),
             ])->setPaper($paper, $orient);
 
