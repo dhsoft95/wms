@@ -310,7 +310,12 @@
                                     @elseif ($req->isReady())
                                         <span class="badge badge-green">Ready</span>
                                     @elseif ($req->isFailed())
-                                        <span class="badge badge-red">Failed</span>
+                                        @if ($req->error && auth()->user()?->hasRole('system-admin'))
+                                            <span class="badge badge-red cursor-help"
+                                                  title="{{ $req->error }}">Failed ⓘ</span>
+                                        @else
+                                            <span class="badge badge-red">Report failed</span>
+                                        @endif
                                     @endif
                                 </td>
                                 <td class="text-xs text-slate-500">{{ $req->created_at->diffForHumans() }}</td>

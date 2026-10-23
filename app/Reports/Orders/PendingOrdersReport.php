@@ -29,7 +29,7 @@ final class PendingOrdersReport implements ReportDefinition
     {
         return [
             ['key' => 'number',          'label' => 'PO Number',       'align' => 'left',   'format' => 'text'],
-            ['key' => 'supplier.name',   'label' => 'Supplier',        'align' => 'left',   'format' => 'text'],
+            ['key' => 'supplierPartner.name', 'label' => 'Supplier',    'align' => 'left',   'format' => 'text'],
             ['key' => 'department.name', 'label' => 'Department',      'align' => 'left',   'format' => 'text'],
             ['key' => 'source',          'label' => 'Type',            'align' => 'center', 'format' => 'enum'],
             ['key' => 'expected_date',   'label' => 'Expected Date',   'align' => 'left',   'format' => 'date'],
@@ -50,7 +50,7 @@ final class PendingOrdersReport implements ReportDefinition
             ->select('purchase_orders.*')
             ->selectRaw('DATEDIFF(NOW(), submitted_at) as age_days')
             ->withCount('lines')
-            ->with(['supplier', 'department']);
+            ->with(['supplierPartner', 'department']);
 
         if (! $user->canAccessAllVirtualWarehouses()) {
             $vwIds = $user->accessibleVirtualWarehouseIds();

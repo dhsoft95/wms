@@ -25,17 +25,20 @@ class CycleCount extends Model
         'virtual_warehouse_id',
         'created_by',
         'approved_by',
+        'cancelled_by',
         'status',
         'notes',
         'posted_at',
+        'cancelled_at',
         'idempotency_key',
     ];
 
     protected function casts(): array
     {
         return [
-            'status'    => CycleCountStatus::class,
-            'posted_at' => 'datetime',
+            'status'       => CycleCountStatus::class,
+            'posted_at'    => 'datetime',
+            'cancelled_at' => 'datetime',
         ];
     }
 

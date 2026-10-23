@@ -29,6 +29,18 @@
                     </button>
                 @endcan
             @endif
+
+            @if(!$count->status->isTerminal())
+                @can('approve', $count)
+                    <button wire:click="cancel"
+                            wire:confirm="Cancel this cycle count? The location lock will be released immediately."
+                            wire:loading.attr="disabled"
+                            class="btn btn-danger-outline">
+                        <span wire:loading.remove wire:target="cancel"><x-ui.icon name="x" class="w-4 h-4" /> Cancel Count</span>
+                        <span wire:loading wire:target="cancel">Cancelling…</span>
+                    </button>
+                @endcan
+            @endif
         </div>
     </div>
 

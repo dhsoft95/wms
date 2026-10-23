@@ -23,6 +23,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
 
@@ -47,15 +48,40 @@ class GenerateReportJob implements ShouldQueue
 
             [$view, $data, $filename] = $this->buildReport();
 
+            $disk = $this->disk();
+            $disk->makeDirectory('reports');
+
             $pdf  = Pdf::loadView($view, $data)->setPaper([0, 0, 595.28, 841.89], 'portrait');
             $path = 'reports/' . $this->request->id . '_' . $filename . '.pdf';
 
-            Storage::put($path, $pdf->output());
+            $disk->put($path, $pdf->output());
 
             $this->request->update(['status' => 'ready', 'file_path' => $path]);
+
         } catch (Throwable $e) {
-            $this->request->update(['status' => 'failed', 'error' => $e->getMessage()]);
+            Log::error('GenerateReportJob failed', [
+                'report_request_id' => $this->request->id,
+                'report_key'        => $this->request->type,
+                'format'            => $this->request->format,
+                'filters'           => $this->request->filters,
+                'user_id'           => $this->request->user_id,
+                'error'             => $e->getMessage(),
+                'file'              => $e->getFile(),
+                'line'              => $e->getLine(),
+            ]);
+
+            $this->request->update([
+                'status' => 'failed',
+                'error'  => $e->getMessage(),
+            ]);
+
+            throw $e;
         }
+    }
+
+    private function disk(): \Illuminate\Contracts\Filesystem\Filesystem
+    {
+        return Storage::disk(config('reports.disk', 'local'));
     }
 
     private function handleRegistryReport(): void
@@ -64,32 +90,39 @@ class GenerateReportJob implements ShouldQueue
         $definition = $registry->find($this->request->type);
 
         if ($definition === null) {
-            $this->request->update(['status' => 'failed', 'error' => "Report definition '{$this->request->type}' not found."]);
-            return;
+            throw new \InvalidArgumentException("Report definition '{$this->request->type}' not found.");
         }
 
         $user    = $this->request->user;
         $filters = $this->request->filters ?? [];
         $format  = $this->request->format ?? 'excel';
+        $disk    = $this->disk();
+
+        $disk->makeDirectory('reports');
 
         if ($format === 'excel') {
             $brand   = SettingsService::getCompanyBrand();
             $rows    = $definition->query($filters, $user)->get();
-            $tmpPath = sys_get_temp_dir() . '/' . uniqid('report_', true) . '.xlsx';
 
-            (new ExcelStyler())->write($tmpPath, $definition, $rows, $brand, $filters);
+            $tmpPath = tempnam(sys_get_temp_dir(), 'wms_report_');
+            $tmpXlsx = $tmpPath . '.xlsx';
 
-            $storagePath = 'reports/' . $this->request->id . '_' . $definition->key() . '_' . now()->format('Ymd-Hi') . '.xlsx';
-            Storage::put($storagePath, file_get_contents($tmpPath));
-            @unlink($tmpPath);
+            try {
+                (new ExcelStyler())->write($tmpXlsx, $definition, $rows, $brand, $filters);
+                $storagePath = 'reports/' . $this->request->id . '_' . $definition->key() . '_' . now()->format('Ymd-Hi') . '.xlsx';
+                $disk->put($storagePath, file_get_contents($tmpXlsx));
+            } finally {
+                @unlink($tmpPath);
+                @unlink($tmpXlsx);
+            }
 
         } elseif ($format === 'pdf' && $definition->pdfEnabled()) {
-            $rows       = $definition->query($filters, $user)->get();
-            $colCount   = count($definition->columns());
+            $rows        = $definition->query($filters, $user)->get();
+            $colCount    = count($definition->columns());
             $isLandscape = $colCount > 7;
-            $paper      = $isLandscape ? [0, 0, 841.89, 595.28] : [0, 0, 595.28, 841.89];
-            $orient     = $isLandscape ? 'landscape' : 'portrait';
-            $signatures = match ($definition->key()) {
+            $paper       = $isLandscape ? [0, 0, 841.89, 595.28] : [0, 0, 595.28, 841.89];
+            $orient      = $isLandscape ? 'landscape' : 'portrait';
+            $signatures  = match ($definition->key()) {
                 'stock-count'    => ['Count Supervisor', 'Warehouse Manager', 'Finance / Auditor'],
                 'asset-disposal' => ['Requesting Department', 'Approving Authority', 'HSE / Witness'],
                 'pending-orders' => ['Prepared By', 'Reviewed By', 'Approved By'],
@@ -108,15 +141,16 @@ class GenerateReportJob implements ShouldQueue
             ])->setPaper($paper, $orient);
 
             $storagePath = 'reports/' . $this->request->id . '_' . $definition->key() . '_' . now()->format('Ymd-Hi') . '.pdf';
-            Storage::put($storagePath, $pdf->output());
+            $disk->put($storagePath, $pdf->output());
+
         } else {
-            throw new \InvalidArgumentException("Unsupported format: {$format}");
+            throw new \InvalidArgumentException("Unsupported format '{$format}' for report '{$this->request->type}'.");
         }
 
         $this->request->update([
-            'status'       => 'ready',
-            'file_path'    => $storagePath,
-            'notified_at'  => now(),
+            'status'      => 'ready',
+            'file_path'   => $storagePath,
+            'notified_at' => now(),
         ]);
 
         $user->notify(new ReportReadyNotification($this->request));
@@ -127,17 +161,15 @@ class GenerateReportJob implements ShouldQueue
         $from      = $this->request->date_from ? Carbon::parse($this->request->date_from)->format('Y-m-d') : now()->startOfMonth()->format('Y-m-d');
         $to        = $this->request->date_to   ? Carbon::parse($this->request->date_to)->format('Y-m-d')   : now()->format('Y-m-d');
         $brand     = SettingsService::get('company.name', config('app.name'));
-        $fromLabel = Carbon::parse($from)->format('d M Y');
-        $toLabel   = Carbon::parse($to)->format('d M Y');
 
         return match ($this->request->type) {
-            'stock-valuation'       => $this->stockValuation($brand, $from, $to),
-            'receiving-summary'     => $this->receivingSummary($brand, $from, $to),
-            'cycle-count-variances' => $this->cycleCountVariances($brand, $from, $to),
-            'dispatch-accuracy'     => $this->dispatchAccuracy($brand, $from, $to),
-            'stock-aging'           => $this->stockAging($brand),
-            'stock-movement-history'=> $this->stockMovementHistory($brand, $from, $to),
-            default                 => throw new \InvalidArgumentException("Unknown report type: {$this->request->type}"),
+            'stock-valuation'        => $this->stockValuation($brand, $from, $to),
+            'receiving-summary'      => $this->receivingSummary($brand, $from, $to),
+            'cycle-count-variances'  => $this->cycleCountVariances($brand, $from, $to),
+            'dispatch-accuracy'      => $this->dispatchAccuracy($brand, $from, $to),
+            'stock-aging'            => $this->stockAging($brand),
+            'stock-movement-history' => $this->stockMovementHistory($brand, $from, $to),
+            default                  => throw new \InvalidArgumentException("Unknown report type: {$this->request->type}"),
         };
     }
 

@@ -29,7 +29,7 @@ final class PlannedOrdersReport implements ReportDefinition
     {
         return [
             ['key' => 'number',          'label' => 'PO No.',         'align' => 'left',   'format' => 'text'],
-            ['key' => 'supplier.name',   'label' => 'Supplier',       'align' => 'left',   'format' => 'text'],
+            ['key' => 'supplierPartner.name', 'label' => 'Supplier',   'align' => 'left',   'format' => 'text'],
             ['key' => 'department.name', 'label' => 'Department',     'align' => 'left',   'format' => 'text'],
             ['key' => 'source',          'label' => 'Type',           'align' => 'center', 'format' => 'enum'],
             ['key' => 'expected_date',   'label' => 'Expected Date',  'align' => 'left',   'format' => 'date'],
@@ -51,7 +51,7 @@ final class PlannedOrdersReport implements ReportDefinition
             ->select('purchase_orders.*')
             ->selectRaw('DATEDIFF(expected_date, NOW()) as days_until_due')
             ->withCount('lines')
-            ->with(['supplier', 'department']);
+            ->with(['supplierPartner', 'department']);
 
         if (! $user->canAccessAllVirtualWarehouses()) {
             $vwIds = $user->accessibleVirtualWarehouseIds();

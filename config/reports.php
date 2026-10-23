@@ -3,6 +3,13 @@
 declare(strict_types=1);
 
 return [
+    /*
+     * Filesystem disk for generated report files.
+     * Set REPORT_DISK=s3 (or any configured disk) in .env for cloud storage.
+     * Defaults to 'local' (storage/app/private).
+     */
+    'disk' => env('REPORT_DISK', 'local'),
+
     'Stock' => [
         \App\Reports\Stock\StockHoldingReport::class,
         \App\Reports\Stock\StockAgingReport::class,

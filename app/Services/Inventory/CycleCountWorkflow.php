@@ -182,6 +182,26 @@ final class CycleCountWorkflow
         });
     }
 
+    public function cancel(CycleCount $count, User $user): CycleCount
+    {
+        return DB::transaction(function () use ($count, $user) {
+            $count = CycleCount::lockForUpdate()->findOrFail($count->id);
+
+            if ($count->status->isTerminal()) {
+                throw new \DomainException("Cycle count {$count->number} is already {$count->status->label()} and cannot be cancelled.");
+            }
+
+            $count->status       = CycleCountStatus::Cancelled;
+            $count->cancelled_at = now();
+            $count->cancelled_by = $user->id;
+            $count->save();
+
+            activity()->performedOn($count)->causedBy($user)->log('Cycle count cancelled');
+
+            return $count;
+        });
+    }
+
     // Returns true if the given location is locked by any active cycle count.
     public function isLocationLocked(int $locationId): bool
     {

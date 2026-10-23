@@ -12,13 +12,14 @@ enum CycleCountStatus: string
     case Counting       = 'counting';
     case VarianceReview = 'variance_review';
     case Posted         = 'posted';
+    case Cancelled      = 'cancelled';
 
     public function canTransitionTo(self $new): bool
     {
         return match ($this) {
-            self::Open           => in_array($new, [self::Counting], true),
-            self::Counting       => in_array($new, [self::VarianceReview], true),
-            self::VarianceReview => in_array($new, [self::Posted, self::Counting], true),
+            self::Open           => in_array($new, [self::Counting, self::Cancelled], true),
+            self::Counting       => in_array($new, [self::VarianceReview, self::Cancelled], true),
+            self::VarianceReview => in_array($new, [self::Posted, self::Counting, self::Cancelled], true),
             default              => false,
         };
     }
@@ -39,6 +40,7 @@ enum CycleCountStatus: string
             self::Counting       => 'Counting',
             self::VarianceReview => 'Variance Review',
             self::Posted         => 'Posted',
+            self::Cancelled      => 'Cancelled',
         };
     }
 
@@ -49,6 +51,7 @@ enum CycleCountStatus: string
             self::Counting       => 'badge-amber',
             self::VarianceReview => 'badge-amber',
             self::Posted         => 'badge-neutral',
+            self::Cancelled      => 'badge-red',
         };
     }
 
@@ -59,6 +62,6 @@ enum CycleCountStatus: string
 
     public function isTerminal(): bool
     {
-        return $this === self::Posted;
+        return in_array($this, [self::Posted, self::Cancelled], true);
     }
 }

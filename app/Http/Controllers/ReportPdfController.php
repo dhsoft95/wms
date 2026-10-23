@@ -20,21 +20,26 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportPdfController extends Controller
 {
+    private function reportDisk(): \Illuminate\Contracts\Filesystem\Filesystem
+    {
+        return Storage::disk(config('reports.disk', 'local'));
+    }
+
     public function download(ReportRequest $reportRequest): StreamedResponse
     {
         abort_unless($reportRequest->isReady() && $reportRequest->file_path, 404);
-        abort_unless(Storage::exists($reportRequest->file_path), 404);
+        abort_unless($this->reportDisk()->exists($reportRequest->file_path), 404);
 
         $filename = basename($reportRequest->file_path);
-        return Storage::download($reportRequest->file_path, $filename);
+        return $this->reportDisk()->download($reportRequest->file_path, $filename);
     }
 
     public function view(ReportRequest $reportRequest): StreamedResponse
     {
         abort_unless($reportRequest->isReady() && $reportRequest->file_path, 404);
-        abort_unless(Storage::exists($reportRequest->file_path), 404);
+        abort_unless($this->reportDisk()->exists($reportRequest->file_path), 404);
 
-        $contents = Storage::get($reportRequest->file_path);
+        $contents = $this->reportDisk()->get($reportRequest->file_path);
         return response()->streamDownload(
             fn () => print($contents),
             basename($reportRequest->file_path),

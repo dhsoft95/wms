@@ -24,7 +24,7 @@ final class DeliveredPendingGrnReport implements ReportDefinition
         return [
             ['key' => 'number',                'label' => 'GRN No.',     'align' => 'left',   'format' => 'text'],
             ['key' => 'purchaseOrder.number',  'label' => 'PO No.',      'align' => 'left',   'format' => 'text'],
-            ['key' => 'supplier.name',         'label' => 'Supplier',    'align' => 'left',   'format' => 'text'],
+            ['key' => 'supplierPartner.name',   'label' => 'Supplier',    'align' => 'left',   'format' => 'text'],
             ['key' => 'warehouse.name',        'label' => 'Warehouse',   'align' => 'left',   'format' => 'text'],
             ['key' => 'status',                'label' => 'Status',      'align' => 'center', 'format' => 'enum'],
             ['key' => 'lines_count',           'label' => 'Lines',       'align' => 'right',  'format' => 'number'],
@@ -44,7 +44,7 @@ final class DeliveredPendingGrnReport implements ReportDefinition
             ->whereNotIn('status', $terminalStatuses)
             ->whereBetween('created_at', [$dateFrom, $dateTo . ' 23:59:59'])
             ->withCount('lines')
-            ->with(['purchaseOrder', 'supplier', 'warehouse']);
+            ->with(['purchaseOrder', 'supplierPartner', 'warehouse']);
 
         if (! $user->canAccessAllVirtualWarehouses()) {
             $vwIds = $user->accessibleVirtualWarehouseIds();

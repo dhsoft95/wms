@@ -51,6 +51,9 @@ final class ReportRegistry
         $this->instances = [];
 
         foreach (config('reports', []) as $group => $classes) {
+            if (! is_array($classes)) {
+                continue;
+            }
             foreach ($classes as $fqcn) {
                 if (! class_exists($fqcn)) {
                     Log::warning("ReportRegistry: class {$fqcn} not found, skipping.");

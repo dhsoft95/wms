@@ -69,6 +69,18 @@ class Show extends Component
         }
     }
 
+    public function cancel(CycleCountWorkflow $workflow): void
+    {
+        $this->authorize('approve', $this->count);
+
+        try {
+            $this->count = $workflow->cancel($this->count, auth()->user());
+            $this->dispatch('toast', message: "Count {$this->count->number} cancelled.", type: 'success');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
     public function render(): View
     {
         $this->count->load('lines.item', 'lines.location', 'lines.batch', 'lines.uom', 'createdBy', 'virtualWarehouse');
