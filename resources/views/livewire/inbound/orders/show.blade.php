@@ -137,6 +137,28 @@
                 @endcan
             @endif
 
+            {{-- Pending putaway — start putaway --}}
+            @if ($purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::PendingPutaway)
+                @can('putaway', $purchaseOrder)
+                    <button wire:click="startPutaway" wire:loading.attr="disabled"
+                            wire:confirm="Start putaway for this purchase order?"
+                            class="btn btn-primary">
+                        <x-ui.icon name="arrow-down-tray" class="w-4 h-4" /> Start Putaway
+                    </button>
+                @endcan
+            @endif
+
+            {{-- Putaway in progress — mark complete --}}
+            @if ($purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::PutawayInProgress)
+                @can('putaway', $purchaseOrder)
+                    <button wire:click="completePutaway" wire:loading.attr="disabled"
+                            wire:confirm="Mark putaway as complete? The supervisor will be notified to validate."
+                            class="btn btn-primary">
+                        <x-ui.icon name="check-badge" class="w-4 h-4" /> Complete Putaway
+                    </button>
+                @endcan
+            @endif
+
             {{-- Pending supervisor validation --}}
             @if ($purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::PendingSupervisorValidation)
                 @can('validate', $purchaseOrder)

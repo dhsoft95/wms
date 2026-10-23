@@ -417,6 +417,32 @@ class Show extends Component
         }
     }
 
+    // ─── Putaway ──────────────────────────────────────────────────────────────
+
+    public function startPutaway(): void
+    {
+        $this->authorize('putaway', $this->purchaseOrder);
+        try {
+            app(PurchaseOrderWorkflow::class)->markPutawayStarted($this->purchaseOrder, auth()->user());
+            $this->reload();
+            $this->dispatch('toast', message: 'Putaway started.', type: 'success');
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function completePutaway(): void
+    {
+        $this->authorize('putaway', $this->purchaseOrder);
+        try {
+            app(PurchaseOrderWorkflow::class)->markPutawayComplete($this->purchaseOrder, auth()->user());
+            $this->reload();
+            $this->dispatch('toast', message: 'Putaway complete. Supervisor notified.', type: 'success');
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
     // ─── Supervisor validation ────────────────────────────────────────────────
 
     public function validateReceiving(): void

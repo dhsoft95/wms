@@ -138,6 +138,26 @@ class PurchaseOrderPolicy
         return $po->assigned_clerk_id === $user->id;
     }
 
+    public function putaway(User $user, PurchaseOrder $po): bool
+    {
+        if (! $user->can('po.receive')) {
+            return false;
+        }
+
+        if (! in_array($po->status, [
+            PurchaseOrderStatus::PendingPutaway,
+            PurchaseOrderStatus::PutawayInProgress,
+        ], true)) {
+            return false;
+        }
+
+        if ($user->hasAnyRole(['system-admin', 'warehouse-manager', 'warehouse-supervisor'])) {
+            return true;
+        }
+
+        return $po->assigned_clerk_id === $user->id;
+    }
+
     public function validate(User $user, PurchaseOrder $po): bool
     {
         return $user->can('po.validate')
