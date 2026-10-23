@@ -22,16 +22,6 @@
                 <span class="ml-1.5 badge badge-amber !text-xs !px-1.5 !py-0.5">{{ $this->totalPendingCount }}</span>
             @endif
         </button>
-        <button wire:click="setTab('returned')"
-                class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors
-                       {{ $tab === 'returned'
-                           ? 'border-simba-500 text-simba-600 dark:text-simba-400'
-                           : 'border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200' }}">
-            Returned for Correction
-            @if ($this->totalReturnedCount > 0 && $tab !== 'returned')
-                <span class="ml-1.5 badge badge-amber !text-xs !px-1.5 !py-0.5">{{ $this->totalReturnedCount }}</span>
-            @endif
-        </button>
         <button wire:click="setTab('all')"
                 class="px-4 py-2.5 text-sm font-medium border-b-2 transition-colors
                        {{ $tab === 'all'
@@ -42,7 +32,7 @@
     </div>
 
     {{-- Purchase Orders section --}}
-    @if ($tab !== 'returned' && $this->pendingPoApprovals->isNotEmpty())
+    @if ($this->pendingPoApprovals->isNotEmpty())
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">Purchase Orders</h3>
@@ -62,6 +52,15 @@
                 </thead>
                 <tbody>
                     @foreach ($this->pendingPoApprovals as $po)
+                        @php
+                            $user      = auth()->user();
+                            $isHod     = $po->department?->head_user_id === $user->id;
+                            $isAdmin   = $user->hasRole('system-admin');
+                            $canApprove = ($isHod || $isAdmin) && $po->status === \App\Enums\Inbound\PurchaseOrderStatus::PendingApproval;
+                            $isReturned = $po->status === \App\Enums\Inbound\PurchaseOrderStatus::ReturnedForCorrection;
+                            $isOwner    = $po->requested_by === $user->id;
+                            $lastAction = $po->approvals->first();
+                        @endphp
                         <tr wire:key="po-{{ $po->id }}">
                             <td>
                                 <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate
@@ -69,15 +68,45 @@
                                     {{ $po->number }}
                                 </a>
                             </td>
-                            <td><span class="badge {{ $po->status->color() }}">{{ $po->status->label() }}</span></td>
+                            <td>
+                                <span class="badge {{ $po->status->color() }}">{{ $po->status->label() }}</span>
+                                @if ($isReturned && $lastAction?->comment)
+                                    <p class="text-xs text-slate-500 mt-0.5 max-w-[180px] truncate" title="{{ $lastAction->comment }}">
+                                        {{ $lastAction->comment }}
+                                    </p>
+                                @endif
+                            </td>
                             <td class="text-sm text-slate-600 dark:text-slate-400">{{ $po->department?->name ?? '—' }}</td>
                             <td class="text-sm text-slate-600 dark:text-slate-400">{{ $po->warehouse?->name ?? '—' }}</td>
                             <td class="text-sm text-slate-600 dark:text-slate-400">{{ $po->requestedBy?->name ?? '—' }}</td>
                             <td class="text-xs text-slate-500">{{ $po->submitted_at?->format('d M Y') ?? '—' }}</td>
                             <td class="text-right">
-                                <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate class="btn btn-secondary btn-sm">
-                                    <x-ui.icon name="eye" class="w-3.5 h-3.5" /> View
-                                </a>
+                                <div class="flex items-center justify-end gap-2">
+                                    @if ($isReturned && ($isOwner || $isAdmin))
+                                        {{-- Requester: fix and resubmit --}}
+                                        <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate class="btn btn-primary btn-sm">
+                                            <x-ui.icon name="pencil" class="w-3.5 h-3.5" /> Fix &amp; Resubmit
+                                        </a>
+                                    @elseif ($canApprove)
+                                        {{-- HOD / admin: approve, send back, reject --}}
+                                        <button wire:click="approvePo({{ $po->id }})"
+                                                wire:loading.attr="disabled"
+                                                wire:confirm="Approve PO {{ $po->number }}?"
+                                                class="btn btn-primary btn-sm">
+                                            <x-ui.icon name="check" class="w-3.5 h-3.5" /> Approve
+                                        </button>
+                                        <button wire:click="openPoReturnModal({{ $po->id }})" class="btn btn-secondary btn-sm">
+                                            <x-ui.icon name="arrow-uturn-left" class="w-3.5 h-3.5" /> Send Back
+                                        </button>
+                                        <button wire:click="openPoRejectModal({{ $po->id }})" class="btn btn-secondary btn-sm text-red-600 dark:text-red-400">
+                                            <x-ui.icon name="x-circle" class="w-3.5 h-3.5" /> Reject
+                                        </button>
+                                    @else
+                                        <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate class="btn btn-secondary btn-sm">
+                                            <x-ui.icon name="eye" class="w-3.5 h-3.5" /> View
+                                        </a>
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @endforeach
@@ -87,7 +116,7 @@
     @endif
 
     {{-- Disposal Requests section --}}
-    @if ($tab !== 'returned' && $this->pendingDisposalApprovals->isNotEmpty())
+    @if ($this->pendingDisposalApprovals->isNotEmpty())
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">Disposal Requests</h3>
@@ -141,7 +170,7 @@
     @endif
 
     {{-- Stock Status Requests section --}}
-    @if ($tab !== 'returned' && $this->pendingStockStatusApprovals->isNotEmpty())
+    @if ($this->pendingStockStatusApprovals->isNotEmpty())
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">Stock Status Requests</h3>
@@ -198,64 +227,8 @@
         </div>
     @endif
 
-    {{-- Returned for Correction tab --}}
-    @if ($tab === 'returned')
-        @if ($this->returnedPoApprovals->isNotEmpty())
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Purchase Orders — Returned for Correction</h3>
-                    <span class="badge badge-amber ml-2">{{ $this->returnedPoApprovals->count() }}</span>
-                </div>
-                <x-ui.table>
-                    <thead>
-                        <tr>
-                            <th>PO Number</th>
-                            <th>Department</th>
-                            <th>Warehouse</th>
-                            <th>Returned By</th>
-                            <th>Reason</th>
-                            <th>Returned</th>
-                            <th class="text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($this->returnedPoApprovals as $po)
-                            @php $lastAction = $po->approvals->first(); @endphp
-                            <tr wire:key="ret-{{ $po->id }}">
-                                <td>
-                                    <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate
-                                       class="mono font-semibold text-simba-600 dark:text-simba-400 hover:underline">
-                                        {{ $po->number }}
-                                    </a>
-                                </td>
-                                <td class="text-sm text-slate-600 dark:text-slate-400">{{ $po->department?->name ?? '—' }}</td>
-                                <td class="text-sm text-slate-600 dark:text-slate-400">{{ $po->warehouse?->name ?? '—' }}</td>
-                                <td class="text-sm text-slate-600 dark:text-slate-400">{{ $lastAction?->user?->name ?? '—' }}</td>
-                                <td class="text-sm text-slate-500 max-w-xs truncate">{{ $lastAction?->comment ?? '—' }}</td>
-                                <td class="text-xs text-slate-500">{{ $po->updated_at?->format('d M Y') ?? '—' }}</td>
-                                <td class="text-right">
-                                    <a href="{{ route('inbound.orders.show', $po) }}" wire:navigate class="btn btn-primary btn-sm">
-                                        <x-ui.icon name="pencil" class="w-3.5 h-3.5" /> Fix & Resubmit
-                                    </a>
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </x-ui.table>
-            </div>
-        @else
-            <div class="card p-12 flex flex-col items-center justify-center text-center space-y-3">
-                <div class="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                    <x-ui.icon name="check" class="w-7 h-7 text-slate-400" />
-                </div>
-                <p class="font-semibold text-slate-700 dark:text-slate-200">No returned documents</p>
-                <p class="text-sm text-slate-400">No purchase orders are currently waiting for correction.</p>
-            </div>
-        @endif
-    @endif
-
     {{-- Empty state --}}
-    @if ($tab !== 'returned' && $this->pendingPoApprovals->isEmpty() && $this->pendingDoApprovals->isEmpty() && $this->pendingDisposalApprovals->isEmpty() && $this->pendingStockStatusApprovals->isEmpty())
+    @if ($this->pendingPoApprovals->isEmpty() && $this->pendingDoApprovals->isEmpty() && $this->pendingDisposalApprovals->isEmpty() && $this->pendingStockStatusApprovals->isEmpty())
         <div class="card p-12 flex flex-col items-center justify-center text-center space-y-3">
             <div class="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                 <x-ui.icon name="check" class="w-7 h-7 text-emerald-600" />
@@ -267,7 +240,7 @@
                 {{ $tab === 'pending' ? 'All documents have been reviewed. Check back later.' : 'There are no documents to display.' }}
             </p>
         </div>
-    @elseif($tab !== 'returned' && $this->pendingDoApprovals->isNotEmpty())
+    @elseif($this->pendingDoApprovals->isNotEmpty())
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">Pending Delivery Orders</h3>

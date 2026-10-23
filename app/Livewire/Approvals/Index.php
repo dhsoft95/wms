@@ -32,9 +32,7 @@ class Index extends Component
             $this->pendingDoApprovals,
             $this->pendingDisposalApprovals,
             $this->pendingStockStatusApprovals,
-            $this->returnedPoApprovals,
             $this->totalPendingCount,
-            $this->totalReturnedCount,
         );
     }
 
@@ -58,11 +56,12 @@ class Index extends Component
         $user    = auth()->user();
         $service = app(ApprovalChainService::class);
 
-        $query = PurchaseOrder::with(['warehouse', 'department', 'requestedBy', 'lines.item.category', 'approvals']);
+        $query = PurchaseOrder::with(['warehouse', 'department', 'requestedBy', 'lines.item.category', 'approvals' => fn ($q) => $q->latest()]);
 
         if ($this->tab === 'pending') {
             $query->whereIn('status', [
                 PurchaseOrderStatus::PendingApproval,
+                PurchaseOrderStatus::ReturnedForCorrection,
                 PurchaseOrderStatus::ApprovedPendingAcceptance,
             ]);
         } else {
@@ -79,6 +78,11 @@ class Index extends Component
                 // WM: sees POs awaiting acceptance
                 if ($user->hasRole('warehouse-manager') && $canAccept
                     && $po->status === PurchaseOrderStatus::ApprovedPendingAcceptance) {
+                    return true;
+                }
+                // Requester: sees their own returned POs so they can fix and resubmit
+                if ($po->status === PurchaseOrderStatus::ReturnedForCorrection
+                    && $po->requested_by === $user->id) {
                     return true;
                 }
                 if ($this->tab === 'all') {
@@ -162,42 +166,12 @@ class Index extends Component
     }
 
     #[Computed]
-    public function returnedPoApprovals(): \Illuminate\Database\Eloquent\Collection
-    {
-        $user = auth()->user();
-
-        $query = PurchaseOrder::with(['warehouse', 'department', 'requestedBy', 'approvals' => fn ($q) => $q->latest()])
-            ->where('status', PurchaseOrderStatus::ReturnedForCorrection)
-            ->orderByDesc('updated_at');
-
-        if (! $user->hasRole('system-admin')) {
-            $query->where('requested_by', $user->id);
-        }
-
-        return $query->get();
-    }
-
-    #[Computed]
     public function totalPendingCount(): int
     {
         return $this->pendingPoApprovals->count()
             + $this->pendingDoApprovals->count()
             + $this->pendingDisposalApprovals->count()
             + $this->pendingStockStatusApprovals->count();
-    }
-
-    #[Computed]
-    public function totalReturnedCount(): int
-    {
-        $user = auth()->user();
-
-        $query = PurchaseOrder::where('status', PurchaseOrderStatus::ReturnedForCorrection);
-
-        if (! $user->hasRole('system-admin')) {
-            $query->where('requested_by', $user->id);
-        }
-
-        return $query->count();
     }
 
     // ─── PO approval actions ──────────────────────────────────────────────────
