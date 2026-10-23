@@ -43,7 +43,7 @@ enum PurchaseOrderStatus: string
                 in_array($new, [self::PendingApproval, self::Cancelled], true),
 
             self::ApprovedPendingAcceptance =>
-                in_array($new, [self::AcceptedPendingAssignment, self::Rejected, self::Cancelled], true),
+                in_array($new, [self::AcceptedPendingAssignment, self::ReturnedForCorrection, self::Rejected, self::Cancelled], true),
 
             self::AcceptedPendingAssignment =>
                 in_array($new, [self::AssignedPendingReceiving, self::Cancelled], true),

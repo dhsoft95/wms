@@ -113,7 +113,6 @@ final class PurchaseOrderWorkflow
         }
 
         DB::transaction(function () use ($po, $by) {
-            // Restart approvals when resubmitting after return
             if ($po->status === PurchaseOrderStatus::ReturnedForCorrection) {
                 $this->chainService->resetApprovals($po);
             }
@@ -123,9 +122,9 @@ final class PurchaseOrderWorkflow
             $po->save();
 
             activity()->performedOn($po)->causedBy($by)->log('Submitted for approval');
-
-            $this->notifyNextApprovers($po);
         });
+
+        $this->notifyNextApprovers($po);
     }
 
     public function approveAtLevel(
@@ -148,14 +147,14 @@ final class PurchaseOrderWorkflow
             $po->save();
 
             activity()->performedOn($po)->causedBy($by)->log('Approved by dept head');
-
-            User::role('warehouse-manager')->each(fn ($m) =>
-                $m->notify(new PoStatusChangedNotification(
-                    $po, 'approved',
-                    "PO {$po->number} has been approved and is awaiting your acceptance.",
-                ))
-            );
         });
+
+        User::role('warehouse-manager')->each(fn ($m) =>
+            $this->tryNotify($m, new PoStatusChangedNotification(
+                $po, 'approved',
+                "PO {$po->number} has been approved and is awaiting your acceptance.",
+            ))
+        );
     }
 
     /**
@@ -193,15 +192,13 @@ final class PurchaseOrderWorkflow
             activity()->performedOn($po)->causedBy($by)
                 ->withProperties(['comment' => $comment])
                 ->log('Returned for correction');
-
-            // Notify the creator
-            $creator = $po->requestedBy;
-            $creator?->notify(new PoStatusChangedNotification(
-                $po, 'returned',
-                "PO {$po->number} has been returned for correction.",
-                $comment,
-            ));
         });
+
+        $this->tryNotify($po->requestedBy, new PoStatusChangedNotification(
+            $po, 'returned',
+            "PO {$po->number} has been returned for correction.",
+            $comment,
+        ));
     }
 
     public function reject(PurchaseOrder $po, User $by, string $reason): void
@@ -232,13 +229,13 @@ final class PurchaseOrderWorkflow
             activity()->performedOn($po)->causedBy($by)
                 ->withProperties(['reason' => $reason])
                 ->log('Purchase order rejected');
-
-            $po->requestedBy?->notify(new PoStatusChangedNotification(
-                $po, 'rejected',
-                "PO {$po->number} has been rejected.",
-                $reason,
-            ));
         });
+
+        $this->tryNotify($po->requestedBy, new PoStatusChangedNotification(
+            $po, 'rejected',
+            "PO {$po->number} has been rejected.",
+            $reason,
+        ));
     }
 
     // ─── Warehouse acceptance & assignment ────────────────────────────────────
@@ -254,12 +251,12 @@ final class PurchaseOrderWorkflow
             $po->save();
 
             activity()->performedOn($po)->causedBy($by)->log('Accepted by warehouse manager');
-
-            $po->requestedBy?->notify(new PoStatusChangedNotification(
-                $po, 'accepted',
-                "PO {$po->number} has been accepted by the warehouse.",
-            ));
         });
+
+        $this->tryNotify($po->requestedBy, new PoStatusChangedNotification(
+            $po, 'accepted',
+            "PO {$po->number} has been accepted by the warehouse.",
+        ));
     }
 
     public function rejectByWarehouse(PurchaseOrder $po, User $by, string $reason): void
@@ -268,21 +265,20 @@ final class PurchaseOrderWorkflow
         $this->assertRole($by, 'warehouse-manager', 'system-admin');
 
         DB::transaction(function () use ($po, $by, $reason) {
-            $po->status                      = PurchaseOrderStatus::Rejected;
+            $po->status                      = PurchaseOrderStatus::ReturnedForCorrection;
             $po->acceptance_rejection_reason = $reason;
-            $po->rejected_at                 = now();
             $po->save();
 
             activity()->performedOn($po)->causedBy($by)
                 ->withProperties(['reason' => $reason])
-                ->log('Rejected by warehouse manager');
-
-            $po->requestedBy?->notify(new PoStatusChangedNotification(
-                $po, 'warehouse_rejected',
-                "PO {$po->number} has been rejected by the warehouse.",
-                $reason,
-            ));
+                ->log('Sent back for correction by warehouse manager');
         });
+
+        $this->tryNotify($po->requestedBy, new PoStatusChangedNotification(
+            $po, 'returned',
+            "PO {$po->number} has been sent back for correction by the warehouse.",
+            $reason,
+        ));
     }
 
     public function assignSupervisor(PurchaseOrder $po, User $supervisor, User $by): void
@@ -309,12 +305,12 @@ final class PurchaseOrderWorkflow
 
             activity()->performedOn($po)->causedBy($by)
                 ->log("Supervisor assigned: {$supervisor->name}");
-
-            $supervisor->notify(new PoStatusChangedNotification(
-                $po, 'supervisor_assigned',
-                "PO {$po->number} has been assigned to you as supervisor.",
-            ));
         });
+
+        $this->tryNotify($supervisor, new PoStatusChangedNotification(
+            $po, 'supervisor_assigned',
+            "PO {$po->number} has been assigned to you as supervisor.",
+        ));
     }
 
     public function assignClerk(PurchaseOrder $po, User $clerk, User $by): void
@@ -344,12 +340,12 @@ final class PurchaseOrderWorkflow
             activity()->performedOn($po)->causedBy($by)
                 ->withProperties(['previous_clerk_id' => $previous])
                 ->log("Clerk assigned: {$clerk->name}");
-
-            $clerk->notify(new PoStatusChangedNotification(
-                $po, 'clerk_assigned',
-                "PO {$po->number} has been assigned to you for receiving.",
-            ));
         });
+
+        $this->tryNotify($clerk, new PoStatusChangedNotification(
+            $po, 'clerk_assigned',
+            "PO {$po->number} has been assigned to you for receiving.",
+        ));
     }
 
     // ─── Putaway & validation ─────────────────────────────────────────────────
@@ -394,7 +390,7 @@ final class PurchaseOrderWorkflow
         $po->save();
 
         if (! $allReceived) {
-            $po->requestedBy?->notify(new PoStatusChangedNotification(
+            $this->tryNotify($po->requestedBy, new PoStatusChangedNotification(
                 $po, 'partial_receipt',
                 "PO {$po->number}: partial delivery recorded. Awaiting further deliveries.",
             ));
@@ -420,8 +416,7 @@ final class PurchaseOrderWorkflow
 
         activity()->performedOn($po)->causedBy($by)->log('Putaway complete  awaiting supervisor validation');
 
-        $supervisor = $po->assignedSupervisor;
-        $supervisor?->notify(new PoStatusChangedNotification(
+        $this->tryNotify($po->assignedSupervisor, new PoStatusChangedNotification(
             $po, 'pending_validation',
             "PO {$po->number} putaway is complete. Please validate.",
         ));
@@ -438,10 +433,9 @@ final class PurchaseOrderWorkflow
             $po->save();
 
             activity()->performedOn($po)->causedBy($by)->log('Supervisor validation complete');
-
-            // Notify all approvers who participated
-            $this->notifyApproversForVerification($po);
         });
+
+        $this->notifyApproversForVerification($po);
     }
 
     public function sendBackFromValidation(PurchaseOrder $po, User $by, string $comment): void
@@ -456,7 +450,7 @@ final class PurchaseOrderWorkflow
             ->withProperties(['comment' => $comment])
             ->log('Sent back to clerk for correction');
 
-        $po->assignedClerk?->notify(new PoStatusChangedNotification(
+        $this->tryNotify($po->assignedClerk, new PoStatusChangedNotification(
             $po, 'validation_rejected',
             "PO {$po->number} putaway was sent back for correction.",
             $comment,
@@ -545,15 +539,14 @@ final class PurchaseOrderWorkflow
             $po->save();
 
             activity()->performedOn($po)->causedBy($by)->log('Verified and closed by approver');
-
-            // Notify creator, clerk, supervisor
-            foreach ([$po->requestedBy, $po->assignedClerk, $po->assignedSupervisor] as $notify) {
-                $notify?->notify(new PoStatusChangedNotification(
-                    $po, 'verified_closed',
-                    "PO {$po->number} has been verified and closed.",
-                ));
-            }
         });
+
+        foreach ([$po->requestedBy, $po->assignedClerk, $po->assignedSupervisor] as $recipient) {
+            $this->tryNotify($recipient, new PoStatusChangedNotification(
+                $po, 'verified_closed',
+                "PO {$po->number} has been verified and closed.",
+            ));
+        }
     }
 
     public function raiseIssue(PurchaseOrder $po, User $by, string $description, ?string $attachmentPath = null): PoIssue
@@ -561,7 +554,7 @@ final class PurchaseOrderWorkflow
         $this->assertStatus($po, PurchaseOrderStatus::CompletedPendingVerification, PurchaseOrderStatus::IssueResolved);
         $this->assertIsNotifiedApprover($po, $by);
 
-        return DB::transaction(function () use ($po, $by, $description, $attachmentPath) {
+        $issue = DB::transaction(function () use ($po, $by, $description, $attachmentPath) {
             $issue = PoIssue::create([
                 'purchase_order_id' => $po->id,
                 'raised_by'         => $by->id,
@@ -577,23 +570,23 @@ final class PurchaseOrderWorkflow
                 ->withProperties(['issue_id' => $issue->id])
                 ->log('Issue raised by approver');
 
-            // Notify warehouse-manager and assigned clerk
-            $managers = User::role('warehouse-manager')->get();
-            foreach ($managers as $manager) {
-                $manager->notify(new PoStatusChangedNotification(
-                    $po, 'issue_raised',
-                    "An issue has been raised on PO {$po->number}.",
-                    $description,
-                ));
-            }
-            $po->assignedClerk?->notify(new PoStatusChangedNotification(
+            return $issue;
+        });
+
+        User::role('warehouse-manager')->each(fn ($m) =>
+            $this->tryNotify($m, new PoStatusChangedNotification(
                 $po, 'issue_raised',
                 "An issue has been raised on PO {$po->number}.",
                 $description,
-            ));
+            ))
+        );
+        $this->tryNotify($po->assignedClerk, new PoStatusChangedNotification(
+            $po, 'issue_raised',
+            "An issue has been raised on PO {$po->number}.",
+            $description,
+        ));
 
-            return $issue;
-        });
+        return $issue;
     }
 
     public function resolveIssue(PoIssue $issue, User $by, string $notes, ?int $stockAdjustmentId = null): void
@@ -604,7 +597,9 @@ final class PurchaseOrderWorkflow
             throw new \DomainException("Issue #{$issue->id} is already resolved.");
         }
 
-        DB::transaction(function () use ($issue, $by, $notes, $stockAdjustmentId) {
+        $allResolved = false;
+
+        DB::transaction(function () use ($issue, $by, $notes, $stockAdjustmentId, &$allResolved) {
             $issue->update([
                 'status'              => PoIssueStatus::Resolved,
                 'resolved_by'         => $by->id,
@@ -615,17 +610,18 @@ final class PurchaseOrderWorkflow
 
             $po = $issue->purchaseOrder;
 
-            // Only advance if no other open issues remain
             if (! $po->issues()->where('status', 'open')->exists()) {
                 $po->status = PurchaseOrderStatus::IssueResolved;
                 $po->save();
 
                 activity()->performedOn($po)->causedBy($by)->log('All issues resolved');
-
-                // Notify all notified approvers to verify again
-                $this->notifyApproversForVerification($po);
+                $allResolved = true;
             }
         });
+
+        if ($allResolved) {
+            $this->notifyApproversForVerification($issue->purchaseOrder);
+        }
     }
 
     // ─── Cancel ───────────────────────────────────────────────────────────────
@@ -693,8 +689,7 @@ final class PurchaseOrderWorkflow
     private function notifyNextApprovers(PurchaseOrder $po): void
     {
         if ($po->status === PurchaseOrderStatus::PendingApproval) {
-            $head = $po->department?->headUser;
-            $head?->notify(new PoApprovalRequestedNotification($po, 1));
+            $this->tryNotify($po->department?->headUser, new PoApprovalRequestedNotification($po, 1));
         }
     }
 
@@ -705,12 +700,23 @@ final class PurchaseOrderWorkflow
             ->pluck('user_id')
             ->unique();
 
-        $approvers = User::whereIn('id', $approverIds)->get();
-        foreach ($approvers as $approver) {
-            $approver->notify(new PoStatusChangedNotification(
+        User::whereIn('id', $approverIds)->each(fn ($approver) =>
+            $this->tryNotify($approver, new PoStatusChangedNotification(
                 $po, 'completed',
                 "PO {$po->number} is complete and awaiting your verification.",
-            ));
+            ))
+        );
+    }
+
+    private function tryNotify(?User $user, mixed $notification): void
+    {
+        if ($user === null) {
+            return;
+        }
+        try {
+            $user->notify($notification);
+        } catch (\Throwable) {
+            // Email failures must not block workflow actions
         }
     }
 
