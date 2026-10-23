@@ -1,10 +1,17 @@
 @php
+    use App\Services\Foundation\SettingsService;
+    use Illuminate\Support\Facades\Storage;
+
     $brand     = config('wms.branding', []);
     $brandName = $brand['name'] ?? config('app.name');
     $subtitle  = $brand['subtitle'] ?? 'Warehouse Management System';
     $initials  = strtoupper($brand['initials'] ?? substr($brandName, 0, 2));
-    $logo      = $brand['logo'] ?? 'images/logo/logo.png';
     $authBg    = $brand['auth_background'] ?? 'images/auth/warehouse-bg.jpg';
+
+    $_uploadedLogo = SettingsService::get('company.logo_path');
+    $logoUrl = $_uploadedLogo
+        ? Storage::disk('public')->url($_uploadedLogo)
+        : (($brand['logo'] ?? null) ? asset($brand['logo']) : null);
 @endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
@@ -33,9 +40,11 @@
 
                 {{-- Logo + brand inside card --}}
                 <a href="{{ url('/') }}" class="flex flex-col items-center gap-2 mb-7 no-underline" wire:navigate>
-                    <img src="{{ asset($logo) }}" alt="{{ $brandName }}"
-                         class="h-14 w-auto drop-shadow"
+                    @if ($logoUrl)
+                    <img src="{{ $logoUrl }}" alt="{{ $brandName }}"
+                         class="block h-14 w-auto drop-shadow"
                          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                    @endif
                     <div class="w-14 h-14 rounded-2xl glass-brand items-center justify-center font-bold text-white text-xl shrink-0" style="display:none">
                         {{ $initials }}
                     </div>

@@ -1,5 +1,7 @@
 @php
+use App\Services\Foundation\SettingsService;
 use App\Support\Navigation\NavigationBuilder;
+use Illuminate\Support\Facades\Storage;
 
 $navGroups    = app(NavigationBuilder::class)->build();
 $navGroupKeys = array_column($navGroups, 'key');
@@ -21,11 +23,16 @@ $branding  = config('wms.branding');
 $brandName = $branding['name'] ?? config('app.name', 'Warehouse');
 $brandSub  = $branding['subtitle'] ?? 'Warehouse Management System';
 $initials  = $branding['initials'] ?? 'WMS';
-$logoPath  = $branding['logo'] ?? null;
-$hasLogo   = !empty($logoPath);
 $appBg     = $branding['app_background'];
 $authBg    = $branding['auth_background'];
 $bgImage   = asset(file_exists(public_path($appBg)) ? $appBg : $authBg);
+
+// Prefer the uploaded logo from settings; fall back to the static default.
+$_uploadedLogo = SettingsService::get('company.logo_path');
+$logoUrl = $_uploadedLogo
+    ? Storage::disk('public')->url($_uploadedLogo)
+    : (($branding['logo'] ?? null) ? asset($branding['logo']) : null);
+$hasLogo = !empty($logoUrl);
 @endphp
 <!DOCTYPE html>
 <html
@@ -159,8 +166,8 @@ $bgImage   = asset(file_exists(public_path($appBg)) ? $appBg : $authBg);
         >
             <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-3 min-w-0">
                 @if ($hasLogo)
-                    <img src="{{ asset($logoPath) }}" alt="{{ $brandName }}"
-                         class="w-9 h-9 rounded-xl object-contain shrink-0"
+                    <img src="{{ $logoUrl }}" alt="{{ $brandName }}"
+                         class="block w-9 h-9 rounded-xl object-contain shrink-0"
                          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
                     <div class="w-9 h-9 rounded-xl glass-brand items-center justify-center font-black text-[12px] tracking-tight text-white shrink-0" style="display:none">
                         {{ $initials }}
@@ -241,6 +248,15 @@ $bgImage   = asset(file_exists(public_path($appBg)) ? $appBg : $authBg);
             <button @click="sidebarOpen = true" class="icon-btn lg:hidden">
                 <x-ui.icon name="menu" class="w-5 h-5" />
             </button>
+
+            {{-- Mobile logo (visible only when sidebar is hidden on small screens) --}}
+            @if ($hasLogo)
+                <a href="{{ route('dashboard') }}" wire:navigate class="lg:hidden flex items-center gap-2 shrink-0">
+                    <img src="{{ $logoUrl }}" alt="{{ $brandName }}"
+                         class="block h-8 w-auto rounded-lg object-contain"
+                         onerror="this.style.display='none'">
+                </a>
+            @endif
 
             {{-- Breadcrumb / page title --}}
             @if (($breadcrumbGroup ?? null) || ($title ?? null))
