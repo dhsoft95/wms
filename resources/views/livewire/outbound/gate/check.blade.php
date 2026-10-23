@@ -64,15 +64,20 @@
                     @endif
                 </div>
             </div>
-            @if ($found->status === \App\Enums\Outbound\GatePassStatus::Issued)
-                <div class="card-footer">
+            <div class="card-footer flex flex-col gap-2">
+                @if ($found->status === \App\Enums\Outbound\GatePassStatus::Issued)
                     @can('gate.verify')
                         <button wire:click="verifyExit" class="btn btn-primary w-full text-base py-3">
                             <x-ui.icon name="check" class="w-5 h-5" /> Confirm Gate Exit
                         </button>
                     @endcan
-                </div>
-            @endif
+                @endif
+                <a href="{{ route('outbound.gate-pass.print', $found) }}"
+                   target="_blank"
+                   class="btn btn-secondary w-full">
+                    <x-ui.icon name="printer" class="w-4 h-4" /> Print Gate Pass
+                </a>
+            </div>
         </div>
     @endif
 </div>

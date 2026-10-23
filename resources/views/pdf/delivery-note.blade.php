@@ -110,17 +110,8 @@
         .late       { color: #b91c1c; font-weight: bold; }
 
         /* KPI */
-        .kpi-row { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin: 0 -6px 12px -6px; }
-        .kpi-box {
-            border: 1px solid #e5e7eb;
-            border-left: 3px solid #a22631;
-            background: #fafafa;
-            padding: 6px 8px;
-            vertical-align: top;
-        }
-        .kpi-box.tone-danger  { border-left-color: #b91c1c; background: #fdf2f2; }
-        .kpi-box.tone-warning { border-left-color: #d97706; background: #fffbf0; }
-        .kpi-box.tone-success { border-left-color: #15803d; background: #f0fdf4; }
+        .kpi-row   { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin: 0 -6px 12px -6px; table-layout: fixed; }
+        .kpi-box   { border: 1px solid #e5e7eb; background: #fff; padding: 6px 8px; vertical-align: top; }
         .kpi-label { font-size: 7px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
         .kpi-value { font-size: 13px; font-weight: bold; color: #111; margin-top: 2px; }
         .kpi-hint  { font-size: 7px; color: #6b7280; margin-top: 1px; }
@@ -277,11 +268,11 @@
             <div class="kpi-value">{{ $lines->count() }}</div>
         </td>
         @if ($hasOrdered)
-            <td class="kpi-box {{ $fullLines === $lines->count() ? 'tone-success' : ($shortLines > 0 ? 'tone-warning' : '') }}">
+            <td class="kpi-box">
                 <div class="kpi-label">Dispatched in full</div>
                 <div class="kpi-value">{{ $fullLines }} / {{ $lines->count() }}</div>
             </td>
-            <td class="kpi-box {{ $shortLines > 0 ? 'tone-danger' : 'tone-success' }}">
+            <td class="kpi-box">
                 <div class="kpi-label">Short lines</div>
                 <div class="kpi-value">{{ $shortLines }}</div>
             </td>
@@ -295,7 +286,7 @@
                 <div class="kpi-hint">Mixed units of measure</div>
             @endif
         </td>
-        <td class="kpi-box {{ $serialLines > 0 ? '' : '' }}">
+        <td class="kpi-box">
             <div class="kpi-label">Serialised lines</div>
             <div class="kpi-value">{{ $serialLines }}</div>
         </td>

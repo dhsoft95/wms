@@ -228,6 +228,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/dispatch/{dispatch}/rcn/download',
             [\App\Http\Controllers\DispatchDocumentController::class, 'rcn'])
             ->middleware('permission:dispatch.view')->name('dispatch.rcn.download');
+        Route::get('/gate-passes/{gatePass}/print',
+            [\App\Http\Controllers\GatePassDocumentController::class, 'print'])
+            ->middleware('permission:dispatch.view|gate.verify')->name('gate-pass.print');
         Route::get('/pick-lists', \App\Livewire\Outbound\PickLists\Index::class)
             ->middleware('permission:picking.view')->name('pick-lists.index');
         Route::get('/dispatch', \App\Livewire\Outbound\Dispatch\Index::class)

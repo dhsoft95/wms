@@ -1,7 +1,7 @@
 @php
     /** @var \App\Contracts\Reports\ReportDefinition $definition */
     /** @var \Illuminate\Support\Collection $rows */
-    /** @var array $summary     label => scalar | ['value' => , 'hint' => , 'tone' => 'danger|warning|success'] */
+    /** @var array $summary     label => scalar | ['value' => ..., 'hint' => ...] */
     /** @var array|null $totals key => value (grand total row) */
     /** @var array $meta        label => value (shown in header) */
     /** @var array $brand       ['name','address','logoDataUri'] */
@@ -95,17 +95,8 @@
         .rpt-meta strong { color: #222; }
 
         /* KPI */
-        .kpi-row { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin: 0 -6px 12px -6px; }
-        .kpi-box {
-            border: 1px solid #e5e7eb;
-            border-left: 3px solid #a22631;
-            background: #fafafa;
-            padding: 6px 8px;
-            vertical-align: top;
-        }
-        .kpi-box.tone-danger  { border-left-color: #b91c1c; }
-        .kpi-box.tone-warning { border-left-color: #d97706; }
-        .kpi-box.tone-success { border-left-color: #15803d; }
+        .kpi-row   { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin: 0 -6px 12px -6px; table-layout: fixed; }
+        .kpi-box   { border: 1px solid #e5e7eb; background: #fff; padding: 6px 8px; vertical-align: top; }
         .kpi-label { font-size: 7px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
         .kpi-value { font-size: 13px; font-weight: bold; color: #111; margin-top: 2px; }
         .kpi-hint  { font-size: 7px; color: #6b7280; margin-top: 1px; }
@@ -221,9 +212,8 @@
                 @php
                     $value = is_array($item) ? ($item['value'] ?? null) : $item;
                     $hint  = is_array($item) ? ($item['hint'] ?? null) : null;
-                    $kTone = is_array($item) && ! empty($item['tone']) ? 'tone-' . $item['tone'] : '';
                 @endphp
-                <td class="kpi-box {{ $kTone }}">
+                <td class="kpi-box">
                     <div class="kpi-label">{{ $label }}</div>
                     <div class="kpi-value">
                         {{ is_numeric($value) ? number_format((float) $value, $autoDecimals($value)) : $value }}

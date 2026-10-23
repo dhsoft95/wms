@@ -92,17 +92,8 @@
         .rpt-meta strong { color: #222; }
 
         /* KPI */
-        .kpi-row { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin: 0 -6px 12px -6px; }
-        .kpi-box {
-            border: 1px solid #e5e7eb;
-            border-left: 3px solid #a22631;
-            background: #fafafa;
-            padding: 6px 8px;
-            vertical-align: top;
-        }
-        .kpi-box.tone-danger  { border-left-color: #b91c1c; }
-        .kpi-box.tone-warning { border-left-color: #d97706; }
-        .kpi-box.tone-success { border-left-color: #15803d; }
+        .kpi-row   { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin: 0 -6px 12px -6px; table-layout: fixed; }
+        .kpi-box   { border: 1px solid #e5e7eb; background: #fff; padding: 6px 8px; vertical-align: top; }
         .kpi-label { font-size: 7px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
         .kpi-value { font-size: 13px; font-weight: bold; color: #111; margin-top: 2px; }
         .kpi-hint  { font-size: 7px; color: #6b7280; margin-top: 1px; }
@@ -250,19 +241,19 @@
             <div class="kpi-label">Lines</div>
             <div class="kpi-value">{{ $lines->count() }}</div>
         </td>
-        <td class="kpi-box {{ $fullLines === $lines->count() ? 'tone-success' : 'tone-warning' }}">
+        <td class="kpi-box">
             <div class="kpi-label">Received in full</div>
             <div class="kpi-value">{{ $fullLines }} / {{ $lines->count() }}</div>
         </td>
-        <td class="kpi-box {{ $shortLines > 0 ? 'tone-danger' : 'tone-success' }}">
+        <td class="kpi-box">
             <div class="kpi-label">Short lines</div>
             <div class="kpi-value">{{ $shortLines }}</div>
         </td>
-        <td class="kpi-box {{ $overLines > 0 ? 'tone-warning' : 'tone-success' }}">
+        <td class="kpi-box">
             <div class="kpi-label">Over lines</div>
             <div class="kpi-value">{{ $overLines }}</div>
         </td>
-        <td class="kpi-box {{ $damagedLines > 0 ? 'tone-danger' : 'tone-success' }}">
+        <td class="kpi-box">
             <div class="kpi-label">Damaged lines</div>
             <div class="kpi-value">{{ $damagedLines }}</div>
             @if ($hasDamaged && $singleUom)

@@ -143,6 +143,14 @@
                     </div>
                     @endif
                 </div>
+                <div class="card-footer">
+                    <a href="{{ route('outbound.gate-pass.print', $this->record->gatePass) }}"
+                       target="_blank"
+                       class="btn btn-secondary w-full">
+                        <x-ui.icon name="printer" class="w-4 h-4" />
+                        Print Gate Pass
+                    </a>
+                </div>
             </div>
             @endif
         </div>
