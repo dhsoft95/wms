@@ -45,6 +45,9 @@ class Item extends Model
         'dispatch_requires_approval',
         'dispatch_approval_qty',
         'adjustment_approval',
+        'is_hazardous',
+        'hazard_note',
+        'sds_file_path',
     ];
 
     protected function casts(): array
@@ -65,6 +68,7 @@ class Item extends Model
             'variance_threshold_qty'     => 'decimal:4',
             'dispatch_requires_approval' => 'boolean',
             'dispatch_approval_qty'      => 'decimal:4',
+            'is_hazardous'               => 'boolean',
         ];
     }
 

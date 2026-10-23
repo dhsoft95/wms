@@ -15,6 +15,11 @@
                 @else
                     <span class="badge badge-red">Inactive</span>
                 @endif
+                @if ($item->is_hazardous)
+                    <span class="badge badge-amber">
+                        <x-ui.icon name="warning" class="w-3 h-3 mr-0.5" /> Hazardous
+                    </span>
+                @endif
             </div>
             @if ($item->description)
                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ $item->description }}</p>
@@ -362,6 +367,7 @@
                     'track_batch'  => ['label' => 'Track Batch',         'hint' => 'Lot/batch management required at receipt'],
                     'track_expiry' => ['label' => 'Track Expiry',        'hint' => 'FEFO enabled; batch tracking forced on'],
                     'track_serial' => ['label' => 'Track Serial Numbers','hint' => 'Each unit tracked individually'],
+                    'is_hazardous' => ['label' => 'Hazardous',           'hint' => 'Restricted to hazardous bins; badge shown on documents'],
                     'is_active'    => ['label' => 'Active',              'hint' => 'Item is available for transactions'],
                 ];
             @endphp
@@ -387,6 +393,18 @@
                     </dd>
                 </div>
             @endforeach
+
+            @if ($item->is_hazardous && $item->hazard_note)
+                <div class="py-4 flex items-start gap-3 rounded-xl
+                            bg-amber-50/60 dark:bg-amber-950/30
+                            border border-amber-200 dark:border-amber-900/40 px-4 mx-0 mt-2">
+                    <x-ui.icon name="warning" class="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                    <div>
+                        <p class="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide mb-0.5">Hazard Note</p>
+                        <p class="text-sm text-amber-700 dark:text-amber-300">{{ $item->hazard_note }}</p>
+                    </div>
+                </div>
+            @endif
 
         </dl>
     </div>

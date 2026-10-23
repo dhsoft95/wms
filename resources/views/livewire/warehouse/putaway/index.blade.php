@@ -259,11 +259,10 @@
                             @if (! $serialDriven)
                             <div class="col-span-2">
                                 <label class="label text-xs">Qty <span class="text-red-500">*</span></label>
-                                <input wire:model.blur="splitRows.{{ $i }}.qty"
+                                <input wire:model.live="splitRows.{{ $i }}.qty"
                                        type="number"
                                        min="0.0001"
                                        step="any"
-                                       value="{{ $row['qty'] ?? '' }}"
                                        placeholder="0"
                                        class="input w-full tabular-nums text-sm" />
                             </div>
@@ -299,8 +298,8 @@
                                             'hover:bg-slate-50 dark:hover:bg-white/[0.03]' => !$isTaken && !$isChecked,
                                         ])>
                                             <input type="checkbox"
-                                                   wire:model="splitRows.{{ $i }}.serials"
-                                                   value="{{ $serial }}"
+                                                   wire:click="toggleRowSerial({{ $i }}, '{{ $serial }}')"
+                                                   @checked($isChecked)
                                                    @disabled($isTaken)
                                                    class="rounded border-slate-300 dark:border-slate-600 text-simba-600 focus:ring-simba-500 shrink-0" />
                                             <span class="font-mono text-xs {{ $isChecked ? 'text-emerald-700 dark:text-emerald-300 font-semibold' : 'text-slate-700 dark:text-slate-300' }}">

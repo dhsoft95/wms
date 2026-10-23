@@ -14,16 +14,22 @@ class ReportRequest extends Model
         'type',
         'date_from',
         'date_to',
+        'filters',
+        'format',
+        'row_count',
         'status',
         'file_path',
+        'notified_at',
         'error',
     ];
 
     protected function casts(): array
     {
         return [
-            'date_from' => 'immutable_date',
-            'date_to'   => 'immutable_date',
+            'date_from'    => 'immutable_date',
+            'date_to'      => 'immutable_date',
+            'filters'      => 'array',
+            'notified_at'  => 'immutable_datetime',
         ];
     }
 
@@ -36,4 +42,11 @@ class ReportRequest extends Model
     public function isProcessing(): bool { return $this->status === 'processing'; }
     public function isReady(): bool      { return $this->status === 'ready'; }
     public function isFailed(): bool     { return $this->status === 'failed'; }
+
+    public function isRegistryReport(): bool { return $this->filters !== null; }
+
+    public function needsNotification(): bool
+    {
+        return $this->isReady() && $this->notified_at === null;
+    }
 }

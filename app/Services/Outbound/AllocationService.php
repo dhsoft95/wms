@@ -149,6 +149,7 @@ final class AllocationService
         $query = StockBalance::with(['batch', 'location'])
             ->where('virtual_warehouse_id', $do->virtual_warehouse_id)
             ->where('stock_status', 'available')
+            ->whereNotIn('stock_status', ['on_hold', 'obsolete'])
             ->whereHas('location', function ($q) {
                 $q->where('type', 'storage')
                   ->whereIn('status', ['active', 'full']);

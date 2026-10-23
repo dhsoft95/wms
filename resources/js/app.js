@@ -35,7 +35,53 @@ const apexChartDef = (config) => ({
         const t = this.themeColors()
         const cfg = this.config
 
-        // ── Doughnut (was radialBar) ─────────────────────────────────────────
+        // ── Donut — multi-slice (Order Pipeline etc.) ──────────────────────
+        if (cfg.type === 'donut') {
+            const labels = cfg.categories ?? []
+            // Accept both [{name, data: [...]}] and flat [n, n, n] series
+            const data = Array.isArray(cfg.series[0]?.data)
+                ? cfg.series[0].data
+                : cfg.series.map(Number)
+            const colors = palette.slice(0, labels.length)
+
+            return {
+                type: 'doughnut',
+                data: {
+                    labels,
+                    datasets: [{
+                        data,
+                        backgroundColor: colors,
+                        borderWidth: 0,
+                        hoverOffset: 6,
+                    }],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '58%',
+                    animation: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'right',
+                            labels: {
+                                color:    t.text,
+                                boxWidth: 10,
+                                padding:  14,
+                                font:     { size: 11 },
+                            },
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => ` ${ctx.label}: ${ctx.raw.toLocaleString()}`,
+                            },
+                        },
+                    },
+                },
+            }
+        }
+
+        // ── Doughnut (was radialBar) — single-value gauge ────────────────────
         if (cfg.type === 'radialBar') {
             const value = Number(cfg.series[0] ?? 0)
             return {

@@ -74,7 +74,7 @@ final class StockQueryService
         }
 
         if ($groupByItem) {
-            $query->selectRaw('item_id, MIN(id) as id, SUM(qty_on_hand) as qty_on_hand, SUM(qty_allocated) as qty_allocated')
+            $query->selectRaw('item_id, MIN(id) as id, SUM(qty_on_hand) as qty_on_hand, SUM(qty_allocated) as qty_allocated, COUNT(DISTINCT location_id) as locations_count, COUNT(DISTINCT virtual_warehouse_id) as warehouses_count')
                 ->groupBy('item_id')
                 ->with(['item.category', 'item.baseUom']);
             return $query->orderBy('item_id')->paginate($perPage);
@@ -82,6 +82,37 @@ final class StockQueryService
 
         $query->with(['item.category', 'item.baseUom', 'batch', 'lpn', 'location', 'virtualWarehouse']);
         return $query->orderBy('id')->paginate($perPage);
+    }
+
+    // Base Builder for stock-on-hand reports — respects VW scope, no pagination.
+    public function stockOnHandBuilder(
+        ?int $virtualWarehouseId = null,
+        ?int $departmentId = null,
+        ?string $asOfDate = null,
+        ?User $user = null,
+    ): \Illuminate\Database\Eloquent\Builder {
+        $query = StockBalance::where('qty_on_hand', '>', 0);
+
+        if ($virtualWarehouseId !== null) {
+            $query->where('virtual_warehouse_id', $virtualWarehouseId);
+        }
+
+        if ($departmentId !== null) {
+            $query->whereHas('virtualWarehouse', fn ($q) => $q->where('department_id', $departmentId));
+        }
+
+        if ($asOfDate !== null) {
+            $query->where('received_at', '<=', $asOfDate . ' 23:59:59');
+        }
+
+        if ($user !== null && ! $user->canAccessAllVirtualWarehouses()) {
+            $vwIds = $user->accessibleVirtualWarehouseIds();
+            if (! empty($vwIds)) {
+                $query->whereIn('virtual_warehouse_id', $vwIds);
+            }
+        }
+
+        return $query;
     }
 
     // Summary stats for the Stock on Hand screen.

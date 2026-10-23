@@ -201,6 +201,14 @@ return [
                     'active_routes' => ['inventory.serials.*'],
                     'can'           => 'serials.view',
                 ],
+                [
+                    'key'           => 'disposals',
+                    'label'         => 'Disposals',
+                    'icon'          => 'trash',
+                    'route'         => 'inventory.disposals.index',
+                    'active_routes' => ['inventory.disposals.*'],
+                    'can'           => 'disposals.create',
+                ],
             ],
         ],
 

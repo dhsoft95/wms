@@ -62,8 +62,104 @@
         </div>
     @endif
 
+    {{-- Disposal Requests section --}}
+    @if ($this->pendingDisposalApprovals->isNotEmpty())
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Disposal Requests</h3>
+                <span class="badge badge-amber ml-2">{{ $this->pendingDisposalApprovals->count() }}</span>
+            </div>
+            <x-ui.table>
+                <thead>
+                    <tr>
+                        <th>Number</th>
+                        <th>Department</th>
+                        <th>VW</th>
+                        <th>Method</th>
+                        <th>Lines</th>
+                        <th>Submitted</th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($this->pendingDisposalApprovals as $req)
+                    <tr wire:key="disp-{{ $req->id }}">
+                        <td>
+                            <a href="{{ route('inventory.disposals.show', $req) }}" wire:navigate
+                               class="mono font-semibold text-simba-600 hover:underline">{{ $req->number }}</a>
+                        </td>
+                        <td class="text-sm">{{ $req->department?->name ?? '—' }}</td>
+                        <td class="text-sm">{{ $req->virtualWarehouse?->name ?? '—' }}</td>
+                        <td class="text-sm">{{ $req->method?->label() ?? '—' }}</td>
+                        <td class="tabular-nums text-slate-500">{{ $req->lines_count }}</td>
+                        <td class="text-meta text-xs">{{ $req->submitted_at?->format('d M Y') ?? '—' }}</td>
+                        <td class="text-right">
+                            <div class="flex items-center justify-end gap-2">
+                                <a href="{{ route('inventory.disposals.show', $req) }}" wire:navigate class="btn btn-ghost btn-sm">View</a>
+                                <button wire:click="approveDisposal({{ $req->id }})" wire:loading.attr="disabled" class="btn btn-primary btn-sm">
+                                    Approve
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </x-ui.table>
+        </div>
+    @endif
+
+    {{-- Stock Status Requests section --}}
+    @if ($this->pendingStockStatusApprovals->isNotEmpty())
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Stock Status Requests</h3>
+                <span class="badge badge-amber ml-2">{{ $this->pendingStockStatusApprovals->count() }}</span>
+            </div>
+            <x-ui.table>
+                <thead>
+                    <tr>
+                        <th>Number</th>
+                        <th>Type</th>
+                        <th>Department</th>
+                        <th>VW</th>
+                        <th>Lines</th>
+                        <th>Submitted</th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($this->pendingStockStatusApprovals as $req)
+                    <tr wire:key="ssr-{{ $req->id }}">
+                        <td>
+                            <a href="{{ route('inventory.stock-status.show', $req) }}" wire:navigate
+                               class="mono font-semibold text-simba-600 hover:underline">{{ $req->number }}</a>
+                        </td>
+                        <td>
+                            <span class="badge {{ $req->type === \App\Enums\Inventory\StockStatusRequestType::MarkObsolete ? 'badge-red' : 'badge-green' }}">
+                                {{ $req->type?->label() }}
+                            </span>
+                        </td>
+                        <td class="text-sm">{{ $req->department?->name ?? '—' }}</td>
+                        <td class="text-sm">{{ $req->virtualWarehouse?->name ?? '—' }}</td>
+                        <td class="tabular-nums text-slate-500">{{ $req->lines_count }}</td>
+                        <td class="text-meta text-xs">{{ $req->submitted_at?->format('d M Y') ?? '—' }}</td>
+                        <td class="text-right">
+                            <div class="flex items-center justify-end gap-2">
+                                <a href="{{ route('inventory.stock-status.show', $req) }}" wire:navigate class="btn btn-ghost btn-sm">View</a>
+                                <button wire:click="approveSsr({{ $req->id }})" wire:loading.attr="disabled" class="btn btn-primary btn-sm">
+                                    Approve
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </x-ui.table>
+        </div>
+    @endif
+
     {{-- Empty state --}}
-    @if ($this->pendingPoApprovals->isEmpty() && $this->pendingDoApprovals->isEmpty())
+    @if ($this->pendingPoApprovals->isEmpty() && $this->pendingDoApprovals->isEmpty() && $this->pendingDisposalApprovals->isEmpty() && $this->pendingStockStatusApprovals->isEmpty())
         <div class="card p-12 flex flex-col items-center justify-center text-center space-y-3">
             <div class="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                 <x-ui.icon name="check" class="w-7 h-7 text-emerald-600" />
@@ -71,11 +167,11 @@
             <p class="font-semibold text-slate-700 dark:text-slate-200">No pending approvals</p>
             <p class="text-sm text-slate-400">All delivery orders have been reviewed. Check back later.</p>
         </div>
-    @else
+    @elseif($this->pendingDoApprovals->isNotEmpty())
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title">Pending Delivery Orders</h3>
-                <span class="badge badge-amber">{{ $this->totalPendingCount }}</span>
+                <span class="badge badge-amber">{{ $this->pendingDoApprovals->count() }}</span>
             </div>
 
             <x-ui.table>

@@ -41,6 +41,11 @@
             {{ $node->level->label() }}
         </span>
 
+        {{-- Type --}}
+        @if ($node->type)
+            <span class="badge {{ $node->type->badgeClass() }} shrink-0">{{ $node->type->label() }}</span>
+        @endif
+
         {{-- Status --}}
         <span class="badge {{ $statusClass }} shrink-0">{{ $node->status->label() }}</span>
 

@@ -52,13 +52,13 @@ final class PickingService
                 );
             }
 
-            // Only allocations that have no active (non-cancelled) pick task
+            // Only allocations that have no open pick task (short/picked tasks don't block re-generation)
             $allocations = $do->lines()
                 ->with('allocations.location')
                 ->get()
                 ->flatMap(fn ($line) => $line->allocations->where('status', AllocationStatus::Reserved->value))
                 ->filter(fn ($allocation) => ! PickTask::where('delivery_order_allocation_id', $allocation->id)
-                    ->whereNotIn('status', [PickTaskStatus::Cancelled->value])
+                    ->where('status', PickTaskStatus::Open->value)
                     ->exists()
                 )
                 ->sortBy([
@@ -68,7 +68,17 @@ final class PickingService
                 ->values();
 
             if ($allocations->isEmpty()) {
-                throw new \DomainException('Nothing to pick: all allocations already have active pick tasks.');
+                $hasReserved = $do->lines()
+                    ->with('allocations')
+                    ->get()
+                    ->flatMap(fn ($l) => $l->allocations->where('status', AllocationStatus::Reserved->value))
+                    ->isNotEmpty();
+
+                throw new \DomainException(
+                    $hasReserved
+                        ? 'Nothing to pick: all reserved allocations already have open pick tasks.'
+                        : 'Nothing to pick: no reserved allocations on this order.'
+                );
             }
 
             $pickList = PickList::create([

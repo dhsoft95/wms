@@ -5,10 +5,16 @@ declare(strict_types=1);
 namespace App\Livewire\Approvals;
 
 use App\Enums\Inbound\PurchaseOrderStatus;
+use App\Enums\Inventory\DisposalStatus;
+use App\Enums\Inventory\StockStatusRequestStatus;
 use App\Models\DeliveryOrderApproval;
+use App\Models\DisposalRequest;
 use App\Models\PurchaseOrder;
+use App\Models\StockStatusRequest;
 use App\Services\Inbound\ApprovalChainService;
 use App\Services\Inbound\PurchaseOrderWorkflow;
+use App\Services\Inventory\DisposalWorkflow;
+use App\Services\Inventory\StockStatusRequestWorkflow;
 use App\Services\Outbound\DeliveryOrderWorkflow;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
@@ -42,8 +48,10 @@ class Index extends Component
             ->where('status', PurchaseOrderStatus::PendingApproval)
             ->get()
             ->filter(fn ($po) =>
+                $user->hasRole('system-admin') ||
                 $service->canActAtCurrentLevel($po, $user) ||
-                $service->canActOnCategoryLevel($po, $user)
+                $service->canActOnCategoryLevel($po, $user) ||
+                $service->canActAsFallbackApprover($po, $user)
             )
             ->values();
     }
@@ -67,9 +75,40 @@ class Index extends Component
     }
 
     #[Computed]
+    public function pendingDisposalApprovals(): \Illuminate\Database\Eloquent\Collection
+    {
+        $user     = auth()->user();
+        $workflow = app(DisposalWorkflow::class);
+
+        return DisposalRequest::with(['virtualWarehouse', 'createdBy', 'department'])
+            ->withCount('lines')
+            ->where('status', DisposalStatus::Submitted->value)
+            ->get()
+            ->filter(fn ($req) => $workflow->canApprove($req, $user))
+            ->values();
+    }
+
+    #[Computed]
+    public function pendingStockStatusApprovals(): \Illuminate\Database\Eloquent\Collection
+    {
+        $user     = auth()->user();
+        $workflow = app(StockStatusRequestWorkflow::class);
+
+        return StockStatusRequest::with(['virtualWarehouse', 'createdBy', 'department'])
+            ->withCount('lines')
+            ->where('status', StockStatusRequestStatus::Submitted->value)
+            ->get()
+            ->filter(fn ($req) => $workflow->canApprove($req, $user))
+            ->values();
+    }
+
+    #[Computed]
     public function totalPendingCount(): int
     {
-        return $this->pendingPoApprovals->count() + $this->pendingDoApprovals->count();
+        return $this->pendingPoApprovals->count()
+            + $this->pendingDoApprovals->count()
+            + $this->pendingDisposalApprovals->count()
+            + $this->pendingStockStatusApprovals->count();
     }
 
     // ─── PO approval actions ──────────────────────────────────────────────────
@@ -183,6 +222,38 @@ class Index extends Component
 
         $this->dispatch('toast', message: "Order {$approval->deliveryOrder->number} rejected.", type: 'success');
         unset($this->pendingDoApprovals, $this->totalPendingCount);
+    }
+
+    // ─── Disposal approval actions ────────────────────────────────────────────
+
+    public function approveDisposal(int $id): void
+    {
+        $req = DisposalRequest::findOrFail($id);
+        $this->authorize('approve', $req);
+
+        try {
+            app(DisposalWorkflow::class)->approve($req, auth()->user());
+            $this->dispatch('toast', message: "Disposal {$req->number} approved.", type: 'success');
+            unset($this->pendingDisposalApprovals, $this->totalPendingCount);
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    // ─── SSR approval actions ─────────────────────────────────────────────────
+
+    public function approveSsr(int $id): void
+    {
+        $req = StockStatusRequest::findOrFail($id);
+        $this->authorize('approve', $req);
+
+        try {
+            app(StockStatusRequestWorkflow::class)->approve($req, auth()->user());
+            $this->dispatch('toast', message: "SSR {$req->number} approved.", type: 'success');
+            unset($this->pendingStockStatusApprovals, $this->totalPendingCount);
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
     }
 
     public function render(): View

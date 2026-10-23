@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace App\Jobs;
 
 use App\Enums\Inventory\MovementType;
+use App\Exports\Reports\ReportExcelExport;
+use App\Reports\Export\ExcelStyler;
 use App\Models\CycleCountLine;
 use App\Models\DeliveryOrder;
 use App\Models\Grn;
 use App\Models\Inventory\StockBalance;
 use App\Models\Inventory\StockTransaction;
 use App\Models\ReportRequest;
+use App\Notifications\ReportReadyNotification;
+use App\Services\Foundation\SettingsService;
+use App\Services\Reports\ReportRegistry;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -35,6 +40,11 @@ class GenerateReportJob implements ShouldQueue
         $this->request->update(['status' => 'processing']);
 
         try {
+            if ($this->request->isRegistryReport()) {
+                $this->handleRegistryReport();
+                return;
+            }
+
             [$view, $data, $filename] = $this->buildReport();
 
             $pdf  = Pdf::loadView($view, $data)->setPaper([0, 0, 595.28, 841.89], 'portrait');
@@ -48,11 +58,75 @@ class GenerateReportJob implements ShouldQueue
         }
     }
 
+    private function handleRegistryReport(): void
+    {
+        $registry   = app(ReportRegistry::class);
+        $definition = $registry->find($this->request->type);
+
+        if ($definition === null) {
+            $this->request->update(['status' => 'failed', 'error' => "Report definition '{$this->request->type}' not found."]);
+            return;
+        }
+
+        $user    = $this->request->user;
+        $filters = $this->request->filters ?? [];
+        $format  = $this->request->format ?? 'excel';
+
+        if ($format === 'excel') {
+            $brand   = SettingsService::getCompanyBrand();
+            $rows    = $definition->query($filters, $user)->get();
+            $tmpPath = sys_get_temp_dir() . '/' . uniqid('report_', true) . '.xlsx';
+
+            (new ExcelStyler())->write($tmpPath, $definition, $rows, $brand, $filters);
+
+            $storagePath = 'reports/' . $this->request->id . '_' . $definition->key() . '_' . now()->format('Ymd-Hi') . '.xlsx';
+            Storage::put($storagePath, file_get_contents($tmpPath));
+            @unlink($tmpPath);
+
+        } elseif ($format === 'pdf' && $definition->pdfEnabled()) {
+            $rows       = $definition->query($filters, $user)->get();
+            $colCount   = count($definition->columns());
+            $isLandscape = $colCount > 7;
+            $paper      = $isLandscape ? [0, 0, 841.89, 595.28] : [0, 0, 595.28, 841.89];
+            $orient     = $isLandscape ? 'landscape' : 'portrait';
+            $signatures = match ($definition->key()) {
+                'stock-count'    => ['Count Supervisor', 'Warehouse Manager', 'Finance / Auditor'],
+                'asset-disposal' => ['Requesting Department', 'Approving Authority', 'HSE / Witness'],
+                'pending-orders' => ['Prepared By', 'Reviewed By', 'Approved By'],
+                default          => [],
+            };
+
+            $pdf = Pdf::loadView('reports.layouts.pdf', [
+                'definition'  => $definition,
+                'rows'        => $rows,
+                'filters'     => $filters,
+                'brand'       => SettingsService::getCompanyBrand(),
+                'summary'     => $definition->summary($rows),
+                'totals'      => $definition->totals($rows),
+                'signatures'  => $signatures,
+                'generatedAt' => now()->format('d M Y H:i'),
+            ])->setPaper($paper, $orient);
+
+            $storagePath = 'reports/' . $this->request->id . '_' . $definition->key() . '_' . now()->format('Ymd-Hi') . '.pdf';
+            Storage::put($storagePath, $pdf->output());
+        } else {
+            throw new \InvalidArgumentException("Unsupported format: {$format}");
+        }
+
+        $this->request->update([
+            'status'       => 'ready',
+            'file_path'    => $storagePath,
+            'notified_at'  => now(),
+        ]);
+
+        $user->notify(new ReportReadyNotification($this->request));
+    }
+
     private function buildReport(): array
     {
-        $from      = $this->request->date_from?->format('Y-m-d') ?? now()->startOfMonth()->format('Y-m-d');
-        $to        = $this->request->date_to?->format('Y-m-d')   ?? now()->format('Y-m-d');
-        $brand     = config('app.name');
+        $from      = $this->request->date_from ? Carbon::parse($this->request->date_from)->format('Y-m-d') : now()->startOfMonth()->format('Y-m-d');
+        $to        = $this->request->date_to   ? Carbon::parse($this->request->date_to)->format('Y-m-d')   : now()->format('Y-m-d');
+        $brand     = SettingsService::get('company.name', config('app.name'));
         $fromLabel = Carbon::parse($from)->format('d M Y');
         $toLabel   = Carbon::parse($to)->format('d M Y');
 

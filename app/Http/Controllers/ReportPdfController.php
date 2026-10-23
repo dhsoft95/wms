@@ -11,6 +11,7 @@ use App\Models\Grn;
 use App\Models\Inventory\StockBalance;
 use App\Models\Inventory\StockTransaction;
 use App\Models\ReportRequest;
+use App\Services\Foundation\SettingsService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -26,6 +27,19 @@ class ReportPdfController extends Controller
 
         $filename = basename($reportRequest->file_path);
         return Storage::download($reportRequest->file_path, $filename);
+    }
+
+    public function view(ReportRequest $reportRequest): StreamedResponse
+    {
+        abort_unless($reportRequest->isReady() && $reportRequest->file_path, 404);
+        abort_unless(Storage::exists($reportRequest->file_path), 404);
+
+        $contents = Storage::get($reportRequest->file_path);
+        return response()->streamDownload(
+            fn () => print($contents),
+            basename($reportRequest->file_path),
+            ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline']
+        );
     }
 
     private function dates(Request $request): array
@@ -50,7 +64,7 @@ class ReportPdfController extends Controller
             ->get();
 
         return $this->stream('pdf.reports.stock-valuation', [
-            'brandName' => config('app.name'),
+            'brandName' => SettingsService::get('company.name', config('app.name')),
             'balances'  => $balances,
             'asOf'      => now()->format('d M Y H:i'),
         ], 'stock-valuation-' . now()->format('Ymd'));
@@ -67,7 +81,7 @@ class ReportPdfController extends Controller
             ->get();
 
         return $this->stream('pdf.reports.receiving-summary', [
-            'brandName' => config('app.name'),
+            'brandName' => SettingsService::get('company.name', config('app.name')),
             'grns'      => $grns,
             'from'      => $from,
             'to'        => $to,
@@ -86,7 +100,7 @@ class ReportPdfController extends Controller
             ->get();
 
         return $this->stream('pdf.reports.cycle-count-variances', [
-            'brandName' => config('app.name'),
+            'brandName' => SettingsService::get('company.name', config('app.name')),
             'lines'     => $lines,
             'from'      => $from,
             'to'        => $to,
@@ -104,7 +118,7 @@ class ReportPdfController extends Controller
             ->get();
 
         return $this->stream('pdf.reports.dispatch-accuracy', [
-            'brandName' => config('app.name'),
+            'brandName' => SettingsService::get('company.name', config('app.name')),
             'orders'    => $orders,
             'from'      => $from,
             'to'        => $to,
@@ -131,7 +145,7 @@ class ReportPdfController extends Controller
             });
 
         return $this->stream('pdf.reports.stock-aging', [
-            'brandName' => config('app.name'),
+            'brandName' => SettingsService::get('company.name', config('app.name')),
             'balances'  => $balances,
             'asOf'      => now()->format('d M Y H:i'),
         ], 'stock-aging-' . now()->format('Ymd'));

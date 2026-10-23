@@ -98,6 +98,17 @@ final class PutawayEngine
             );
         }
 
+        // Hazardous item / location constraint
+        $itemForCheck = \App\Models\Item::find($task->item_id);
+        if ($itemForCheck !== null) {
+            if ($itemForCheck->is_hazardous && $destination->type !== \App\Enums\LocationType::Hazardous) {
+                throw new \DomainException("Hazardous item must be put away in a hazardous location.");
+            }
+            if (! $itemForCheck->is_hazardous && $destination->type === \App\Enums\LocationType::Hazardous) {
+                throw new \DomainException("Non-hazardous item cannot be placed in a hazardous location.");
+            }
+        }
+
         if (app(\App\Services\Inventory\CycleCountWorkflow::class)->isLocationLocked($destination->id)) {
             throw new \DomainException(
                 "Bin '{$destination->code}' is locked under an active cycle count and cannot receive stock."
@@ -203,12 +214,21 @@ final class PutawayEngine
         }
 
         // Pre-validate destinations outside the transaction
+        $item = \App\Models\Item::find($task->item_id);
         foreach ($rows as $row) {
             $destination = Location::findOrFail($row['location_id']);
             if (! $destination->isBin()) {
                 throw new \DomainException(
                     "Destination '{$destination->code}' is a {$destination->level->label()}, not a bin."
                 );
+            }
+            if ($item !== null) {
+                if ($item->is_hazardous && $destination->type !== \App\Enums\LocationType::Hazardous) {
+                    throw new \DomainException("Hazardous item must be put away in a hazardous location.");
+                }
+                if (! $item->is_hazardous && $destination->type === \App\Enums\LocationType::Hazardous) {
+                    throw new \DomainException("Non-hazardous item cannot be placed in a hazardous location.");
+                }
             }
             if (app(\App\Services\Inventory\CycleCountWorkflow::class)->isLocationLocked($destination->id)) {
                 throw new \DomainException(

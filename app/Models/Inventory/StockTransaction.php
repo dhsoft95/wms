@@ -35,8 +35,9 @@ class StockTransaction extends Model
     protected function casts(): array
     {
         return [
-            'type'      => MovementType::class,
-            'posted_at' => 'datetime',
+            'type'       => MovementType::class,
+            'posted_at'  => 'datetime',
+            'created_at' => 'datetime',
         ];
     }
 

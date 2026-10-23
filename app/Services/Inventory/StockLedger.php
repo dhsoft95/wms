@@ -186,9 +186,29 @@ final class StockLedger
             serials: $serials,
         );
 
-        $type = $to === StockStatus::OnHold ? MovementType::Hold : MovementType::Release;
+        $type = match($to) {
+            StockStatus::OnHold   => MovementType::Hold,
+            StockStatus::Available => MovementType::Release,
+            StockStatus::Obsolete  => MovementType::Obsolete,
+        };
 
         return $this->post(new StockPosting($type, $ref, [$outLine, $inLine], $idempotencyKey));
+    }
+
+    public function dispose(StockKey $from, string $qty, int $uomId, StockReference $ref, array $serials = [], ?string $idempotencyKey = null): StockTransaction
+    {
+        $line = new StockLine(
+            itemId: $from->itemId,
+            locationId: $from->locationId,
+            virtualWarehouseId: $from->virtualWarehouseId,
+            stockStatus: $from->stockStatus,
+            enteredQty: bcsub('0', $qty, 4),
+            enteredUomId: $uomId,
+            batchId: $from->batchId,
+            lpnId: $from->lpnId,
+            serials: $serials,
+        );
+        return $this->post(new StockPosting(MovementType::Disposal, $ref, [$line], $idempotencyKey));
     }
 
     public function adjust(StockLine $line, StockReference $ref, ?string $idempotencyKey = null): StockTransaction
@@ -673,6 +693,7 @@ final class StockLedger
         return match($type) {
             MovementType::Dispatch => SerialStatus::Dispatched,
             MovementType::Adjustment, MovementType::CountAdjustment => SerialStatus::WrittenOff,
+            MovementType::Disposal => SerialStatus::Disposed,
             default => SerialStatus::InStock, // move/hold/release — position update only, stays in_stock
         };
     }

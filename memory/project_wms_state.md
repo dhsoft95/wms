@@ -4,37 +4,45 @@ description: Current completion state of the WMS project — what's done, what's
 type: project
 ---
 
-Full UI shell complete with glassmorphism app shell; 22 Livewire pages, 12 Form Objects, routes, CSS design system. Back-end (models/DB) not started.
+Full back-end built through Module 12. All modules use real DB (Eloquent models, StockLedger, approval chains, Livewire data). UI shell is glassmorphism throughout.
 
-Auth + app-shell glassmorphism complete (2026-10-08). All pages use the same glass design system.
+**Why:** Ongoing build-out of a full WMS product on Laravel 11 + Livewire 3 + Tailwind v4.
 
-**Why:** Ongoing build-out of a full WMS product on Laravel 11 + Livewire 3 + Flux + Tailwind v4.
+**How to apply:** Next work should continue outbound/dispatch or any remaining modules from WMS_Functional_Breakdown.md.
 
-**How to apply:** Back-end work is the next phase. Both auth pages and the main app shell are styled and ready.
+## Modules Complete
 
-## What is done
+- **Shell / Auth** — glassmorphism app shell, 22 Livewire pages, 12 Form Objects, design system, navigation, toasts, dark mode
+- **Module 2** — Stock Ledger & Stock-on-Hand Engine (StockLedger, StockBalance, StockMovement, StockTransaction, reservations, verify command)
+- **Module 2B** — Serial Number Tracking & Data Import (6 import types, SerialNumber, StockMovementSerial, queue jobs)
+- **Module 3** — Container Management (Container, yard/slot, packing list import, dwell time, auto-create GRN)
+- **Module 4** — Receiving (GRN) + Put-Away (GRN workflow, inspection, PutawayEngine, scan-driven bin assignment)
+- **Module 5** — LPN / License Plate tracking
+- **Module 6** — Outbound / Dispatch (DeliveryOrder, PickList, Dispatch, GatePass, ODN, POD)
+- **Module 7** — Transfers (StockTransfer dept, WarehouseTransfer WH-to-WH)
+- **Module 8** — Stock Adjustments & Cycle Counts (AdjustmentWorkflow, CycleCountWorkflow)
+- **Module 9** — Purchase Orders (PO workflow, approval chain, GRN linkage)
+- **Module 10** — Reports & Export (9 report types, PDF for 3, async queue export, AI summary, professional stepped UI)
+  - Reports: Stock Holding, Stock Aging, Stock In Transit (as_of); Pending Orders, Delivered/Pending GRN, Planned Orders, Received & Dispatched (range); Stock Count, Asset Disposal (range + PDF)
+  - All exports queued via GenerateReportJob → ReportReadyNotification; Excel via spatie/simple-excel lazy; PDF via dompdf landscape
+  - ReportRegistry singleton; ReportDefinition contract; VW scope enforced per user role
+- **Module 11** — Scanning (RF handheld emulator, BarcodeResolver, ScanContext, 8 scan modes)
+- **Module 12** — Hazardous, Obsolete & Disposal (2026-10-22):
+  - Hazardous: `is_hazardous`/`hazard_note`/`sds_file_path` on items; `LocationType::Hazardous` (pickable); PutawayEngine enforces item↔bin constraint
+  - Obsolete: `StockStatus::Obsolete` (not pickable/allocatable); StockStatusRequest (SSR document, approval chain, StockLedger::changeStatus on approve); idempotent
+  - Disposal: DisposalRequest (DISP document); full Draft→Submitted→Approved→Moved→Completed flow; qty lock checks on submit/approve; StockLedger::dispose() outbound; serials → Disposed; printable Disposal Note
+  - MovementType: added `Obsolete` (paired), `Disposal` (outboundOnly)
+  - SerialStatus: added `Disposed`
+  - ApprovalChainDocumentType: added `Disposal`, `StockStatus`
+  - Approvals inbox updated with disposal + SSR sections
+  - Permissions: `disposals.create/approve/execute`, `obsolete.mark`
+  - Tests: 15 passed, 1 skipped (HazardousItem full-stack requires complete GRN setup)
 
-- App shell glassmorphism (Phase 3, 2026-10-08):
-  - Background layer: WebP warehouse image (136KB), pre-blurred, fixed behind all content
-  - CSS tiers: `glass-nav/glass-nav-dark`, `glass-solid/glass-solid-dark`, `glass-input-dark` added to `app.css`
-  - All component classes updated: `.card` → glass, `.sidebar-link.active` → glass-brand, `.tabs` → glass-input track, `.btn-primary` → gradient glow, `.table` → glass borders, toasts → glass with colored border
-  - `.card:has(table)` auto-upgrades to glass-solid (no template changes needed per page)
-  - `config/wms.php`: `app_background` key added, `logo` defaults to `images/logo/logo.png`
-  - Dark mode persistence fixed: `livewire:navigated` listener re-applies class from localStorage
-  - Real logo shown in sidebar brand block when `public/images/logo/logo.png` exists
-  - Scanner layout (`/scan/*`) unchanged — solid surfaces for handheld outdoor use
-- App shell (sidebar, header, dark mode, toasts)
-- 22 Livewire page components with placeholder data
-- 12 Form Objects (save() stubs with TODO persist)
-- Custom design system: `resources/css/app.css`
-- Auth pages — glassmorphism redesign (Phase 2, 2026-10-07):
-  - Full glass layout, branding config, 10 auth components, all 7 auth views rewritten
-
-## What is next (back-end)
-
-1. Eloquent models + migrations
-2. Wire Form Object `save()` methods to real DB operations
-3. Replace placeholder arrays with paginated Eloquent queries
-4. Roles & permissions (Spatie)
-5. File uploads (POD documents, GRN attachments)
-6. PDF generation (gate pass, GRN print)
+## Key architecture rules (applied throughout)
+- All stock qty changes via `StockLedger` only
+- Document numbers from `DocumentNumber::next()` only
+- Quantities: `decimal(18,4)`, never float
+- All multi-table writes in `DB::transaction()`
+- Status enums with `canTransitionTo()` + `InvalidTransitionException`
+- `BelongsToVirtualWarehouse` on all VW-scoped models
+- `LogsActivity` on all master + document models

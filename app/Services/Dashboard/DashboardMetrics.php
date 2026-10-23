@@ -321,7 +321,7 @@ final class DashboardMetrics
                         'at'     => $l->updated_at,
                     ]);
 
-                return $grnLines->merge($ccLines)->sortByDesc('at')->take(10)->values();
+                return $grnLines->concat($ccLines)->sortByDesc('at')->take(10)->values();
             }
         );
     }

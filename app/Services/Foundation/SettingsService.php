@@ -54,6 +54,28 @@ class SettingsService
     }
 
     /**
+     * Returns company branding for reports: name, address, and logo as a base64 data URI.
+     * Logo is embedded as data URI so dompdf and Excel don't need disk access at render time.
+     */
+    public static function getCompanyBrand(): array
+    {
+        $name     = static::get('company.name', config('app.name'));
+        $address  = static::get('company.address', '');
+        $logoPath = static::get('company.logo_path', '');
+
+        $logoDataUri = null;
+        if ($logoPath) {
+            $disk = \Illuminate\Support\Facades\Storage::disk('public');
+            if ($disk->exists($logoPath)) {
+                $mime        = $disk->mimeType($logoPath) ?: 'image/png';
+                $logoDataUri = 'data:' . $mime . ';base64,' . base64_encode($disk->get($logoPath));
+            }
+        }
+
+        return ['name' => $name, 'address' => $address, 'logoDataUri' => $logoDataUri];
+    }
+
+    /**
      * Clear the settings cache (call after bulk save).
      */
     public static function clearCache(): void

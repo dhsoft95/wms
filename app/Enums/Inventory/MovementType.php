@@ -19,6 +19,8 @@ enum MovementType: string
     case Release           = 'release';
     case Reversal          = 'reversal';
     case SerialCapture     = 'serial_capture';
+    case Obsolete          = 'obsolete';
+    case Disposal          = 'disposal';
 
     public function label(): string
     {
@@ -36,6 +38,8 @@ enum MovementType: string
             self::Release           => 'Release',
             self::Reversal          => 'Reversal',
             self::SerialCapture     => 'Serial Capture',
+            self::Obsolete          => 'Mark Obsolete',
+            self::Disposal          => 'Disposal',
         };
     }
 
@@ -48,12 +52,18 @@ enum MovementType: string
     // True for movements that only reduce stock (negative qty)
     public function outboundOnly(): bool
     {
-        return in_array($this, [self::Pick, self::Dispatch], true);
+        return in_array($this, [self::Pick, self::Dispatch, self::Disposal], true);
     }
 
     // True for movements that generate two lines netting to zero
     public function isPaired(): bool
     {
-        return in_array($this, [self::Relocation, self::OwnershipTransfer, self::Hold, self::Release], true);
+        return in_array($this, [
+            self::Relocation,
+            self::OwnershipTransfer,
+            self::Hold,
+            self::Release,
+            self::Obsolete,
+        ], true);
     }
 }

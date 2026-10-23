@@ -9,6 +9,7 @@ enum SerialStatus: string
     case InStock    = 'in_stock';
     case Dispatched = 'dispatched';
     case WrittenOff = 'written_off';
+    case Disposed   = 'disposed';
 
     public function label(): string
     {
@@ -16,6 +17,7 @@ enum SerialStatus: string
             self::InStock    => 'In Stock',
             self::Dispatched => 'Dispatched',
             self::WrittenOff => 'Written Off',
+            self::Disposed   => 'Disposed',
         };
     }
 
@@ -25,6 +27,7 @@ enum SerialStatus: string
             self::InStock    => 'green',
             self::Dispatched => 'neutral',
             self::WrittenOff => 'red',
+            self::Disposed   => 'amber',
         };
     }
 }

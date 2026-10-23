@@ -41,10 +41,14 @@ class Edit extends Component
     public array $barcodes = [];
 
     // Tracking tab
-    public bool $trackBatch  = false;
-    public bool $trackExpiry = false;
-    public bool $trackSerial = false;
+    public bool   $trackBatch    = false;
+    public bool   $trackExpiry   = false;
+    public bool   $trackSerial   = false;
     public string $preferredZoneId = '';
+
+    // Hazardous
+    public bool   $isHazardous = false;
+    public string $hazardNote  = '';
 
     // Stock levels tab
     public string $minStock = '';
@@ -81,6 +85,8 @@ class Edit extends Component
         $this->trackExpiry     = (bool) $item->track_expiry;
         $this->trackSerial     = (bool) $item->track_serial;
         $this->preferredZoneId = (string) ($item->preferred_zone_id ?? '');
+        $this->isHazardous     = (bool) $item->is_hazardous;
+        $this->hazardNote      = $item->hazard_note ?? '';
 
         $this->minStock = (string) ($item->min_stock ?? '');
         $this->maxStock = (string) ($item->max_stock ?? '');
@@ -213,6 +219,8 @@ class Edit extends Component
                 'track_expiry'                 => $this->trackExpiry,
                 'track_serial'                 => $this->trackSerial,
                 'preferred_zone_id'            => $this->preferredZoneId ?: null,
+                'is_hazardous'                 => $this->isHazardous,
+                'hazard_note'                  => $this->hazardNote ?: null,
                 'min_stock'                    => $this->minStock ?: null,
                 'max_stock'                    => $this->maxStock ?: null,
                 'is_active'                    => $this->isActive,

@@ -140,9 +140,14 @@ class Index extends Component
     {
         $task        = $this->executingTask;
         $warehouseId = $task?->grn?->warehouse_id;
+        $isHazardous = (bool) $task?->item?->is_hazardous;
+
+        $allowedTypes = $isHazardous
+            ? [LocationType::Hazardous->value]
+            : [LocationType::Storage->value, LocationType::Staging->value];
 
         $query = Location::where('level', LocationLevel::Bin->value)
-            ->where('type', LocationType::Storage->value)
+            ->whereIn('type', $allowedTypes)
             ->where('status', LocationStatus::Active->value);
 
         if ($warehouseId) {
@@ -263,6 +268,20 @@ class Index extends Component
     {
         array_splice($this->splitRows, $index, 1);
         $this->splitRows = array_values($this->splitRows);
+    }
+
+    public function toggleRowSerial(int $rowIndex, string $serial): void
+    {
+        $serials = $this->splitRows[$rowIndex]['serials'] ?? [];
+        $pos     = array_search($serial, $serials, true);
+
+        if ($pos !== false) {
+            array_splice($serials, $pos, 1);
+        } else {
+            $serials[] = $serial;
+        }
+
+        $this->splitRows[$rowIndex]['serials'] = array_values($serials);
     }
 
     public function selectSplitBin(int $rowIndex, int $locationId, string $locationCode): void

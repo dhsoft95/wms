@@ -25,6 +25,8 @@ class AppServiceProvider extends ServiceProvider
             \App\Contracts\AiClient::class,
             \App\Services\Ai\GeminiClient::class,
         );
+
+        $this->app->singleton(\App\Services\Reports\ReportRegistry::class);
     }
 
     public function boot(): void
@@ -93,5 +95,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Inbound workflow: policies
         Gate::policy(\App\Models\PurchaseOrder::class, \App\Policies\PurchaseOrderPolicy::class);
+
+        // Module 12 — Hazardous, Obsolete & Disposal: policies
+        Gate::policy(\App\Models\DisposalRequest::class, \App\Policies\DisposalRequestPolicy::class);
+        Gate::policy(\App\Models\StockStatusRequest::class, \App\Policies\StockStatusRequestPolicy::class);
     }
 }

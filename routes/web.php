@@ -240,13 +240,33 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:gate.verify')->name('gate.check');
     });
 
+    // Module 12 — Disposal Requests
+    Route::prefix('inventory/disposals')->name('inventory.disposals.')->middleware('permission:disposals.create')->group(function () {
+        Route::get('/',                              \App\Livewire\Inventory\Disposals\Index::class)->name('index');
+        Route::get('/create',                        \App\Livewire\Inventory\Disposals\Create::class)->name('create');
+        Route::get('/{disposalRequest}',             \App\Livewire\Inventory\Disposals\Show::class)->name('show');
+        Route::get('/{disposalRequest}/print',       [\App\Http\Controllers\DisposalNoteController::class, 'show'])->name('print');
+    });
+
+    // Module 12 — Stock Status Requests
+    Route::prefix('inventory/stock-status')->name('inventory.stock-status.')->middleware('permission:obsolete.mark')->group(function () {
+        Route::get('/create',                          \App\Livewire\Inventory\StockStatus\Create::class)->name('create');
+        Route::get('/{stockStatusRequest}',            \App\Livewire\Inventory\StockStatus\Show::class)->name('show');
+    });
+
     // Reports
     Route::prefix('reports')->name('reports.')->middleware('permission:reports.view')->group(function () {
         Route::get('/',      \App\Livewire\Reports\Index::class)->name('index');
         Route::get('/print', \App\Livewire\Reports\PrintDocument::class)->name('print');
 
-        // Download a queued report
+        // Download or view a queued report
         Route::get('/download/{reportRequest}', [\App\Http\Controllers\ReportPdfController::class, 'download'])->name('download');
+        Route::get('/view/{reportRequest}',     [\App\Http\Controllers\ReportPdfController::class, 'view'])->name('view');
+
+        // Token-based streaming export (Excel / PDF)
+        Route::get('/export', \App\Http\Controllers\Reports\ExportController::class)
+            ->middleware('permission:reports.export')
+            ->name('export');
     });
 
     // Admin — user/role management

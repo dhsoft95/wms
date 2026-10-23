@@ -46,8 +46,13 @@
                 <div>
                     <div class="flex items-center gap-2.5 flex-wrap">
                         <h2 class="text-xl font-mono font-bold tracking-tight text-slate-900 dark:text-white leading-none">{{ $b->item?->sku ?? '—' }}</h2>
-                        @if ($b->stock_status?->value === 'available' || $b->stock_status === 'available')
+                        @php
+                            $statusVal = is_object($b->stock_status) ? $b->stock_status->value : $b->stock_status;
+                        @endphp
+                        @if ($statusVal === 'available')
                             <span class="badge badge-green"><span class="dot"></span> Available</span>
+                        @elseif ($statusVal === 'obsolete')
+                            <span class="badge badge-red"><span class="dot"></span> Obsolete</span>
                         @else
                             <span class="badge badge-amber"><span class="dot"></span> On Hold</span>
                         @endif
@@ -72,9 +77,27 @@
             </div>
         </div>
 
-        <div class="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100 dark:border-slate-800 shrink-0">
-            <span class="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold">Last Updated</span>
-            <span class="mt-0.5 text-xs font-semibold text-slate-700 dark:text-slate-300 tabular-nums">{{ $b->updated_at?->format('d M Y, H:i') ?? '—' }}</span>
+        <div class="flex flex-col items-end gap-3 shrink-0">
+            <div class="text-right">
+                <span class="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold">Last Updated</span>
+                <p class="mt-0.5 text-xs font-semibold text-slate-700 dark:text-slate-300 tabular-nums">{{ $b->updated_at?->format('d M Y, H:i') ?? '—' }}</p>
+            </div>
+            @can('obsolete.mark')
+                @php $sv = is_object($b->stock_status) ? $b->stock_status->value : $b->stock_status; @endphp
+                @if ($sv === 'available' || $sv === 'on_hold')
+                    <a href="{{ route('inventory.stock-status.create', ['balance_id' => $b->id, 'type' => 'mark_obsolete']) }}"
+                       wire:navigate
+                       class="btn btn-sm btn-secondary">
+                        <x-ui.icon name="archive" class="w-4 h-4" /> Mark Obsolete
+                    </a>
+                @elseif ($sv === 'obsolete')
+                    <a href="{{ route('inventory.stock-status.create', ['balance_id' => $b->id, 'type' => 'restore']) }}"
+                       wire:navigate
+                       class="btn btn-sm btn-secondary">
+                        <x-ui.icon name="refresh" class="w-4 h-4" /> Restore to Available
+                    </a>
+                @endif
+            @endcan
         </div>
     </div>
 
@@ -195,7 +218,7 @@
                 <div class="flex items-center justify-between gap-3 px-5 py-3">
                     <span class="text-xs text-slate-500 dark:text-slate-400">Serial Tracked</span>
                     @if ($b->item?->track_serial)
-                        <span class="badge badge-blue text-[11px]">Yes — {{ $info['serialCount'] }}</span>
+                        <span class="badge badge-slate text-[11px]">Yes — {{ $info['serialCount'] }}</span>
                     @else
                         <span class="text-xs text-slate-400">No</span>
                     @endif
@@ -348,8 +371,11 @@
                                 @endif
                             </td>
                             <td>
-                                @if (($lb->stock_status?->value ?? $lb->stock_status) === 'available')
+                                @php $lbStatus = $lb->stock_status?->value ?? $lb->stock_status; @endphp
+                                @if ($lbStatus === 'available')
                                     <span class="badge badge-green text-[10px]">Available</span>
+                                @elseif ($lbStatus === 'obsolete')
+                                    <span class="badge badge-red text-[10px]">Obsolete</span>
                                 @else
                                     <span class="badge badge-amber text-[10px]">On Hold</span>
                                 @endif
@@ -411,7 +437,7 @@
                         @forelse ($this->inboundHistory as $movement)
                             @php
                                 $pos = (float) $movement->qty >= 0;
-                                $grn = $movement->transaction?->getRelation('grn');
+                                $grn = $movement->transaction?->relationLoaded('grn') ? $movement->transaction->getRelation('grn') : null;
                             @endphp
                             <tr>
                                 <td class="tabular-nums text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">

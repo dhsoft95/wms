@@ -415,6 +415,30 @@
                     </div>
                 </label>
 
+                {{-- Hazardous --}}
+                <div class="border-t border-slate-200 dark:border-slate-700 pt-5 space-y-4">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <div class="pt-0.5">
+                            <input wire:model.live="isHazardous" type="checkbox"
+                                   class="rounded border-slate-300 dark:border-slate-600 text-amber-600 focus:ring-amber-600 dark:bg-zinc-800" />
+                        </div>
+                        <div>
+                            <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Hazardous Item</span>
+                            <p class="hint mt-0.5">Restricts put-away to hazardous-type bins only. Displays a hazard badge on GRN, pick lists, and delivery notes.</p>
+                        </div>
+                    </label>
+
+                    @if ($isHazardous)
+                        <div wire:transition>
+                            <label class="label" for="hazardNote">Hazard Note <span class="text-slate-400 font-normal">(optional)</span></label>
+                            <textarea wire:model="hazardNote" id="hazardNote" rows="2"
+                                      placeholder="e.g. Flammable liquid — store away from heat sources"
+                                      class="input @error('hazardNote') border-red-400 @enderror"></textarea>
+                            @error('hazardNote') <p class="hint text-red-500 mt-1">{{ $message }}</p> @enderror
+                        </div>
+                    @endif
+                </div>
+
                 <div class="border-t border-slate-200 dark:border-slate-700 pt-5">
                     <label class="label" for="preferredZoneId">Preferred Putaway Zone</label>
                     <select wire:model="preferredZoneId" id="preferredZoneId"
