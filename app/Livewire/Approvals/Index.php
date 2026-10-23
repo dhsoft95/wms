@@ -80,9 +80,10 @@ class Index extends Component
                     && $po->status === PurchaseOrderStatus::ApprovedPendingAcceptance) {
                     return true;
                 }
-                // Requester: sees their own returned POs so they can fix and resubmit
+                // Returned POs: visible to the requester AND the dept head
                 if ($po->status === PurchaseOrderStatus::ReturnedForCorrection
-                    && $po->requested_by === $user->id) {
+                    && ($po->requested_by === $user->id
+                        || $po->department?->head_user_id === $user->id)) {
                     return true;
                 }
                 if ($this->tab === 'all') {
