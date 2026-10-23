@@ -135,199 +135,36 @@ final class PurchaseOrderWorkflow
     ): void {
         $this->assertStatus($po, PurchaseOrderStatus::PendingApproval);
 
+        if (! $this->chainService->canActAtCurrentLevel($po, $by)) {
+            throw new \DomainException('You are not authorised to approve this purchase order.');
+        }
+
         DB::transaction(function () use ($po, $by, $comment) {
-            // Admin override: approve all remaining dept levels + all pending categories at once
-            if ($by->hasRole('system-admin')) {
-                foreach ($this->chainService->getDepartmentChains($po) as $chain) {
-                    $alreadyDone = \App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)
-                        ->where('approval_chain_id', $chain->id)
-                        ->where('action', PurchaseOrderApprovalAction::Approved->value)
-                        ->exists();
-                    if (! $alreadyDone) {
-                        $this->chainService->record(
-                            $po, $by, PurchaseOrderApprovalAction::Approved,
-                            $chain->level, $chain->id, null, $comment,
-                        );
-                    }
-                }
+            $this->chainService->record(
+                $po, $by, PurchaseOrderApprovalAction::Approved, 1, null, null, $comment,
+            );
+            $po->status      = PurchaseOrderStatus::ApprovedPendingAcceptance;
+            $po->approved_at = now();
+            $po->save();
 
-                foreach ($this->chainService->pendingCategoryApprovals($po) as $categoryId) {
-                    $this->chainService->record(
-                        $po, $by, PurchaseOrderApprovalAction::Approved,
-                        99, null, $categoryId, $comment,
-                    );
-                }
+            activity()->performedOn($po)->causedBy($by)->log('Approved by dept head');
 
-                // Fallback: no chain and no categories configured
-                if ($this->chainService->getDepartmentChains($po)->isEmpty()
-                    && $this->chainService->pendingCategoryApprovals($po)->isEmpty()
-                    && ! $this->chainService->isFullyApproved($po)
-                ) {
-                    $this->chainService->record(
-                        $po, $by, PurchaseOrderApprovalAction::Approved,
-                        0, null, null, $comment,
-                    );
-                }
-
-                activity()->performedOn($po)->causedBy($by)->log('Admin override: approved entire chain');
-            } else {
-            // Determine whether this is a department-level or category-level action
-            $deptLevel = $this->chainService->currentDepartmentLevel($po);
-            $pendingCategories = $this->chainService->pendingCategoryApprovals($po);
-
-            if ($deptLevel !== null) {
-                // Regular approver: approve only the current level
-                $chain = ApprovalChain::where('department_id', $po->department_id)
-                    ->where('document_type', ApprovalChainDocumentType::Po->value)
-                    ->where('level', $deptLevel)
-                    ->firstOrFail();
-
-                $this->chainService->record(
-                    $po, $by, PurchaseOrderApprovalAction::Approved,
-                    $deptLevel, $chain->id, null, $comment,
-                );
-
-                activity()->performedOn($po)->causedBy($by)
-                    ->log("Approved at department level {$deptLevel}");
-            } elseif ($pendingCategories->isNotEmpty()) {
-                // Category-level approval
-                $userCategoryIds = ItemCategoryUser::where('user_id', $by->id)
-                    ->where('warehouse_id', $po->warehouse_id)
-                    ->whereIn('item_category_id', $pendingCategories)
-                    ->pluck('item_category_id');
-
-                if ($userCategoryIds->isEmpty()) {
-                    throw new \DomainException('You have no pending category approvals on this purchase order.');
-                }
-
-                foreach ($userCategoryIds as $categoryId) {
-                    $this->chainService->record(
-                        $po, $by, PurchaseOrderApprovalAction::Approved,
-                        99, null, $categoryId, $comment,
-                    );
-                }
-
-                activity()->performedOn($po)->causedBy($by)
-                    ->log('Category-level approval recorded');
-            } else {
-                // No chain configured — warehouse manager acts as fallback approver
-                if (! $by->hasAnyRole(['warehouse-manager', 'system-admin'])) {
-                    throw new \DomainException('No approval chain is configured. Only a warehouse manager can approve this order.');
-                }
-
-                $this->chainService->record(
-                    $po, $by, PurchaseOrderApprovalAction::Approved,
-                    0, null, null, $comment,
-                );
-
-                activity()->performedOn($po)->causedBy($by)
-                    ->log('Approved by warehouse manager (no chain configured)');
-            }
-            } // end non-admin branch
-
-            // Advance if fully approved
-            if ($this->chainService->isFullyApproved($po)) {
-                $po->status      = PurchaseOrderStatus::ApprovedPendingAcceptance;
-                $po->approved_at = now();
-                $po->save();
-
-                activity()->performedOn($po)->causedBy($by)->log('Fully approved');
-
-                // Notify warehouse managers
-                $managers = User::role('warehouse-manager')->get();
-                foreach ($managers as $manager) {
-                    $manager->notify(new PoStatusChangedNotification(
-                        $po, 'approved',
-                        "PO {$po->number} has been approved and is awaiting warehouse acceptance.",
-                    ));
-                }
-            } else {
-                // Notify next approvers
-                $this->notifyNextApprovers($po);
-            }
+            User::role('warehouse-manager')->each(fn ($m) =>
+                $m->notify(new PoStatusChangedNotification(
+                    $po, 'approved',
+                    "PO {$po->number} has been approved and is awaiting your acceptance.",
+                ))
+            );
         });
     }
 
     /**
-     * Send the PO back one step in the approval chain.
-     * - If there is a previously-approved dept level: revoke it and re-notify those approvers.
-     * - If there are only category approvals: revoke them and return to the last dept level.
-     * - If nothing has been approved yet (level 1 or no chain): return to the requester.
+     * Send the PO back to the requester for correction.
+     * There is only one approval level (dept head), so this always returns to the requester.
      */
     public function returnToPreviousLevel(PurchaseOrder $po, User $by, string $comment): void
     {
-        $this->assertStatus($po, PurchaseOrderStatus::PendingApproval);
-
-        DB::transaction(function () use ($po, $by, $comment) {
-            $chains = $this->chainService->getDepartmentChains($po);
-
-            // Find the last dept level that has an approved record
-            $lastApprovedChain = null;
-            foreach ($chains->sortByDesc('level') as $chain) {
-                $exists = \App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)
-                    ->where('approval_chain_id', $chain->id)
-                    ->where('action', PurchaseOrderApprovalAction::Approved->value)
-                    ->exists();
-                if ($exists) {
-                    $lastApprovedChain = $chain;
-                    break;
-                }
-            }
-
-            // If only category approvals exist (no approved dept level found but categories approved)
-            $hasCategoryApprovals = \App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)
-                ->whereNull('approval_chain_id')
-                ->whereNotNull('item_category_id')
-                ->where('action', PurchaseOrderApprovalAction::Approved->value)
-                ->exists();
-
-            if ($lastApprovedChain === null && ! $hasCategoryApprovals) {
-                // Nothing approved yet → return all the way to the requester
-                $this->returnForCorrection($po, $by, $comment);
-                return;
-            }
-
-            // Record the send-back in history
-            $currentLevel = $this->chainService->currentDepartmentLevel($po) ?? 99;
-            $this->chainService->record(
-                $po, $by, PurchaseOrderApprovalAction::Returned,
-                $currentLevel, null, null, $comment,
-            );
-
-            // Wipe category approvals (always reset these when stepping back)
-            \App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)
-                ->whereNull('approval_chain_id')
-                ->whereNotNull('item_category_id')
-                ->where('action', PurchaseOrderApprovalAction::Approved->value)
-                ->delete();
-
-            if ($lastApprovedChain !== null) {
-                // Revoke the last approved dept level
-                \App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)
-                    ->where('approval_chain_id', $lastApprovedChain->id)
-                    ->where('action', PurchaseOrderApprovalAction::Approved->value)
-                    ->delete();
-
-                activity()->performedOn($po)->causedBy($by)
-                    ->withProperties(['comment' => $comment])
-                    ->log("Sent back to level {$lastApprovedChain->level}");
-
-                // Notify the approvers at that level
-                $users = $this->chainService->usersForDepartmentLevel($po, $lastApprovedChain->level);
-                foreach ($users as $user) {
-                    $user->notify(new PoStatusChangedNotification(
-                        $po, 'returned',
-                        "PO {$po->number} has been sent back to you for review. Remark: {$comment}",
-                        $comment,
-                    ));
-                }
-            } else {
-                // Had only category approvals, no dept level → notify current dept level approvers
-                $this->notifyNextApprovers($po);
-            }
-
-            // PO stays in PendingApproval — no status change needed
-        });
+        $this->returnForCorrection($po, $by, $comment);
     }
 
     public function returnForCorrection(PurchaseOrder $po, User $by, string $comment): void
@@ -855,33 +692,9 @@ final class PurchaseOrderWorkflow
 
     private function notifyNextApprovers(PurchaseOrder $po): void
     {
-        $deptLevel = $this->chainService->currentDepartmentLevel($po);
-
-        if ($deptLevel !== null) {
-            $users = $this->chainService->usersForDepartmentLevel($po, $deptLevel);
-            foreach ($users as $user) {
-                $user->notify(new PoApprovalRequestedNotification($po, $deptLevel));
-            }
-            return;
-        }
-
-        $pending = $this->chainService->pendingCategoryApprovals($po);
-
-        if ($pending->isNotEmpty()) {
-            // Notify category-level users
-            foreach ($pending as $categoryId) {
-                $users = $this->chainService->usersForCategory($categoryId, $po->warehouse_id);
-                foreach ($users as $user) {
-                    $user->notify(new PoApprovalRequestedNotification($po, 99));
-                }
-            }
-            return;
-        }
-
-        // No chain configured — notify all warehouse managers as fallback approvers
-        $managers = User::role('warehouse-manager')->get();
-        foreach ($managers as $manager) {
-            $manager->notify(new PoApprovalRequestedNotification($po, 0));
+        if ($po->status === PurchaseOrderStatus::PendingApproval) {
+            $head = $po->department?->headUser;
+            $head?->notify(new PoApprovalRequestedNotification($po, 1));
         }
     }
 

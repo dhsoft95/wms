@@ -74,8 +74,9 @@ class Index extends Component
                 if ($user->hasRole('system-admin')) {
                     return true;
                 }
-                // Warehouse manager sees POs awaiting their acceptance
-                if ($canAccept && $po->status === PurchaseOrderStatus::ApprovedPendingAcceptance) {
+                // WM: sees POs awaiting acceptance
+                if ($user->hasRole('warehouse-manager') && $canAccept
+                    && $po->status === PurchaseOrderStatus::ApprovedPendingAcceptance) {
                     return true;
                 }
                 if ($this->tab === 'all') {
@@ -125,7 +126,10 @@ class Index extends Component
             ->whereNotIn('status', [DisposalStatus::Completed->value, DisposalStatus::Rejected->value]);
 
         if ($this->tab === 'pending') {
-            $query->where('status', DisposalStatus::Submitted->value);
+            $query->whereIn('status', [
+                DisposalStatus::Submitted->value,
+                DisposalStatus::PendingWarehouseManagerApproval->value,
+            ]);
         }
 
         return $query->get()
@@ -144,7 +148,10 @@ class Index extends Component
             ->whereNotIn('status', [StockStatusRequestStatus::Approved->value, StockStatusRequestStatus::Rejected->value]);
 
         if ($this->tab === 'pending') {
-            $query->where('status', StockStatusRequestStatus::Submitted->value);
+            $query->whereIn('status', [
+                StockStatusRequestStatus::Submitted->value,
+                StockStatusRequestStatus::PendingWarehouseManagerApproval->value,
+            ]);
         }
 
         return $query->get()

@@ -90,62 +90,43 @@ final class StockStatusRequestWorkflow
 
     public function approve(StockStatusRequest $req, User $user, ?string $comment = null): StockStatusRequest
     {
-        if (! $req->status->canTransitionTo(StockStatusRequestStatus::Approved)) {
-            throw new \DomainException("Cannot approve a stock status request in status: {$req->status->label()}");
-        }
-
         if (! $this->canApprove($req, $user)) {
-            throw new \DomainException('You are not authorised to approve this stock status request at this stage.');
+            throw new \DomainException('You are not authorised to approve this stock status request at the current level.');
         }
 
         DB::transaction(function () use ($req, $user, $comment) {
-            $this->checkAvailableQty($req);
-
-            $chains = $this->getDepartmentChains($req);
-            $currentLevel = $this->currentDepartmentLevel($req, $chains);
-
-            if ($currentLevel !== null) {
-                $chain = $chains->firstWhere('level', $currentLevel);
+            if ($req->status === StockStatusRequestStatus::Submitted) {
+                // Level 1 — dept head
                 StockStatusRequestApproval::create([
                     'stock_status_request_id' => $req->id,
-                    'approval_chain_id'       => $chain?->id,
-                    'level'                   => $currentLevel,
+                    'approval_chain_id'       => null,
+                    'level'                   => 1,
                     'user_id'                 => $user->id,
                     'action'                  => 'approved',
                     'comment'                 => $comment,
                 ]);
-
-                $nextLevel = $this->currentDepartmentLevel($req, $chains);
-                if ($nextLevel !== null) {
-                    return; // more dept levels needed
-                }
-            }
-
-            // Warehouse-manager final approval
-            if ($user->hasRole('warehouse-manager') || $user->hasRole('system-admin')) {
-                $nextDeptLevel = $this->currentDepartmentLevel($req, $chains);
-                if ($nextDeptLevel === null) {
-                    StockStatusRequestApproval::create([
-                        'stock_status_request_id' => $req->id,
-                        'approval_chain_id'       => null,
-                        'level'                   => 99,
-                        'user_id'                 => $user->id,
-                        'action'                  => 'approved',
-                        'comment'                 => $comment,
-                    ]);
-
-                    // Apply the stock status changes
-                    $this->applyStatusChanges($req, $user);
-
-                    $req->status      = StockStatusRequestStatus::Approved;
-                    $req->approved_at = now();
-                    $req->approved_by = $user->id;
-                    $req->save();
-                }
+                $req->status = StockStatusRequestStatus::PendingWarehouseManagerApproval;
+                $req->save();
+                activity()->performedOn($req)->causedBy($user)->log('Approved at level 1 (dept head)');
+            } else {
+                // Level 2 — warehouse manager
+                $this->checkAvailableQty($req);
+                StockStatusRequestApproval::create([
+                    'stock_status_request_id' => $req->id,
+                    'approval_chain_id'       => null,
+                    'level'                   => 2,
+                    'user_id'                 => $user->id,
+                    'action'                  => 'approved',
+                    'comment'                 => $comment,
+                ]);
+                $this->applyStatusChanges($req, $user);
+                $req->status      = StockStatusRequestStatus::Approved;
+                $req->approved_at = now();
+                $req->approved_by = $user->id;
+                $req->save();
+                activity()->performedOn($req)->causedBy($user)->log('Approved at level 2 (warehouse manager)');
             }
         });
-
-        activity()->performedOn($req)->causedBy($user)->log('Stock status request approved');
 
         return $req->fresh();
     }
@@ -191,20 +172,16 @@ final class StockStatusRequestWorkflow
             return true;
         }
 
-        $chains = $this->getDepartmentChains($req);
-        $currentLevel = $this->currentDepartmentLevel($req, $chains);
+        return match ($req->status) {
+            StockStatusRequestStatus::Submitted =>
+                $req->department?->head_user_id !== null
+                && $req->department->head_user_id === $user->id,
 
-        if ($currentLevel !== null) {
-            $chain = $chains->firstWhere('level', $currentLevel);
-            if ($chain === null) {
-                return false;
-            }
-            return ApprovalChainUser::where('approval_chain_id', $chain->id)
-                ->where('user_id', $user->id)
-                ->exists();
-        }
+            StockStatusRequestStatus::PendingWarehouseManagerApproval =>
+                $user->hasRole('warehouse-manager'),
 
-        return $user->hasRole('warehouse-manager');
+            default => false,
+        };
     }
 
     private function checkAvailableQty(StockStatusRequest $req): void

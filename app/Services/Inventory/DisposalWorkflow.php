@@ -96,63 +96,42 @@ final class DisposalWorkflow
 
     public function approve(DisposalRequest $req, User $user, ?string $comment = null): DisposalRequest
     {
-        if (! $req->status->canTransitionTo(DisposalStatus::Approved)) {
-            throw new \DomainException("Cannot approve a disposal request in status: {$req->status->label()}");
-        }
-
         if (! $this->canApprove($req, $user)) {
-            throw new \DomainException('You are not authorised to approve this disposal request at this stage.');
+            throw new \DomainException('You are not authorised to approve this disposal request at the current level.');
         }
 
         DB::transaction(function () use ($req, $user, $comment) {
-            $this->checkAvailableQty($req);
-
-            $chains = $this->getDepartmentChains($req);
-            $currentLevel = $this->currentDepartmentLevel($req, $chains);
-
-            if ($currentLevel !== null) {
-                // Record department-level approval
-                $chain = $chains->firstWhere('level', $currentLevel);
+            if ($req->status === DisposalStatus::Submitted) {
+                // Level 1 — dept head
                 DisposalRequestApproval::create([
                     'disposal_request_id' => $req->id,
-                    'approval_chain_id'   => $chain?->id,
-                    'level'               => $currentLevel,
+                    'approval_chain_id'   => null,
+                    'level'               => 1,
                     'user_id'             => $user->id,
                     'action'              => 'approved',
                     'comment'             => $comment,
                 ]);
-
-                // Check if we still need dept approvals
-                $nextLevel = $this->currentDepartmentLevel($req, $chains);
-                if ($nextLevel !== null) {
-                    // More dept levels; don't advance to Approved yet
-                    return;
-                }
-            }
-
-            // Warehouse-manager final level
-            if ($user->hasRole('warehouse-manager') || $user->hasRole('system-admin')) {
-                $nextDeptLevel = $this->currentDepartmentLevel($req, $chains);
-                if ($nextDeptLevel === null) {
-                    // Record warehouse-manager approval
-                    DisposalRequestApproval::create([
-                        'disposal_request_id' => $req->id,
-                        'approval_chain_id'   => null,
-                        'level'               => 99,
-                        'user_id'             => $user->id,
-                        'action'              => 'approved',
-                        'comment'             => $comment,
-                    ]);
-
-                    $req->status      = DisposalStatus::Approved;
-                    $req->approved_at = now();
-                    $req->approved_by = $user->id;
-                    $req->save();
-                }
+                $req->status = DisposalStatus::PendingWarehouseManagerApproval;
+                $req->save();
+                activity()->performedOn($req)->causedBy($user)->log('Approved at level 1 (dept head)');
+            } else {
+                // Level 2 — warehouse manager
+                $this->checkAvailableQty($req);
+                DisposalRequestApproval::create([
+                    'disposal_request_id' => $req->id,
+                    'approval_chain_id'   => null,
+                    'level'               => 2,
+                    'user_id'             => $user->id,
+                    'action'              => 'approved',
+                    'comment'             => $comment,
+                ]);
+                $req->status      = DisposalStatus::Approved;
+                $req->approved_at = now();
+                $req->approved_by = $user->id;
+                $req->save();
+                activity()->performedOn($req)->causedBy($user)->log('Approved at level 2 (warehouse manager)');
             }
         });
-
-        activity()->performedOn($req)->causedBy($user)->log('Disposal request approved');
 
         return $req->fresh();
     }
@@ -315,22 +294,16 @@ final class DisposalWorkflow
             return true;
         }
 
-        $chains = $this->getDepartmentChains($req);
-        $currentLevel = $this->currentDepartmentLevel($req, $chains);
+        return match ($req->status) {
+            DisposalStatus::Submitted =>
+                $req->department?->head_user_id !== null
+                && $req->department->head_user_id === $user->id,
 
-        if ($currentLevel !== null) {
-            // User must be in the chain at the current dept level
-            $chain = $chains->firstWhere('level', $currentLevel);
-            if ($chain === null) {
-                return false;
-            }
-            return ApprovalChainUser::where('approval_chain_id', $chain->id)
-                ->where('user_id', $user->id)
-                ->exists();
-        }
+            DisposalStatus::PendingWarehouseManagerApproval =>
+                $user->hasRole('warehouse-manager'),
 
-        // All dept levels done — warehouse manager can act
-        return $user->hasRole('warehouse-manager');
+            default => false,
+        };
     }
 
     private function checkAvailableQty(DisposalRequest $req): void

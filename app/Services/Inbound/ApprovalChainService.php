@@ -146,74 +146,44 @@ final class ApprovalChainService
     // ─── Guard checks ─────────────────────────────────────────────────────────
 
     /**
-     * Returns true if the given user can act at the current department level.
+     * Single-level flow: only the department's head_user_id (or system-admin) may approve.
+     * Warehouse manager accepts/rejects via a separate action after approval.
      */
     public function canActAtCurrentLevel(PurchaseOrder $po, User $user): bool
     {
-        $level = $this->currentDepartmentLevel($po);
-        if ($level === null) {
-            return false;
-        }
-
-        $chain = ApprovalChain::where('department_id', $po->department_id)
-            ->where('document_type', ApprovalChainDocumentType::Po->value)
-            ->where('level', $level)
-            ->first();
-
-        if ($chain === null) {
-            return false;
-        }
-
-        return ApprovalChainUser::where('approval_chain_id', $chain->id)
-            ->where('user_id', $user->id)
-            ->exists();
-    }
-
-    /**
-     * Returns true if the user is a category approver for at least one pending category.
-     */
-    public function canActOnCategoryLevel(PurchaseOrder $po, User $user): bool
-    {
-        $pendingCategoryIds = $this->pendingCategoryApprovals($po);
-        if ($pendingCategoryIds->isEmpty()) {
-            return false;
-        }
-
         if ($user->hasRole('system-admin')) {
             return true;
         }
 
-        return ItemCategoryUser::where('user_id', $user->id)
-            ->where('warehouse_id', $po->warehouse_id)
-            ->whereIn('item_category_id', $pendingCategoryIds)
-            ->exists();
+        return $po->status === PurchaseOrderStatus::PendingApproval
+            && $po->department?->head_user_id !== null
+            && $po->department->head_user_id === $user->id;
     }
 
     /**
-     * Returns true when no dept chain and no category users are configured,
-     * and the user is a warehouse manager or system admin.
-     * In this case the manager acts as the default approver.
+     * @deprecated No longer used in the fixed 2-level flow. Kept for compatibility.
+     */
+    public function canActOnCategoryLevel(PurchaseOrder $po, User $user): bool
+    {
+        return false;
+    }
+
+    /**
+     * @deprecated No longer used in the fixed 2-level flow. Kept for compatibility.
      */
     public function canActAsFallbackApprover(PurchaseOrder $po, User $user): bool
     {
-        if (! $user->hasAnyRole(['warehouse-manager', 'system-admin'])) {
-            return false;
-        }
-
-        return $this->getDepartmentChains($po)->isEmpty()
-            && $this->pendingCategoryApprovals($po)->isEmpty();
+        return false;
     }
 
     // ─── Progression ─────────────────────────────────────────────────────────
 
     /**
-     * Checks whether all approvals (department + category) are complete.
-     * Returns true when the PO should advance to ApprovedPendingAcceptance.
+     * True when the PO has passed both approval levels (status is no longer an approval-pending state).
      */
     public function isFullyApproved(PurchaseOrder $po): bool
     {
-        return $this->currentDepartmentLevel($po) === null
-            && $this->pendingCategoryApprovals($po)->isEmpty();
+        return ! $po->status->isAwaitingApproval();
     }
 
     /**

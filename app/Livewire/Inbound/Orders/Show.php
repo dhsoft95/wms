@@ -170,6 +170,7 @@ class Show extends Component
     public function timelineStatus(): PurchaseOrderStatus
     {
         return match ($this->purchaseOrder->status) {
+            // All receiving/putaway sub-states fold into the Receiving step
             PurchaseOrderStatus::ReceivingInProgress,
             PurchaseOrderStatus::PartiallyReceived,
             PurchaseOrderStatus::PendingPutaway,

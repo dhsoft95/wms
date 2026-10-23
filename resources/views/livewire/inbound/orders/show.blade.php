@@ -60,8 +60,8 @@
                 @endcan
             @endif
 
-            {{-- Pending approval: approve/return/reject --}}
-            @if ($purchaseOrder->status === \App\Enums\Inbound\PurchaseOrderStatus::PendingApproval)
+            {{-- Pending approval: approve/return/reject (both dept-head and WM levels) --}}
+            @if ($purchaseOrder->status->isAwaitingApproval())
                 @if ($this->canActOnApprovals)
                     <button wire:click="openReturnModal" class="btn btn-secondary">
                         <x-ui.icon name="arrow-uturn-left" class="w-4 h-4" /> Return

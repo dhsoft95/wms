@@ -70,16 +70,11 @@ class PurchaseOrderPolicy
 
     public function approve(User $user, PurchaseOrder $po): bool
     {
-        if (! $user->can('po.approve') || $po->status !== PurchaseOrderStatus::PendingApproval) {
+        if (! $po->status->isAwaitingApproval()) {
             return false;
         }
 
-        if ($user->hasRole('system-admin')) {
-            return true;
-        }
-
-        return $this->chainService->canActAtCurrentLevel($po, $user)
-            || $this->chainService->canActOnCategoryLevel($po, $user);
+        return $this->chainService->canActAtCurrentLevel($po, $user);
     }
 
     public function returnForCorrection(User $user, PurchaseOrder $po): bool
