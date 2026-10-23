@@ -44,8 +44,11 @@ class GrnPolicy
 
     public function approveVariance(User $user, Grn $grn): bool
     {
-        return $user->can('grn.variance.approve')
-            && $grn->status === GrnStatus::PendingVarianceApproval;
+        if ($grn->status !== GrnStatus::PendingVarianceApproval) {
+            return false;
+        }
+
+        return $user->hasRole('system-admin') || $user->can('grn.variance.approve');
     }
 
     public function cancel(User $user, Grn $grn): bool

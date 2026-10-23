@@ -136,12 +136,47 @@ final class PurchaseOrderWorkflow
         $this->assertStatus($po, PurchaseOrderStatus::PendingApproval);
 
         DB::transaction(function () use ($po, $by, $comment) {
+            // Admin override: approve all remaining dept levels + all pending categories at once
+            if ($by->hasRole('system-admin')) {
+                foreach ($this->chainService->getDepartmentChains($po) as $chain) {
+                    $alreadyDone = \App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)
+                        ->where('approval_chain_id', $chain->id)
+                        ->where('action', PurchaseOrderApprovalAction::Approved->value)
+                        ->exists();
+                    if (! $alreadyDone) {
+                        $this->chainService->record(
+                            $po, $by, PurchaseOrderApprovalAction::Approved,
+                            $chain->level, $chain->id, null, $comment,
+                        );
+                    }
+                }
+
+                foreach ($this->chainService->pendingCategoryApprovals($po) as $categoryId) {
+                    $this->chainService->record(
+                        $po, $by, PurchaseOrderApprovalAction::Approved,
+                        99, null, $categoryId, $comment,
+                    );
+                }
+
+                // Fallback: no chain and no categories configured
+                if ($this->chainService->getDepartmentChains($po)->isEmpty()
+                    && $this->chainService->pendingCategoryApprovals($po)->isEmpty()
+                    && ! $this->chainService->isFullyApproved($po)
+                ) {
+                    $this->chainService->record(
+                        $po, $by, PurchaseOrderApprovalAction::Approved,
+                        0, null, null, $comment,
+                    );
+                }
+
+                activity()->performedOn($po)->causedBy($by)->log('Admin override: approved entire chain');
+            } else {
             // Determine whether this is a department-level or category-level action
             $deptLevel = $this->chainService->currentDepartmentLevel($po);
             $pendingCategories = $this->chainService->pendingCategoryApprovals($po);
 
             if ($deptLevel !== null) {
-                // Department-level approval
+                // Regular approver: approve only the current level
                 $chain = ApprovalChain::where('department_id', $po->department_id)
                     ->where('document_type', ApprovalChainDocumentType::Po->value)
                     ->where('level', $deptLevel)
@@ -155,7 +190,7 @@ final class PurchaseOrderWorkflow
                 activity()->performedOn($po)->causedBy($by)
                     ->log("Approved at department level {$deptLevel}");
             } elseif ($pendingCategories->isNotEmpty()) {
-                // Category-level approval — user approves all their assigned categories
+                // Category-level approval
                 $userCategoryIds = ItemCategoryUser::where('user_id', $by->id)
                     ->where('warehouse_id', $po->warehouse_id)
                     ->whereIn('item_category_id', $pendingCategories)
@@ -188,6 +223,7 @@ final class PurchaseOrderWorkflow
                 activity()->performedOn($po)->causedBy($by)
                     ->log('Approved by warehouse manager (no chain configured)');
             }
+            } // end non-admin branch
 
             // Advance if fully approved
             if ($this->chainService->isFullyApproved($po)) {

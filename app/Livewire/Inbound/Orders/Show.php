@@ -137,10 +137,16 @@ class Show extends Component
     #[Computed]
     public function canActOnApprovals(): bool
     {
+        $user = auth()->user();
+
+        if ($user->hasRole('system-admin')) {
+            return true;
+        }
+
         $svc = app(ApprovalChainService::class);
-        return $svc->canActAtCurrentLevel($this->purchaseOrder, auth()->user())
-            || $svc->canActOnCategoryLevel($this->purchaseOrder, auth()->user())
-            || $svc->canActAsFallbackApprover($this->purchaseOrder, auth()->user());
+        return $svc->canActAtCurrentLevel($this->purchaseOrder, $user)
+            || $svc->canActOnCategoryLevel($this->purchaseOrder, $user)
+            || $svc->canActAsFallbackApprover($this->purchaseOrder, $user);
     }
 
     #[Computed]

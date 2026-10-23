@@ -239,6 +239,5 @@
     <div class="footer">
         {{ $brandName }} &bull; {{ $po->number }} &bull; Generated {{ now()->format('d M Y H:i') }}
     </div>
-
 </body>
 </html>

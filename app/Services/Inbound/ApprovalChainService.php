@@ -179,6 +179,10 @@ final class ApprovalChainService
             return false;
         }
 
+        if ($user->hasRole('system-admin')) {
+            return true;
+        }
+
         return ItemCategoryUser::where('user_id', $user->id)
             ->where('warehouse_id', $po->warehouse_id)
             ->whereIn('item_category_id', $pendingCategoryIds)
