@@ -104,11 +104,19 @@ return [
                 ],
                 [
                     'key'           => 'dispatch',
-                    'label'         => 'Dispatch & Gate',
+                    'label'         => 'Dispatch',
                     'icon'          => 'truck',
                     'route'         => 'outbound.dispatch.index',
                     'active_routes' => ['outbound.dispatch.*'],
                     'can'           => 'dispatch.view',
+                ],
+                [
+                    'key'           => 'gate-check',
+                    'label'         => 'Gate Check',
+                    'icon'          => 'shield-check',
+                    'route'         => 'outbound.gate.check',
+                    'active_routes' => ['outbound.gate.*'],
+                    'can'           => 'gate.verify',
                 ],
                 [
                     'key'           => 'pod',

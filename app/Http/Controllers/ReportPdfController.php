@@ -40,10 +40,15 @@ class ReportPdfController extends Controller
         abort_unless($this->reportDisk()->exists($reportRequest->file_path), 404);
 
         $contents = $this->reportDisk()->get($reportRequest->file_path);
-        return response()->streamDownload(
+        $filename = basename($reportRequest->file_path);
+
+        return response()->stream(
             fn () => print($contents),
-            basename($reportRequest->file_path),
-            ['Content-Type' => 'application/pdf', 'Content-Disposition' => 'inline']
+            200,
+            [
+                'Content-Type'        => 'application/pdf',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            ]
         );
     }
 
