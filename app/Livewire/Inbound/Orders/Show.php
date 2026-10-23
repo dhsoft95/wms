@@ -379,8 +379,9 @@ class Show extends Component
 
         $rules = ['receiveDockId' => ['required', 'exists:locations,id']];
         if ($isContainer) {
-            $rules['receiveContainerNo']       = ['nullable', 'string', 'max:20'];
-            $rules['receiveContainerSizeType'] = ['nullable', 'string'];
+            $rules['receiveContainerNo']       = ['required', 'string', 'max:20'];
+            $rules['receiveContainerSizeType'] = ['required', 'string'];
+            $rules['receiveContainerSealNo']   = ['required', 'string', 'max:50'];
         }
         $this->validate($rules);
         $this->authorize('receive', $this->purchaseOrder);

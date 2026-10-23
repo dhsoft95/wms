@@ -795,14 +795,14 @@
                         </div>
 
                         <div>
-                            <label class="label">Container No.</label>
+                            <label class="label">Container No. <span class="text-red-500">*</span></label>
                             <input wire:model="receiveContainerNo" type="text"
                                    placeholder="e.g. TCKU1234567"
                                    class="input font-mono uppercase" />
                             @error('receiveContainerNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="label">Size / Type</label>
+                            <label class="label">Size / Type <span class="text-red-500">*</span></label>
                             <select wire:model="receiveContainerSizeType" class="input">
                                 <option value="">Select…</option>
                                 @foreach (\App\Enums\ContainerSizeType::cases() as $st)
@@ -812,10 +812,11 @@
                             @error('receiveContainerSizeType') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="label">Seal No.</label>
+                            <label class="label">Seal No. <span class="text-red-500">*</span></label>
                             <input wire:model="receiveContainerSealNo" type="text"
                                    placeholder="Seal number"
                                    class="input font-mono" />
+                            @error('receiveContainerSealNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="label">Shipping Line</label>
@@ -827,6 +828,15 @@
                             </select>
                         </div>
                     @endif
+
+                    {{-- Vehicle & Driver Details --}}
+                    <div class="md:col-span-2 pt-1">
+                        <div class="flex items-center gap-2 mb-3">
+                            <div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Vehicle & Driver</span>
+                            <div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
+                        </div>
+                    </div>
 
                     <div>
                         <label class="label">Vehicle Type</label>
