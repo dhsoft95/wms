@@ -42,47 +42,11 @@
         .rpt-sub    { font-size: 7.5px; color: #6b7280; margin-top: 2px; }
         .rpt-meta   { font-size: 8px; color: #555; text-align: right; line-height: 1.7; }
         .rpt-meta strong { color: #222; }
-
-        /* Gate pass number hero box */
-        .gp-hero {
-            border: 2px solid {{ $isExited ? '#15803d' : '#d97706' }};
-            border-radius: 4px;
-            padding: 10px 14px;
-            margin-bottom: 12px;
-            background: {{ $isExited ? '#f0fdf4' : '#fffbf0' }};
-        }
-        .gp-hero-row { width: 100%; }
-        .gp-hero-row td { border: 0; padding: 0; vertical-align: middle; }
-        .gp-number  { font-family: DejaVu Sans Mono, Courier New, monospace; font-size: 22px; font-weight: bold; color: #111; letter-spacing: 1px; }
-        .gp-badge   {
-            display: inline-block;
-            padding: 3px 10px;
-            border-radius: 50px;
-            font-size: 8px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            background: {{ $isExited ? '#dcfce7' : '#fef3c7' }};
-            color: {{ $isExited ? '#15803d' : '#92400e' }};
-            border: 1px solid {{ $isExited ? '#86efac' : '#fde68a' }};
-        }
-
-        /* KPI strip */
-        .kpi-row { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin: 0 -6px 12px -6px; }
-        .kpi-box {
-            border: 1px solid #e5e7eb;
-            border-left: 3px solid #a22631;
-            background: #fafafa;
-            padding: 5px 8px;
-            vertical-align: top;
-        }
-        .kpi-label { font-size: 7px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
-        .kpi-value { font-size: 11px; font-weight: bold; color: #111; margin-top: 2px; }
-        .kpi-hint  { font-size: 7px; color: #6b7280; margin-top: 1px; }
+        .rpt-gp-no  { font-family: DejaVu Sans Mono, Courier New, monospace; font-size: 13px; font-weight: bold; color: #111; }
 
         /* Info cards */
         .info-row  { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin: 0 -6px 12px -6px; }
-        .info-card { border: 1px solid #e5e7eb; vertical-align: top; padding: 0; width: 50%; }
+        .info-card { border: 1px solid #e5e7eb; vertical-align: top; padding: 0; }
         .info-head {
             background: #f3f4f6;
             color: #a22631;
@@ -97,20 +61,6 @@
         .info-body td  { padding: 3px 8px; font-size: 8px; border: 0; vertical-align: top; }
         .info-body td.k { color: #6b7280; width: 38%; white-space: nowrap; }
         .info-body td.v { color: #111; font-weight: 500; }
-
-        /* Verification box */
-        .verify-box {
-            border: 1.5px solid #15803d;
-            background: #f0fdf4;
-            padding: 6px 10px;
-            margin-bottom: 12px;
-            font-size: 8px;
-        }
-        .verify-title { font-weight: bold; color: #15803d; font-size: 8.5px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
-        .verify-grid  { width: 100%; }
-        .verify-grid td { border: 0; padding: 1px 16px 1px 0; vertical-align: top; }
-        .verify-grid .k { color: #6b7280; font-size: 7.5px; }
-        .verify-grid .v { color: #111; font-weight: 600; }
 
         /* Items table */
         .section-title { font-size: 9px; font-weight: bold; color: #a22631; margin: 4px 0 5px; }
@@ -190,78 +140,24 @@
 {{-- Document header --}}
 <table class="rpt-header">
     <tr>
-        <td width="55%">
+        <td width="50%">
             <div class="rpt-title">Gate Pass</div>
             <div class="rpt-sub">Authorisation to exit the warehouse premises</div>
         </td>
-        <td width="45%" class="rpt-meta">
+        <td width="50%" class="rpt-meta">
+            <strong>Gate Pass No.:</strong> <span class="rpt-gp-no">{{ $gatePass->number }}</span><br>
+            <strong>Status:</strong> {{ $gatePass->status->label() }}<br>
             <strong>DO No.:</strong> {{ $do->number }}<br>
-            <strong>Dispatch No.:</strong> {{ $dispatch->number }}<br>
-            <strong>Dispatched:</strong> {{ $dispatch->dispatched_at?->format('d M Y H:i') ?? '—' }}<br>
-            @if ($do->virtualWarehouse?->name)
-                <strong>Warehouse:</strong> {{ $do->virtualWarehouse->name }}
-            @endif
+            <strong>Dispatched:</strong> {{ $dispatch->dispatched_at?->format('d M Y H:i') ?? '—' }}
         </td>
     </tr>
 </table>
-
-{{-- Gate pass number hero --}}
-<div class="gp-hero">
-    <table class="gp-hero-row">
-        <tr>
-            <td>
-                <div style="font-size:7px; color:#6b7280; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:3px;">Gate Pass No.</div>
-                <div class="gp-number">{{ $gatePass->number }}</div>
-            </td>
-            <td style="text-align:right; white-space:nowrap;">
-                <div class="gp-badge">{{ $gatePass->status->label() }}</div>
-            </td>
-        </tr>
-    </table>
-</div>
-
-{{-- KPI strip --}}
-<table class="kpi-row">
-    <tr>
-        <td class="kpi-box">
-            <div class="kpi-label">Consignee</div>
-            <div class="kpi-value" style="font-size:9px;">{{ $do->consigneePartner?->name ?? '—' }}</div>
-        </td>
-        <td class="kpi-box">
-            <div class="kpi-label">Items dispatched</div>
-            <div class="kpi-value">{{ $items->count() }}</div>
-        </td>
-        <td class="kpi-box">
-            <div class="kpi-label">Total qty</div>
-            <div class="kpi-value">{{ $qty($items->sum(fn ($i) => (float) $i->qty)) }}</div>
-        </td>
-        <td class="kpi-box">
-            <div class="kpi-label">Issued</div>
-            <div class="kpi-value" style="font-size:9px;">{{ $gatePass->created_at->format('d M Y H:i') }}</div>
-        </td>
-    </tr>
-</table>
-
-{{-- Verification banner (only when exited) --}}
-@if ($isExited)
-    <div class="verify-box">
-        <div class="verify-title">&#10003; Gate Exit Verified</div>
-        <table class="verify-grid">
-            <tr>
-                <td class="k">Exited at</td>
-                <td class="v">{{ $gatePass->exited_at?->format('d M Y H:i') }}</td>
-                <td class="k">Verified by</td>
-                <td class="v">{{ $gatePass->verifiedBy?->name ?? '—' }}</td>
-            </tr>
-        </table>
-    </div>
-@endif
 
 {{-- Info cards --}}
 <table class="info-row">
     <tr>
-        {{-- Shipment --}}
-        <td class="info-card">
+        {{-- Shipment details --}}
+        <td class="info-card" width="33%">
             <div class="info-head">Shipment details</div>
             <table class="info-body">
                 <tr>
@@ -280,6 +176,12 @@
                         <td class="v">{!! nl2br(e($do->delivery_address)) !!}</td>
                     </tr>
                 @endif
+                @if ($do->virtualWarehouse?->name)
+                    <tr>
+                        <td class="k">Warehouse</td>
+                        <td class="v">{{ $do->virtualWarehouse->name }}</td>
+                    </tr>
+                @endif
                 <tr>
                     <td class="k">Dispatched by</td>
                     <td class="v">{{ $dispatch->dispatchedBy?->name ?? '—' }}</td>
@@ -293,8 +195,8 @@
             </table>
         </td>
 
-        {{-- Vehicle / Driver --}}
-        <td class="info-card">
+        {{-- Vehicle & driver --}}
+        <td class="info-card" width="33%">
             <div class="info-head">Vehicle &amp; driver</div>
             <table class="info-body">
                 <tr>
@@ -338,6 +240,39 @@
                     <tr>
                         <td class="k">Transporter</td>
                         <td class="v">{{ $dispatch->transporterPartner->name }}</td>
+                    </tr>
+                @endif
+            </table>
+        </td>
+
+        {{-- Gate status --}}
+        <td class="info-card" width="33%">
+            <div class="info-head">Gate status</div>
+            <table class="info-body">
+                <tr>
+                    <td class="k">Status</td>
+                    <td class="v">{{ $gatePass->status->label() }}</td>
+                </tr>
+                <tr>
+                    <td class="k">Items</td>
+                    <td class="v">{{ $items->count() }} line(s)</td>
+                </tr>
+                <tr>
+                    <td class="k">Total qty</td>
+                    <td class="v">{{ $qty($items->sum(fn ($i) => (float) $i->qty)) }}</td>
+                </tr>
+                <tr>
+                    <td class="k">Issued at</td>
+                    <td class="v">{{ $gatePass->created_at->format('d M Y H:i') }}</td>
+                </tr>
+                @if ($isExited)
+                    <tr>
+                        <td class="k">Exited at</td>
+                        <td class="v">{{ $gatePass->exited_at?->format('d M Y H:i') ?? '—' }}</td>
+                    </tr>
+                    <tr>
+                        <td class="k">Verified by</td>
+                        <td class="v">{{ $gatePass->verifiedBy?->name ?? '—' }}</td>
                     </tr>
                 @endif
             </table>
@@ -388,12 +323,13 @@
         <td class="sig-col">
             <div class="sig-role">Dispatched by</div>
             <div class="sig-line">Signature</div>
-            <div class="sig-name">{{ $dispatch->dispatchedBy?->name ?? '' }}</div>
+            <div class="sig-name">{{ $dispatch->dispatchedBy?->name ?? '—' }}</div>
+            <div class="sig-field" style="text-align:center; color:#6b7280;">Name &amp; Designation</div>
         </td>
         <td class="sig-col">
             <div class="sig-role">Security / Gate officer</div>
             <div class="sig-line">Signature</div>
-            <div class="sig-field">Name: <span>&nbsp;</span></div>
+            <div class="sig-name">{{ $isExited ? ($gatePass->verifiedBy?->name ?? '—') : '' }}</div>
             <div class="sig-field">Badge no.: <span>&nbsp;</span></div>
             @if ($isExited)
                 <div class="sig-field">Time: <span>{{ $gatePass->exited_at?->format('H:i') }}</span></div>
@@ -404,8 +340,8 @@
         <td class="sig-col">
             <div class="sig-role">Driver / Transporter</div>
             <div class="sig-line">Signature</div>
-            <div class="sig-name">{{ $dispatch->driver_name ?? '' }}</div>
-            <div class="sig-field">ID no.: <span>{{ $dispatch->driver_id_no ? $dispatch->driver_id_no : '&nbsp;' }}</span></div>
+            <div class="sig-name">{{ $dispatch->driver_name ?? '—' }}</div>
+            <div class="sig-field">ID no.: <span>{{ $dispatch->driver_id_no ?? '&nbsp;' }}</span></div>
         </td>
     </tr>
 </table>
