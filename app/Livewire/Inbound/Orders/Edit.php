@@ -45,8 +45,8 @@ class Edit extends Component
 
     public function mount(PurchaseOrder $purchaseOrder): void
     {
-        if ($purchaseOrder->status !== PurchaseOrderStatus::Draft) {
-            abort(403, 'Only draft purchase orders can be edited.');
+        if (! $purchaseOrder->status->isEditable()) {
+            abort(403, 'This purchase order cannot be edited in its current status.');
         }
 
         $this->purchaseOrder = $purchaseOrder->load('lines');
