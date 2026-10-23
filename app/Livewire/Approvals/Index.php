@@ -56,7 +56,7 @@ class Index extends Component
         $user    = auth()->user();
         $service = app(ApprovalChainService::class);
 
-        $query = PurchaseOrder::with(['warehouse', 'department', 'requestedBy', 'lines.item.category']);
+        $query = PurchaseOrder::with(['warehouse', 'department', 'requestedBy', 'lines.item.category', 'approvals']);
 
         if ($this->tab === 'pending') {
             $query->where('status', PurchaseOrderStatus::PendingApproval);
@@ -65,12 +65,23 @@ class Index extends Component
         }
 
         return $query->get()
-            ->filter(fn ($po) =>
-                $user->hasRole('system-admin') ||
-                $service->canActAtCurrentLevel($po, $user) ||
-                $service->canActOnCategoryLevel($po, $user) ||
-                $service->canActAsFallbackApprover($po, $user)
-            )
+            ->filter(function ($po) use ($user, $service) {
+                if ($user->hasRole('system-admin')) {
+                    return true;
+                }
+                if ($this->tab === 'all') {
+                    // Show POs the user submitted or previously acted on
+                    if ($po->requested_by === $user->id) {
+                        return true;
+                    }
+                    if ($po->approvals->contains('user_id', $user->id)) {
+                        return true;
+                    }
+                }
+                return $service->canActAtCurrentLevel($po, $user)
+                    || $service->canActOnCategoryLevel($po, $user)
+                    || $service->canActAsFallbackApprover($po, $user);
+            })
             ->values();
     }
 
