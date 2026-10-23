@@ -54,7 +54,7 @@ class Index extends Component
     #[Computed]
     public function tasks(): \Illuminate\Pagination\LengthAwarePaginator
     {
-        $query = PutawayTask::with(['grn', 'item', 'fromLocation', 'suggestedLocation', 'actualLocation', 'assignedTo'])
+        $query = PutawayTask::with(['grn', 'item', 'fromLocation', 'actualLocation', 'assignedTo'])
             ->whereHas('grn');
 
         if ($this->statusFilter !== 'all') {
@@ -130,7 +130,7 @@ class Index extends Component
             return null;
         }
 
-        return PutawayTask::with(['item', 'fromLocation', 'suggestedLocation', 'grn'])->find($this->executingTaskId);
+        return PutawayTask::with(['item', 'fromLocation', 'grn'])->find($this->executingTaskId);
     }
 
     // ─── Bin Search ───────────────────────────────────────────────────────────
