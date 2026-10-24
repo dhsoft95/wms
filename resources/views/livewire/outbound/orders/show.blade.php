@@ -937,7 +937,7 @@
                                 <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">Short-pick detected</p>
                             </div>
                             <p class="text-xs text-amber-700 dark:text-amber-400">
-                                The following lines were not fully picked. You can dispatch what was picked now and optionally create a backorder for the remainder.
+                                These lines were not fully picked. Only picked quantities will be dispatched.
                             </p>
                             <table class="w-full text-xs border-collapse">
                                 <thead>
@@ -969,12 +969,13 @@
                                     @endforeach
                                 </tbody>
                             </table>
-                            <label class="flex items-center gap-3 cursor-pointer">
+                            <label class="flex items-start gap-3 cursor-pointer">
                                 <input type="checkbox" wire:model="createBackorder"
-                                       class="rounded border-amber-400 text-simba-600 focus:ring-simba-600">
-                                <span class="text-sm font-medium text-amber-800 dark:text-amber-300">
-                                    Create a backorder for the remaining {{ number_format($shortDispatchLines->sum(fn ($l) => (float) bcsub((string) $l->requested_qty_base, (string) $l->picked_qty, 4)), 2) }} units
-                                </span>
+                                       class="mt-0.5 rounded border-amber-400 text-simba-600 focus:ring-simba-600">
+                                <div>
+                                    <span class="text-sm font-medium text-amber-800 dark:text-amber-300">Create a backorder</span>
+                                    <p class="text-xs text-amber-600 dark:text-amber-500 mt-0.5">A new order will be raised for the remaining quantities.</p>
+                                </div>
                             </label>
                         </div>
                     @endif
