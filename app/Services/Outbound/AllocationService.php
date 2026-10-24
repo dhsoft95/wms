@@ -30,6 +30,10 @@ final class AllocationService
         DB::transaction(function () use ($do) {
             $do->load('lines.item');
 
+            if ($do->lines->isEmpty()) {
+                throw new \DomainException('This delivery order has no lines and cannot be allocated.');
+            }
+
             foreach ($do->lines as $line) {
                 if (in_array($line->status, [DoLineStatus::Allocated, DoLineStatus::Dispatched], true)) {
                     continue;
@@ -39,7 +43,7 @@ final class AllocationService
 
             // Determine overall DO status
             $lines        = $do->lines()->get();
-            $allAllocated = $lines->every(fn ($l) => bccomp((string) $l->allocated_qty, (string) $l->requested_qty_base, 4) >= 0);
+            $allAllocated = $lines->isNotEmpty() && $lines->every(fn ($l) => bccomp((string) $l->allocated_qty, (string) $l->requested_qty_base, 4) >= 0);
             $anyAllocated = $lines->some(fn ($l) => bccomp((string) $l->allocated_qty, '0', 4) > 0);
             $allowPartial = (bool) $this->settings->get('outbound.allow_partial_allocation', false);
 
@@ -51,9 +55,7 @@ final class AllocationService
             } elseif ($anyAllocated) {
                 $do->status = DeliveryOrderStatus::PartiallyAllocated;
             } else {
-                throw new \DomainException(
-                    'No stock could be allocated. Ensure stock has been received and put away into storage locations for this virtual warehouse.'
-                );
+                throw new \DomainException($this->buildAllocationError($do));
             }
 
             $do->save();
@@ -146,12 +148,14 @@ final class AllocationService
         $minShelfLife = (int) $this->settings->get('outbound.min_shelf_life_days', 0);
         $minExpiry    = $minShelfLife > 0 ? now()->addDays($minShelfLife)->toDateString() : null;
 
+        // Pickable location types: storage, staging, hazardous
+        $pickableTypes = ['storage', 'staging', 'hazardous'];
+
         $query = StockBalance::with(['batch', 'location'])
             ->where('virtual_warehouse_id', $do->virtual_warehouse_id)
             ->where('stock_status', 'available')
-            ->whereNotIn('stock_status', ['on_hold', 'obsolete'])
-            ->whereHas('location', function ($q) {
-                $q->where('type', 'storage')
+            ->whereHas('location', function ($q) use ($pickableTypes) {
+                $q->whereIn('type', $pickableTypes)
                   ->whereIn('status', ['active', 'full']);
             })
             ->whereRaw('qty_on_hand - qty_allocated > 0');
@@ -187,6 +191,77 @@ final class AllocationService
         }
 
         return $query->get();
+    }
+
+    private function buildAllocationError(DeliveryOrder $do): string
+    {
+        $vwId        = $do->virtual_warehouse_id;
+        $itemIds     = $do->lines->pluck('item_id')->filter()->unique()->values();
+        $pickable    = ['storage', 'staging', 'hazardous'];
+        $nonPickable = ['receiving_dock', 'yard_slot', 'quarantine', 'transit', 'disposal'];
+
+        if ($itemIds->isEmpty()) {
+            return 'This delivery order has no lines.';
+        }
+
+        // Check 1: any stock for these items at all in this virtual warehouse?
+        $anyStock = StockBalance::whereIn('item_id', $itemIds)
+            ->where('virtual_warehouse_id', $vwId)
+            ->where('qty_on_hand', '>', 0)
+            ->exists();
+
+        if (! $anyStock) {
+            return 'No stock found for the requested items in this virtual warehouse. Ensure items have been received against a PO assigned to the same virtual warehouse.';
+        }
+
+        // Check 2: is the stock still in dock/quarantine (putaway not yet done)?
+        $inDock = StockBalance::whereIn('item_id', $itemIds)
+            ->where('virtual_warehouse_id', $vwId)
+            ->whereRaw('qty_on_hand - qty_allocated > 0')
+            ->whereHas('location', fn ($q) => $q->whereIn('type', $nonPickable))
+            ->exists();
+
+        if ($inDock) {
+            return 'Stock has been received but putaway is not yet complete. Complete the putaway tasks to move stock into storage bins before allocating.';
+        }
+
+        // Check 3: stock in pickable location but wrong status?
+        $wrongStatus = StockBalance::whereIn('item_id', $itemIds)
+            ->where('virtual_warehouse_id', $vwId)
+            ->whereRaw('qty_on_hand - qty_allocated > 0')
+            ->whereHas('location', fn ($q) => $q->whereIn('type', $pickable))
+            ->where('stock_status', '!=', 'available')
+            ->exists();
+
+        if ($wrongStatus) {
+            return 'Stock is on hold or obsolete and cannot be allocated. Change the stock status to Available first.';
+        }
+
+        // Check 4: location blocked?
+        $blockedLoc = StockBalance::whereIn('item_id', $itemIds)
+            ->where('virtual_warehouse_id', $vwId)
+            ->where('stock_status', 'available')
+            ->whereRaw('qty_on_hand - qty_allocated > 0')
+            ->whereHas('location', fn ($q) => $q->whereIn('type', $pickable)->whereNotIn('status', ['active', 'full']))
+            ->exists();
+
+        if ($blockedLoc) {
+            return 'Stock is in blocked locations. Unblock the locations or relocate the stock before allocating.';
+        }
+
+        // Check 5: all qty already reserved?
+        $fullyAllocated = StockBalance::whereIn('item_id', $itemIds)
+            ->where('virtual_warehouse_id', $vwId)
+            ->where('stock_status', 'available')
+            ->whereHas('location', fn ($q) => $q->whereIn('type', $pickable)->whereIn('status', ['active', 'full']))
+            ->whereRaw('qty_on_hand - qty_allocated <= 0')
+            ->exists();
+
+        if ($fullyAllocated) {
+            return 'All available stock is already allocated to other orders.';
+        }
+
+        return 'No stock could be allocated. Ensure stock has been received and put away into storage locations for this virtual warehouse.';
     }
 
     private function sortCandidates(Collection $balances, DeliveryOrder $do, DeliveryOrderLine $line): Collection
