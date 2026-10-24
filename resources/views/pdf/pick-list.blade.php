@@ -113,12 +113,7 @@
             font-family: DejaVu Sans Mono, monospace;
             font-size: 8.5px;
             font-weight: bold;
-            color: #1d4ed8;
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-            padding: 1px 5px;
-            border-radius: 3px;
-            display: inline-block;
+            color: #111;
         }
         .batch-txt   { font-size: 7.5px; color: #6b7280; font-style: italic; }
         .qty-cell    { text-align: right; font-weight: bold; font-size: 10px; }
