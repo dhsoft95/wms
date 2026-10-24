@@ -7,7 +7,7 @@
                class="inline-flex items-center gap-1.5 mb-2 text-xs font-semibold text-slate-500 transition-colors hover:text-simba-600 dark:text-slate-400 dark:hover:text-simba-400">
                 <x-ui.icon name="arrow-left" class="w-3.5 h-3.5 shrink-0" /> Back to GRN
             </a>
-            <h2 class="page-title font-mono">Entry: {{ $grn->number }}</h2>
+            <h2 class="page-title font-mono">Entry {{ $grn->number }}</h2>
             <div class="flex items-center gap-2 mt-1">
                 <span class="badge {{ $grn->status->color() }}">
                     <span class="dot"></span>{{ $grn->status->label() }}
