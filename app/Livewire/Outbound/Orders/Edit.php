@@ -143,7 +143,7 @@ class Edit extends Component
     #[Computed]
     public function isDraft(): bool
     {
-        return $this->deliveryOrder->status === DeliveryOrderStatus::Draft;
+        return $this->deliveryOrder->status->isEditable();
     }
 
     // ─── Line Management ──────────────────────────────────────────────────────

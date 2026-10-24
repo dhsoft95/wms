@@ -97,6 +97,14 @@ class Show extends Component
             ->get();
     }
 
+    // Return-for-correction modal
+    public bool   $showReturnModal  = false;
+    public string $returnNotes      = '';
+
+    // Reject modal
+    public bool   $showRejectModal  = false;
+    public string $rejectNotes      = '';
+
     // ─── Actions ──────────────────────────────────────────────────────────────
 
     public function submit(): void
@@ -116,10 +124,61 @@ class Show extends Component
     {
         $this->authorize('approveDepartment', $this->deliveryOrder);
         try {
-            app(DeliveryOrderWorkflow::class)->approveOrder($this->deliveryOrder, auth()->user());
+            // Find the current pending level and approve it
+            $pending = $this->deliveryOrder->approvals()
+                ->whereNull('decision')
+                ->orderBy('level')
+                ->first();
+            $level = $pending?->level ?? 1;
+            app(DeliveryOrderWorkflow::class)->approve($this->deliveryOrder, auth()->user(), $level);
             $this->deliveryOrder->refresh();
             unset($this->do);
             $this->dispatch('toast', message: 'Order approved.', type: 'success');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function returnForCorrection(): void
+    {
+        $this->validate(['returnNotes' => ['required', 'string', 'min:5']]);
+        $this->authorize('returnOrder', $this->deliveryOrder);
+        try {
+            app(DeliveryOrderWorkflow::class)->returnForCorrection($this->deliveryOrder, auth()->user(), $this->returnNotes);
+            $this->showReturnModal = false;
+            $this->returnNotes     = '';
+            $this->deliveryOrder->refresh();
+            unset($this->do);
+            $this->dispatch('toast', message: 'Order returned for correction.', type: 'info');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function forwardToRequester(): void
+    {
+        $this->authorize('forwardReturn', $this->deliveryOrder);
+        try {
+            app(DeliveryOrderWorkflow::class)->forwardToRequester($this->deliveryOrder, auth()->user());
+            $this->deliveryOrder->refresh();
+            unset($this->do);
+            $this->dispatch('toast', message: 'Order sent back to requester.', type: 'info');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function rejectOrder(): void
+    {
+        $this->validate(['rejectNotes' => ['required', 'string', 'min:5']]);
+        $this->authorize('approveDepartment', $this->deliveryOrder);
+        try {
+            app(DeliveryOrderWorkflow::class)->reject($this->deliveryOrder, auth()->user(), $this->rejectNotes);
+            $this->showRejectModal = false;
+            $this->rejectNotes     = '';
+            $this->deliveryOrder->refresh();
+            unset($this->do);
+            $this->dispatch('toast', message: 'Order rejected.', type: 'warning');
         } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }

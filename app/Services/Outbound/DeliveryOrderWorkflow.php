@@ -7,10 +7,12 @@ namespace App\Services\Outbound;
 use App\Data\Inventory\StockLine;
 use App\Data\Inventory\StockPosting;
 use App\Data\Inventory\StockReference;
+use App\Enums\Inbound\ApprovalChainDocumentType;
 use App\Enums\Inventory\MovementType;
 use App\Enums\Inventory\StockStatus;
 use App\Enums\Outbound\AllocationStatus;
 use App\Enums\Outbound\DeliveryOrderStatus;
+use App\Models\ApprovalChain;
 use App\Models\DeliveryOrder;
 use App\Models\DeliveryOrderApproval;
 use App\Models\ProofOfDelivery;
@@ -31,33 +33,77 @@ final class DeliveryOrderWorkflow
 
     public function submit(DeliveryOrder $do, User $by): void
     {
-        $this->assertCanTransition($do, DeliveryOrderStatus::Submitted);
+        $resubmit = $do->status === DeliveryOrderStatus::AwaitingRequesterCorrection;
 
-        DB::transaction(function () use ($do, $by) {
-            $do->load('lines.item');
+        if (! $resubmit) {
+            $this->assertCanTransition($do, DeliveryOrderStatus::Submitted);
+        }
 
-            foreach ($do->lines as $line) {
-                $available = \App\Models\Inventory\StockBalance::where('item_id', $line->item_id)
-                    ->where('virtual_warehouse_id', $do->virtual_warehouse_id)
-                    ->where('stock_status', \App\Enums\Inventory\StockStatus::Available->value)
-                    ->get()
-                    ->sum(fn ($b) => (float) $b->qtyAvailable());
-
-                $sku = $line->item?->sku ?? "line {$line->line_no}";
-
-                if (bccomp((string) $available, '0', 4) <= 0) {
-                    throw new \DomainException("No stock available for {$sku}.");
-                }
-                if (bccomp((string) $available, (string) $line->requested_qty_base, 4) < 0) {
-                    throw new \DomainException("Only {$available} available for {$sku} (requested {$line->requested_qty_base}).");
-                }
+        DB::transaction(function () use ($do, $by, $resubmit) {
+            // On resubmit, clear prior approval records so chain restarts
+            if ($resubmit) {
+                DeliveryOrderApproval::where('delivery_order_id', $do->id)->delete();
             }
 
             $do->status       = DeliveryOrderStatus::Submitted;
             $do->submitted_at = now();
             $do->save();
 
-            activity()->performedOn($do)->causedBy($by)->log('Submitted for approval');
+            // Seed approval chain using ApprovalChain configured for MRN + department
+            $chains = ApprovalChain::where('document_type', ApprovalChainDocumentType::Mrn->value)
+                ->where('department_id', $do->department_id)
+                ->orderBy('level')
+                ->get();
+
+            if ($chains->isEmpty()) {
+                // No chain configured → auto-approve immediately
+                $this->doApprove($do, $by);
+            } else {
+                foreach ($chains as $chain) {
+                    DeliveryOrderApproval::create([
+                        'delivery_order_id' => $do->id,
+                        'level'             => $chain->level,
+                        'approver_role'     => 'department',
+                        'decision'          => null,
+                    ]);
+                }
+            }
+
+            activity()->performedOn($do)->causedBy($by)->log($resubmit ? 'Resubmitted for approval' : 'Submitted for approval');
+        });
+    }
+
+    public function returnForCorrection(DeliveryOrder $do, User $by, string $notes = ''): void
+    {
+        $this->assertCanTransition($do, DeliveryOrderStatus::ReturnedForCorrection);
+
+        DB::transaction(function () use ($do, $by, $notes) {
+            // Mark the pending approval record with a 'returned' decision
+            DeliveryOrderApproval::where('delivery_order_id', $do->id)
+                ->whereNull('decision')
+                ->update([
+                    'decided_by' => $by->id,
+                    'decision'   => 'returned',
+                    'notes'      => $notes,
+                    'decided_at' => now(),
+                ]);
+
+            $do->status = DeliveryOrderStatus::ReturnedForCorrection;
+            $do->save();
+
+            activity()->performedOn($do)->causedBy($by)->log("Returned for correction: {$notes}");
+        });
+    }
+
+    public function forwardToRequester(DeliveryOrder $do, User $by): void
+    {
+        $this->assertCanTransition($do, DeliveryOrderStatus::AwaitingRequesterCorrection);
+
+        DB::transaction(function () use ($do, $by) {
+            $do->status = DeliveryOrderStatus::AwaitingRequesterCorrection;
+            $do->save();
+
+            activity()->performedOn($do)->causedBy($by)->log('Forwarded to requester for correction');
         });
     }
 
@@ -73,26 +119,20 @@ final class DeliveryOrderWorkflow
         });
     }
 
-    public function approve(DeliveryOrder $do, User $by, string $approverRole, string $notes = ''): void
+    public function approve(DeliveryOrder $do, User $by, int $level): void
     {
-        DB::transaction(function () use ($do, $by, $approverRole, $notes) {
-            $approval = $do->approvals()
-                ->where('approver_role', $approverRole)
+        DB::transaction(function () use ($do, $by, $level) {
+            DeliveryOrderApproval::where('delivery_order_id', $do->id)
+                ->where('level', $level)
                 ->whereNull('decision')
-                ->first();
-
-            if ($approval !== null) {
-                $approval->update([
+                ->update([
                     'decided_by' => $by->id,
                     'decision'   => 'approved',
-                    'notes'      => $notes,
                     'decided_at' => now(),
                 ]);
-            }
 
-            activity()->performedOn($do)->causedBy($by)->log("{$approverRole} approved");
+            activity()->performedOn($do)->causedBy($by)->log("Level {$level} approved");
 
-            // Check if all levels approved (or no records at all)
             $pendingCount = $do->approvals()->whereNull('decision')->count();
             if ($pendingCount === 0) {
                 $this->doApprove($do, $by);
@@ -107,7 +147,6 @@ final class DeliveryOrderWorkflow
         }
 
         DB::transaction(function () use ($do, $by, $notes) {
-            // Mark pending approval as rejected
             $do->approvals()->whereNull('decision')->update([
                 'decided_by' => $by->id,
                 'decision'   => 'rejected',
@@ -115,7 +154,7 @@ final class DeliveryOrderWorkflow
                 'decided_at' => now(),
             ]);
 
-            $do->status = DeliveryOrderStatus::Draft;
+            $do->status = DeliveryOrderStatus::Rejected;
             $do->save();
 
             activity()->performedOn($do)->causedBy($by)->log("Rejected: {$notes}");
