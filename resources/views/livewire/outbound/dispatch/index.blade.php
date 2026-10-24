@@ -187,225 +187,281 @@
     @if ($showDispatchModal)
         <x-ui.modal title="Confirm Dispatch" wireClose="closeDispatchModal" maxWidth="xl">
 
-            {{-- Package Type (read-only) --}}
             @php
-                $isContainer  = $packageType === \App\Enums\Outbound\PackageType::Container->value;
-                $shortIndexLines = $this->actionDo?->lines->filter(
+                $isContainer = $packageType === \App\Enums\Outbound\PackageType::Container->value;
+                $lines       = $this->actionDo?->lines ?? collect();
+                $shortLines  = $lines->filter(
                     fn ($l) => bccomp((string) $l->picked_qty, (string) $l->requested_qty_base, 4) < 0
-                ) ?? collect();
+                );
+                $errorClass  = '!border-rose-400 focus:!ring-rose-500/30';
             @endphp
-            <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
-                <x-ui.icon name="cube" class="w-5 h-5 text-slate-500 shrink-0" />
-                <div>
-                    <p class="text-xs text-slate-500 dark:text-slate-400">Package Type</p>
-                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                        {{ $packageType ? \App\Enums\Outbound\PackageType::from($packageType)->label() : '— Not set —' }}
-                    </p>
-                </div>
-            </div>
 
-            {{-- Short lines warning + backorder option --}}
-            @if ($shortIndexLines->isNotEmpty())
-                <div class="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 space-y-3">
-                    <div class="flex items-center gap-2">
-                        <x-ui.icon name="exclamation-triangle" class="w-4 h-4 text-amber-600 shrink-0" />
-                        <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">Short-pick detected</p>
+            <div class="space-y-6">
+
+                {{-- Summary strip --}}
+                <div class="flex items-center justify-between gap-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 px-4 py-3">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700">
+                            <x-ui.icon name="cube" class="w-5 h-5 text-slate-500" />
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-[11px] font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">Package Type</p>
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">
+                                {{ $packageType ? \App\Enums\Outbound\PackageType::from($packageType)->label() : 'Not set' }}
+                            </p>
+                        </div>
                     </div>
-                    <p class="text-xs text-amber-700 dark:text-amber-400">
-                        The following lines were not fully picked. Dispatch what was picked and optionally create a backorder for the remainder.
-                    </p>
-                    <table class="w-full text-xs border-collapse">
-                        <thead>
-                            <tr class="text-amber-700 dark:text-amber-400">
-                                <th class="text-left pb-1 font-semibold">Item</th>
-                                <th class="text-right pb-1 font-semibold">Ordered</th>
-                                <th class="text-right pb-1 font-semibold">Picked</th>
-                                <th class="text-right pb-1 font-semibold">Remaining</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-amber-200 dark:divide-amber-800">
-                            @foreach ($shortIndexLines as $line)
-                                <tr>
-                                    <td class="py-1 text-slate-700 dark:text-slate-300">
-                                        <span class="font-mono text-slate-400 mr-1">{{ $line->item?->sku }}</span>
-                                        {{ $line->item?->name }}
-                                    </td>
-                                    <td class="py-1 text-right tabular-nums text-slate-600 dark:text-slate-400">
-                                        {{ number_format((float) $line->requested_qty_base, 2) }}
-                                    </td>
-                                    <td class="py-1 text-right tabular-nums text-emerald-700 dark:text-emerald-400 font-medium">
-                                        {{ number_format((float) $line->picked_qty, 2) }}
-                                    </td>
-                                    <td class="py-1 text-right tabular-nums text-amber-700 dark:text-amber-400 font-semibold">
-                                        {{ number_format((float) bcsub((string) $line->requested_qty_base, (string) $line->picked_qty, 4), 2) }}
-                                        {{ $line->uom?->code }}
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                    <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="checkbox" wire:model="createBackorder"
-                               class="rounded border-amber-400 text-simba-600 focus:ring-simba-600">
-                        <span class="text-sm font-medium text-amber-800 dark:text-amber-300">
-                            Create a backorder for the remaining items
-                        </span>
-                    </label>
-                </div>
-            @endif
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
-                {{-- Vehicle Registration No --}}
-                <div>
-                    <label class="label" for="dispatch-vehicle">
-                        Vehicle Registration No <span class="text-rose-500">*</span>
-                    </label>
-                    <input wire:model="vehicleRegNo"
-                           id="dispatch-vehicle"
-                           type="text"
-                           placeholder="T 452 ABC"
-                           class="input w-full mono uppercase @error('vehicleRegNo') border-red-400 @enderror" />
-                    @error('vehicleRegNo')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                {{-- Seal No (required for container, optional for loose cargo) --}}
-                <div>
-                    <label class="label" for="dispatch-seal">
-                        Seal No
-                        @if ($isContainer)
-                            <span class="text-rose-500">*</span>
+                    <div class="flex items-center gap-2 shrink-0">
+                <span class="inline-flex items-center rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 tabular-nums">
+                    {{ $lines->count() }} {{ Str::plural('line', $lines->count()) }}
+                </span>
+                        @if ($shortLines->isNotEmpty())
+                            <span class="inline-flex items-center rounded-full bg-amber-100 dark:bg-amber-900/40 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300 tabular-nums">
+                        {{ $shortLines->count() }} short
+                    </span>
                         @endif
-                    </label>
-                    <input wire:model="sealNo"
-                           id="dispatch-seal"
-                           type="text"
-                           placeholder="SL-55021"
-                           class="input w-full mono @error('sealNo') border-red-400 @enderror" />
-                    @error('sealNo')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
-                    @enderror
+                    </div>
                 </div>
 
-                {{-- Container fields — only shown for container shipments --}}
-                @if ($isContainer)
-                    {{-- Container No --}}
-                    <div>
-                        <label class="label" for="dispatch-container-no">
-                            Container No <span class="text-rose-500">*</span>
-                        </label>
-                        <input wire:model="containerNo"
-                               id="dispatch-container-no"
-                               type="text"
-                               placeholder="TCKU 123456-7"
-                               class="input w-full mono uppercase @error('containerNo') border-red-400 @enderror" />
-                        @error('containerNo')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
-                        @enderror
-                    </div>
+                {{-- Short-pick warning --}}
+                @if ($shortLines->isNotEmpty())
+                    <div class="rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50/70 dark:bg-amber-900/10 overflow-hidden">
+                        <div class="flex items-start gap-3 px-4 pt-4">
+                            <x-ui.icon name="exclamation-triangle" class="w-5 h-5 mt-0.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                            <div>
+                                <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">Short-pick detected</p>
+                                <p class="mt-0.5 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
+                                    These lines were not fully picked. Only picked quantities will be dispatched.
+                                </p>
+                            </div>
+                        </div>
 
-                    {{-- Container Size --}}
-                    <div>
-                        <label class="label" for="dispatch-container-size">
-                            Container Size <span class="text-rose-500">*</span>
+                        <div class="mx-4 mt-3 overflow-x-auto rounded-lg border border-amber-200 dark:border-amber-800/60 bg-white dark:bg-slate-900">
+                            <table class="w-full text-xs">
+                                <thead class="bg-amber-50 dark:bg-amber-900/20">
+                                <tr class="text-[11px] uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                                    <th class="px-3 py-2 text-left font-semibold">Item</th>
+                                    <th class="px-3 py-2 text-right font-semibold w-20">Ordered</th>
+                                    <th class="px-3 py-2 text-right font-semibold w-20">Picked</th>
+                                    <th class="px-3 py-2 text-right font-semibold w-24">Remaining</th>
+                                </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                                @foreach ($shortLines as $line)
+                                    @php
+                                        $remaining = bcsub((string) $line->requested_qty_base, (string) $line->picked_qty, 4);
+                                        $uom       = $line->uom?->code;
+                                    @endphp
+                                    <tr class="align-middle">
+                                        <td class="px-3 py-2">
+                                            <p class="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[14rem]">{{ $line->item?->name }}</p>
+                                            <p class="font-mono text-[11px] text-slate-400">{{ $line->item?->sku }}</p>
+                                        </td>
+                                        <td class="px-3 py-2 text-right tabular-nums text-slate-600 dark:text-slate-400">
+                                            {{ number_format((float) $line->requested_qty_base, 2) }}
+                                        </td>
+                                        <td class="px-3 py-2 text-right tabular-nums font-medium text-emerald-700 dark:text-emerald-400">
+                                            {{ number_format((float) $line->picked_qty, 2) }}
+                                        </td>
+                                        <td class="px-3 py-2 text-right tabular-nums font-semibold text-amber-700 dark:text-amber-400 whitespace-nowrap">
+                                            {{ number_format((float) $remaining, 2) }}
+                                            @if ($uom)
+                                                <span class="ml-0.5 text-[10px] font-medium text-slate-400">{{ $uom }}</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <label class="m-4 flex items-start gap-3 rounded-lg border border-amber-200 dark:border-amber-800/60 bg-white dark:bg-slate-900 px-3 py-2.5 cursor-pointer hover:border-amber-300 dark:hover:border-amber-700 transition-colors">
+                            <input type="checkbox"
+                                   wire:model="createBackorder"
+                                   class="mt-0.5 rounded border-amber-400 text-simba-600 focus:ring-simba-600">
+                            <span>
+                        <span class="block text-sm font-medium text-slate-800 dark:text-slate-200">Create a backorder</span>
+                        <span class="block text-xs text-slate-500 dark:text-slate-400">A new order will be raised for the remaining quantities.</span>
+                    </span>
                         </label>
-                        <select wire:model="containerSize"
-                                id="dispatch-container-size"
-                                class="input w-full @error('containerSize') border-red-400 @enderror">
-                            <option value="">— Select size —</option>
-                            @foreach ($this->containerSizes as $size)
-                                <option value="{{ $size->value }}">{{ $size->label() }}</option>
-                            @endforeach
-                        </select>
-                        @error('containerSize')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
-                        @enderror
                     </div>
                 @endif
 
-                {{-- Driver Name --}}
-                <div>
-                    <label class="label" for="dispatch-driver">
-                        Driver Name <span class="text-rose-500">*</span>
-                    </label>
-                    <input wire:model="driverName"
-                           id="dispatch-driver"
-                           type="text"
-                           placeholder="Juma Kassim"
-                           class="input w-full @error('driverName') border-red-400 @enderror" />
-                    @error('driverName')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
-                    @enderror
-                </div>
+                {{-- Vehicle --}}
+                <section class="space-y-3">
+                    <h4 class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Vehicle</h4>
 
-                {{-- Driver Phone --}}
-                <div>
-                    <label class="label" for="dispatch-phone">Driver Phone</label>
-                    <input wire:model="driverPhone"
-                           id="dispatch-phone"
-                           type="tel"
-                           placeholder="+255 712 000 000"
-                           class="input w-full tabular-nums @error('driverPhone') border-red-400 @enderror" />
-                    @error('driverPhone')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
-                    @enderror
-                </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+                        <div class="space-y-1.5">
+                            <label class="label" for="dispatch-vehicle">
+                                Registration No <span class="text-rose-500">*</span>
+                            </label>
+                            <input wire:model="vehicleRegNo"
+                                   id="dispatch-vehicle"
+                                   type="text"
+                                   placeholder="T 452 ABC"
+                                   class="input w-full mono uppercase @error('vehicleRegNo') {{ $errorClass }} @enderror" />
+                            @error('vehicleRegNo')
+                            <p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                            @enderror
+                        </div>
 
-                {{-- Driver ID No --}}
-                <div>
-                    <label class="label" for="dispatch-id-no">Driver ID No</label>
-                    <input wire:model="driverIdNo"
-                           id="dispatch-id-no"
-                           type="text"
-                           placeholder="DL-4410923"
-                           class="input w-full mono @error('driverIdNo') border-red-400 @enderror" />
-                    @error('driverIdNo')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
-                    @enderror
-                </div>
+                        <div class="space-y-1.5">
+                            <label class="label" for="dispatch-seal">
+                                Seal No
+                                @if ($isContainer)
+                                    <span class="text-rose-500">*</span>
+                                @else
+                                    <span class="text-xs font-normal text-slate-400">(optional)</span>
+                                @endif
+                            </label>
+                            <input wire:model="sealNo"
+                                   id="dispatch-seal"
+                                   type="text"
+                                   placeholder="SL-55021"
+                                   class="input w-full mono uppercase @error('sealNo') {{ $errorClass }} @enderror" />
+                            @error('sealNo')
+                            <p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                            @enderror
+                        </div>
 
-                {{-- Transporter --}}
-                <div>
-                    <label class="label" for="dispatch-transporter">Transporter</label>
-                    <select wire:model="transporterPartnerId"
-                            id="dispatch-transporter"
-                            class="input w-full">
-                        <option value="">— None / Own transport —</option>
-                        @foreach ($this->transporters as $transporter)
-                            <option value="{{ $transporter->id }}">{{ $transporter->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
+                        <div class="space-y-1.5 sm:col-span-2">
+                            <label class="label" for="dispatch-transporter">Transporter</label>
+                            <select wire:model="transporterPartnerId"
+                                    id="dispatch-transporter"
+                                    class="input w-full">
+                                <option value="">None / Own transport</option>
+                                @foreach ($this->transporters as $transporter)
+                                    <option value="{{ $transporter->id }}">{{ $transporter->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </section>
 
-            </div>
+                {{-- Container (container shipments only) --}}
+                @if ($isContainer)
+                    <section class="space-y-3 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+                        <h4 class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Container</h4>
 
-            {{-- Notes --}}
-            <div>
-                <label class="label" for="dispatch-notes">Notes</label>
-                <textarea wire:model="dispatchNotes"
-                          id="dispatch-notes"
-                          rows="3"
-                          placeholder="Optional dispatch notes…"
-                          class="input w-full resize-none"></textarea>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+                            <div class="space-y-1.5">
+                                <label class="label" for="dispatch-container-no">
+                                    Container No <span class="text-rose-500">*</span>
+                                </label>
+                                <input wire:model="containerNo"
+                                       id="dispatch-container-no"
+                                       type="text"
+                                       placeholder="TCKU 123456-7"
+                                       class="input w-full mono uppercase @error('containerNo') {{ $errorClass }} @enderror" />
+                                @error('containerNo')
+                                <p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+
+                            <div class="space-y-1.5">
+                                <label class="label" for="dispatch-container-size">
+                                    Container Size <span class="text-rose-500">*</span>
+                                </label>
+                                <select wire:model="containerSize"
+                                        id="dispatch-container-size"
+                                        class="input w-full @error('containerSize') {{ $errorClass }} @enderror">
+                                    <option value="">Select size</option>
+                                    @foreach ($this->containerSizes as $size)
+                                        <option value="{{ $size->value }}">{{ $size->label() }}</option>
+                                    @endforeach
+                                </select>
+                                @error('containerSize')
+                                <p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        </div>
+                    </section>
+                @endif
+
+                {{-- Driver --}}
+                <section class="space-y-3">
+                    <h4 class="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Driver</h4>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
+                        <div class="space-y-1.5 sm:col-span-2">
+                            <label class="label" for="dispatch-driver">
+                                Full Name <span class="text-rose-500">*</span>
+                            </label>
+                            <input wire:model="driverName"
+                                   id="dispatch-driver"
+                                   type="text"
+                                   placeholder="Juma Kassim"
+                                   class="input w-full @error('driverName') {{ $errorClass }} @enderror" />
+                            @error('driverName')
+                            <p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="label" for="dispatch-phone">Phone</label>
+                            <input wire:model="driverPhone"
+                                   id="dispatch-phone"
+                                   type="tel"
+                                   placeholder="+255 712 000 000"
+                                   class="input w-full tabular-nums @error('driverPhone') {{ $errorClass }} @enderror" />
+                            @error('driverPhone')
+                            <p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="label" for="dispatch-id-no">ID / License No</label>
+                            <input wire:model="driverIdNo"
+                                   id="dispatch-id-no"
+                                   type="text"
+                                   placeholder="DL-4410923"
+                                   class="input w-full mono uppercase @error('driverIdNo') {{ $errorClass }} @enderror" />
+                            @error('driverIdNo')
+                            <p class="text-xs text-rose-600 dark:text-rose-400">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
+                </section>
+
+                {{-- Notes --}}
+                <section class="space-y-1.5">
+                    <label class="label" for="dispatch-notes">Notes</label>
+                    <textarea wire:model="dispatchNotes"
+                              id="dispatch-notes"
+                              rows="3"
+                              placeholder="Optional dispatch notes..."
+                              class="input w-full resize-none"></textarea>
+                </section>
+
             </div>
 
             <x-slot:footer>
-                <button type="button"
-                        wire:click="closeDispatchModal"
-                        class="btn btn-secondary">
-                    Cancel
-                </button>
-                <button type="button"
-                        wire:click="confirmDispatch"
-                        wire:loading.attr="disabled"
-                        class="btn btn-primary">
-                    <span wire:loading.remove wire:target="confirmDispatch">
-                        <x-ui.icon name="arrow-right" class="w-4 h-4" /> Confirm Dispatch
-                    </span>
-                    <span wire:loading wire:target="confirmDispatch">Confirming…</span>
-                </button>
+                <div class="flex w-full flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    <button type="button"
+                            wire:click="closeDispatchModal"
+                            class="btn btn-secondary w-full sm:w-auto">
+                        Cancel
+                    </button>
+                    <button type="button"
+                            wire:click="confirmDispatch"
+                            wire:loading.attr="disabled"
+                            wire:target="confirmDispatch"
+                            class="btn btn-primary w-full sm:w-auto inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                <span wire:loading.remove wire:target="confirmDispatch" class="inline-flex items-center gap-2">
+                    Confirm Dispatch
+                    <x-ui.icon name="arrow-right" class="w-4 h-4" />
+                </span>
+                        <span wire:loading wire:target="confirmDispatch" class="inline-flex items-center gap-2">
+                    <svg class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                    </svg>
+                    Confirming...
+                </span>
+                    </button>
+                </div>
             </x-slot:footer>
 
         </x-ui.modal>
