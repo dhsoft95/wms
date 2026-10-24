@@ -22,7 +22,10 @@ use Illuminate\Support\Facades\DB;
 
 final class TransferWorkflow
 {
-    public function __construct(private readonly StockLedger $ledger) {}
+    public function __construct(
+        private readonly StockLedger $ledger,
+        private readonly TransferApprovalService $approvalService,
+    ) {}
 
     public function create(array $data, User $user): StockTransfer
     {
@@ -33,6 +36,7 @@ final class TransferWorkflow
                 'to_virtual_warehouse_id'   => $data['to_virtual_warehouse_id'],
                 'is_physical'               => $data['is_physical'] ?? false,
                 'created_by'                => $user->id,
+                'department_id'             => $data['department_id'] ?? null,
                 'status'                    => TransferStatus::Draft,
                 'notes'                     => $data['notes'] ?? null,
             ]);
@@ -58,35 +62,58 @@ final class TransferWorkflow
 
     public function submit(StockTransfer $transfer, User $user): StockTransfer
     {
-        return DB::transaction(function () use ($transfer, $user) {
+        $resubmit = $transfer->status === TransferStatus::AwaitingRequesterCorrection;
+
+        return DB::transaction(function () use ($transfer, $user, $resubmit) {
             $transfer->load('lines.item');
 
-            // Reserved stock cannot be transferred — check available balance per line
-            foreach ($transfer->lines as $line) {
-                $baseQty = UomConverter::toBase($line->item, $line->uom_id, (string) $line->qty);
+            if ($resubmit) {
+                $this->approvalService->resetApprovals($transfer);
+            } else {
+                // Reserved stock cannot be transferred — check available balance per line
+                foreach ($transfer->lines as $line) {
+                    $baseQty = UomConverter::toBase($line->item, $line->uom_id, (string) $line->qty);
 
-                $balance = StockBalance::where('item_id', $line->item_id)
-                    ->where('location_id', $line->location_id)
-                    ->where('virtual_warehouse_id', $transfer->from_virtual_warehouse_id)
-                    ->where('stock_status', StockStatus::Available->value)
-                    ->when($line->batch_id, fn ($q) => $q->where('batch_id', $line->batch_id))
-                    ->first();
+                    $balance = StockBalance::where('item_id', $line->item_id)
+                        ->where('location_id', $line->location_id)
+                        ->where('virtual_warehouse_id', $transfer->from_virtual_warehouse_id)
+                        ->where('stock_status', StockStatus::Available->value)
+                        ->when($line->batch_id, fn ($q) => $q->where('batch_id', $line->batch_id))
+                        ->first();
 
-                $available = $balance
-                    ? bcsub((string) $balance->qty_on_hand, (string) $balance->qty_allocated, 4)
-                    : '0.0000';
+                    $available = $balance
+                        ? bcsub((string) $balance->qty_on_hand, (string) $balance->qty_allocated, 4)
+                        : '0.0000';
 
-                if (bccomp($available, $baseQty, 4) < 0) {
-                    throw new \DomainException(
-                        "Item {$line->item->sku} has insufficient available stock for transfer (reserved stock cannot be transferred)."
-                    );
+                    if (bccomp($available, $baseQty, 4) < 0) {
+                        throw new \DomainException(
+                            "Item {$line->item->sku} has insufficient available stock for transfer (reserved stock cannot be transferred)."
+                        );
+                    }
                 }
             }
 
-            $transfer->status = $transfer->status->transitionTo(TransferStatus::Submitted);
+            $transfer->status = TransferStatus::Submitted;
             $transfer->save();
 
-            activity()->performedOn($transfer)->causedBy($user)->log('Transfer submitted for approval');
+            $chains = $this->approvalService->getDepartmentChains($transfer);
+
+            if ($chains->isEmpty()) {
+                return $this->accept($transfer, $user);
+            }
+
+            foreach ($chains as $chain) {
+                \App\Models\StockTransferApproval::create([
+                    'stock_transfer_id' => $transfer->id,
+                    'approval_chain_id' => $chain->id,
+                    'level'             => $chain->level,
+                    'approver_role'     => 'department',
+                    'decision'          => null,
+                ]);
+            }
+
+            activity()->performedOn($transfer)->causedBy($user)
+                ->log($resubmit ? 'Resubmitted for approval' : 'Submitted for approval');
 
             return $transfer;
         });
@@ -137,6 +164,72 @@ final class TransferWorkflow
             $transfer->save();
 
             activity()->performedOn($transfer)->causedBy($user)->log('Transfer rejected: ' . $reason);
+
+            return $transfer;
+        });
+    }
+
+    public function approveDepartment(StockTransfer $transfer, User $user): StockTransfer
+    {
+        return DB::transaction(function () use ($transfer, $user) {
+            $chain = $this->approvalService->currentPendingChain($transfer);
+
+            $this->approvalService->record(
+                $transfer,
+                $user,
+                'approved',
+                $chain?->level ?? 1,
+                $chain?->id,
+            );
+
+            activity()->performedOn($transfer)->causedBy($user)->log('Department approval granted');
+
+            if ($this->approvalService->isFullyApproved($transfer)) {
+                return $this->accept($transfer, $user);
+            }
+
+            return $transfer;
+        });
+    }
+
+    public function returnForCorrection(StockTransfer $transfer, User $user, string $notes): StockTransfer
+    {
+        return DB::transaction(function () use ($transfer, $user, $notes) {
+            if ($transfer->status !== TransferStatus::Submitted) {
+                throw new \DomainException('Only submitted transfers can be returned for correction.');
+            }
+
+            $chain = $this->approvalService->currentPendingChain($transfer);
+
+            $this->approvalService->record(
+                $transfer,
+                $user,
+                'returned',
+                $chain?->level ?? 1,
+                $chain?->id,
+                $notes,
+            );
+
+            $transfer->status = TransferStatus::ReturnedForCorrection;
+            $transfer->save();
+
+            activity()->performedOn($transfer)->causedBy($user)->log('Transfer returned for correction: ' . $notes);
+
+            return $transfer;
+        });
+    }
+
+    public function forwardToRequester(StockTransfer $transfer, User $user): StockTransfer
+    {
+        return DB::transaction(function () use ($transfer, $user) {
+            if ($transfer->status !== TransferStatus::ReturnedForCorrection) {
+                throw new \DomainException('Only transfers returned for correction can be forwarded to the requester.');
+            }
+
+            $transfer->status = TransferStatus::AwaitingRequesterCorrection;
+            $transfer->save();
+
+            activity()->performedOn($transfer)->causedBy($user)->log('Transfer forwarded to requester for correction');
 
             return $transfer;
         });

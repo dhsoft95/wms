@@ -149,6 +149,7 @@ class Create extends Component
             'to_virtual_warehouse_id'   => $this->toVwId,
             'notes'                     => $this->notes ?: null,
             'lines'                     => $resolvedLines,
+            'department_id'             => auth()->user()->department_id,
         ];
 
         try {

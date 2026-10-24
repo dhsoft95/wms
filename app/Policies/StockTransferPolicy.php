@@ -27,8 +27,10 @@ class StockTransferPolicy
 
     public function submit(User $user, StockTransfer $transfer): bool
     {
+        $submittableStatuses = [TransferStatus::Draft, TransferStatus::AwaitingRequesterCorrection];
+
         return $user->can('transfers.create')
-            && $transfer->status === TransferStatus::Draft
+            && in_array($transfer->status, $submittableStatuses, true)
             && $transfer->created_by === $user->id;
     }
 
@@ -94,5 +96,47 @@ class StockTransferPolicy
 
         return $user->can('transfers.accept')
             && in_array($transfer->status, $rejectableStatuses, true);
+    }
+
+    public function approveDepartment(User $user, StockTransfer $transfer): bool
+    {
+        if (! $user->can('transfers.accept')) {
+            return false;
+        }
+
+        if ($transfer->status !== TransferStatus::Submitted) {
+            return false;
+        }
+
+        return app(\App\Services\Inventory\TransferApprovalService::class)
+            ->canActAtCurrentLevel($transfer, $user);
+    }
+
+    public function returnOrder(User $user, StockTransfer $transfer): bool
+    {
+        if ($transfer->status !== TransferStatus::Submitted) {
+            return false;
+        }
+
+        if (! $user->can('transfers.accept')) {
+            return false;
+        }
+
+        return app(\App\Services\Inventory\TransferApprovalService::class)
+            ->canActAtCurrentLevel($transfer, $user);
+    }
+
+    public function forwardReturn(User $user, StockTransfer $transfer): bool
+    {
+        if ($transfer->status !== TransferStatus::ReturnedForCorrection) {
+            return false;
+        }
+
+        if (! $user->can('transfers.accept')) {
+            return false;
+        }
+
+        return app(\App\Services\Inventory\TransferApprovalService::class)
+            ->canActAtCurrentLevel($transfer, $user);
     }
 }

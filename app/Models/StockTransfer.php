@@ -26,6 +26,7 @@ class StockTransfer extends Model
         'created_by',
         'approved_by',
         'accepted_by',
+        'department_id',
         'status',
         'is_physical',
         'notes',
@@ -80,6 +81,16 @@ class StockTransfer extends Model
     public function toWarehouse(): BelongsTo
     {
         return $this->belongsTo(Warehouse::class, 'to_warehouse_id');
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
+    }
+
+    public function approvals(): HasMany
+    {
+        return $this->hasMany(StockTransferApproval::class)->orderBy('created_at');
     }
 
     // ─── Scopes ───────────────────────────────────────────────────────────────

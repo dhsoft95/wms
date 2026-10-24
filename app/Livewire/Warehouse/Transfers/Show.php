@@ -12,8 +12,11 @@ use Livewire\Component;
 class Show extends Component
 {
     public StockTransfer $transfer;
-    public bool          $showRejectModal  = false;
-    public string        $rejectionReason  = '';
+    public bool          $showRejectModal   = false;
+    public string        $rejectionReason   = '';
+    public bool          $showReturnModal   = false;
+    public string        $returnNotes       = '';
+    public bool          $showForwardModal  = false;
 
     public function submit(TransferWorkflow $workflow): void
     {
@@ -71,11 +74,56 @@ class Show extends Component
         }
     }
 
+    public function approveDepartment(TransferWorkflow $workflow): void
+    {
+        $this->authorize('approveDepartment', $this->transfer);
+
+        try {
+            $this->transfer = $workflow->approveDepartment($this->transfer, auth()->user());
+            $this->dispatch('toast', message: 'Transfer approved', type: 'success');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function openReturnModal(): void
+    {
+        $this->showReturnModal = true;
+        $this->returnNotes = '';
+    }
+
+    public function sendBack(TransferWorkflow $workflow): void
+    {
+        $this->authorize('returnOrder', $this->transfer);
+        $this->validate(['returnNotes' => 'required|string|min:3']);
+
+        try {
+            $this->transfer = $workflow->returnForCorrection($this->transfer, auth()->user(), $this->returnNotes);
+            $this->showReturnModal = false;
+            $this->dispatch('toast', message: 'Transfer returned for correction', type: 'info');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function forwardReturn(TransferWorkflow $workflow): void
+    {
+        $this->authorize('forwardReturn', $this->transfer);
+
+        try {
+            $this->transfer = $workflow->forwardToRequester($this->transfer, auth()->user());
+            $this->dispatch('toast', message: 'Transfer forwarded to requester', type: 'info');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
     public function render(): View
     {
         $this->transfer->load(
             'lines.item', 'lines.location', 'lines.toLocation', 'lines.batch', 'lines.uom',
-            'createdBy', 'acceptedBy', 'fromVirtualWarehouse', 'toVirtualWarehouse'
+            'createdBy', 'acceptedBy', 'fromVirtualWarehouse', 'toVirtualWarehouse',
+            'approvals.decidedBy', 'approvals.approvalChain',
         );
 
         return view('livewire.warehouse.transfers.show')
