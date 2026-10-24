@@ -8,14 +8,18 @@ use App\Enums\Inbound\PurchaseOrderStatus;
 use App\Enums\Inventory\DisposalStatus;
 use App\Enums\Inventory\StockStatusRequestStatus;
 use App\Enums\Outbound\DeliveryOrderStatus;
+use App\Enums\TransferStatus;
 use App\Models\DeliveryOrder;
 use App\Models\DisposalRequest;
 use App\Models\PurchaseOrder;
 use App\Models\StockStatusRequest;
+use App\Models\StockTransfer;
 use App\Services\Inbound\ApprovalChainService;
 use App\Services\Inbound\PurchaseOrderWorkflow;
 use App\Services\Inventory\DisposalWorkflow;
 use App\Services\Inventory\StockStatusRequestWorkflow;
+use App\Services\Inventory\TransferApprovalService;
+use App\Services\Inventory\TransferWorkflow;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -32,6 +36,7 @@ class Index extends Component
             $this->pendingDoApprovals,
             $this->pendingDisposalApprovals,
             $this->pendingStockStatusApprovals,
+            $this->pendingStnApprovals,
             $this->totalPendingCount,
         );
     }
@@ -219,12 +224,72 @@ class Index extends Component
     }
 
     #[Computed]
+    public function pendingStnApprovals(): \Illuminate\Database\Eloquent\Collection
+    {
+        $user    = auth()->user();
+        $service = app(TransferApprovalService::class);
+
+        $query = StockTransfer::with([
+            'fromVirtualWarehouse',
+            'toVirtualWarehouse',
+            'createdBy',
+            'department',
+            'approvals' => fn ($q) => $q->latest(),
+        ]);
+
+        if ($this->tab === 'pending') {
+            $query->whereIn('status', [
+                TransferStatus::Submitted,
+                TransferStatus::ReturnedForCorrection,
+                TransferStatus::AwaitingRequesterCorrection,
+            ]);
+        } else {
+            $query->whereNotIn('status', [TransferStatus::Draft]);
+        }
+
+        return $query->get()
+            ->filter(function ($stn) use ($user, $service) {
+                if ($user->hasRole('system-admin')) {
+                    return true;
+                }
+                // HOD sees ReturnedForCorrection (their turn to forward to requester)
+                if ($stn->status === TransferStatus::ReturnedForCorrection
+                    && $stn->department?->head_user_id === $user->id) {
+                    return true;
+                }
+                // Requester: AwaitingRequesterCorrection — they can resubmit
+                if ($stn->status === TransferStatus::AwaitingRequesterCorrection
+                    && $stn->created_by === $user->id) {
+                    return true;
+                }
+                // Submitted: hide from plain requester (not an approver)
+                if ($stn->status === TransferStatus::Submitted
+                    && $stn->created_by === $user->id
+                    && $stn->department?->head_user_id !== $user->id
+                    && ! $service->canActAtCurrentLevel($stn, $user)) {
+                    return false;
+                }
+                if ($this->tab === 'all') {
+                    if ($stn->created_by === $user->id) {
+                        return true;
+                    }
+                    if ($stn->approvals->contains('decided_by', $user->id)) {
+                        return true;
+                    }
+                }
+                return $service->canActAtCurrentLevel($stn, $user);
+            })
+            ->values();
+    }
+
+    #[Computed]
     public function totalPendingCount(): int
     {
         return $this->pendingPoApprovals->count()
             + $this->pendingDoApprovals->count()
             + $this->pendingDisposalApprovals->count()
-            + $this->pendingStockStatusApprovals->count();
+            + $this->pendingStockStatusApprovals->count()
+            + $this->pendingStnApprovals->count();
     }
 
     // ─── PO approval actions ──────────────────────────────────────────────────
@@ -306,6 +371,22 @@ class Index extends Component
             app(DisposalWorkflow::class)->approve($req, auth()->user());
             $this->dispatch('toast', message: "Disposal {$req->number} approved.", type: 'success');
             unset($this->pendingDisposalApprovals, $this->totalPendingCount);
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    // ─── STN approval actions ─────────────────────────────────────────────────
+
+    public function approveStn(int $id): void
+    {
+        $stn = StockTransfer::findOrFail($id);
+        $this->authorize('approveDepartment', $stn);
+
+        try {
+            app(TransferWorkflow::class)->approveDepartment($stn, auth()->user());
+            $this->dispatch('toast', message: "Transfer {$stn->number} approved.", type: 'success');
+            unset($this->pendingStnApprovals, $this->totalPendingCount);
         } catch (\Exception $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }

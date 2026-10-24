@@ -202,6 +202,77 @@
         </div>
     @endif
 
+    {{-- Department Transfers (STN) section --}}
+    @if ($this->pendingStnApprovals->isNotEmpty())
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Department Transfers</h3>
+                <span class="badge badge-amber ml-2">{{ $this->pendingStnApprovals->count() }}</span>
+            </div>
+            <x-ui.table>
+                <thead>
+                    <tr>
+                        <th>Number</th>
+                        <th>Status</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Created By</th>
+                        <th>Date</th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($this->pendingStnApprovals as $stn)
+                        @php
+                            $lastApproval = $stn->approvals->first();
+                            $isReturned   = in_array($stn->status, [
+                                \App\Enums\TransferStatus::ReturnedForCorrection,
+                                \App\Enums\TransferStatus::AwaitingRequesterCorrection,
+                            ], true);
+                        @endphp
+                        <tr wire:key="stn-{{ $stn->id }}">
+                            <td>
+                                <a href="{{ route('warehouse.transfers.show', $stn) }}" wire:navigate
+                                   class="mono font-semibold text-simba-600 dark:text-simba-400 hover:underline">
+                                    {{ $stn->number }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge {{ $stn->status->badge() }}">
+                                    <span class="dot"></span>{{ $stn->status->label() }}
+                                </span>
+                                @if ($isReturned && $lastApproval?->notes)
+                                    <p class="text-xs text-slate-500 mt-0.5 max-w-[180px] truncate" title="{{ $lastApproval->notes }}">
+                                        {{ $lastApproval->notes }}
+                                    </p>
+                                @endif
+                            </td>
+                            <td class="text-sm text-slate-600 dark:text-slate-400">{{ $stn->fromVirtualWarehouse?->name ?? '—' }}</td>
+                            <td class="text-sm text-slate-600 dark:text-slate-400">{{ $stn->toVirtualWarehouse?->name ?? '—' }}</td>
+                            <td class="text-sm text-slate-600 dark:text-slate-400">{{ $stn->createdBy?->name ?? '—' }}</td>
+                            <td class="text-xs text-slate-500 tabular-nums">{{ $stn->created_at->format('d M Y') }}</td>
+                            <td class="text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a href="{{ route('warehouse.transfers.show', $stn) }}" wire:navigate class="btn btn-ghost btn-sm">View</a>
+                                    @if ($stn->status === \App\Enums\TransferStatus::Submitted)
+                                        @can('approveDepartment', $stn)
+                                            <button wire:click="approveStn({{ $stn->id }})"
+                                                    wire:loading.attr="disabled"
+                                                    wire:confirm="Approve transfer {{ $stn->number }}?"
+                                                    class="btn btn-primary btn-sm">
+                                                Approve
+                                            </button>
+                                        @endcan
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </x-ui.table>
+        </div>
+    @endif
+
     {{-- Delivery Orders section --}}
     @if ($this->pendingDoApprovals->isNotEmpty())
         <div class="card">
@@ -262,7 +333,7 @@
     @endif
 
     {{-- Empty state --}}
-    @if ($this->pendingPoApprovals->isEmpty() && $this->pendingDoApprovals->isEmpty() && $this->pendingDisposalApprovals->isEmpty() && $this->pendingStockStatusApprovals->isEmpty())
+    @if ($this->pendingPoApprovals->isEmpty() && $this->pendingDoApprovals->isEmpty() && $this->pendingDisposalApprovals->isEmpty() && $this->pendingStockStatusApprovals->isEmpty() && $this->pendingStnApprovals->isEmpty())
         <div class="card p-12 flex flex-col items-center justify-center text-center space-y-3">
             <div class="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                 <x-ui.icon name="check" class="w-7 h-7 text-emerald-600" />
