@@ -176,8 +176,7 @@
 
                     {{-- Column headers --}}
                     <div class="hidden md:grid grid-cols-12 gap-2 px-2 section-label">
-                        <span class="col-span-3">SKU Search</span>
-                        <span class="col-span-3">Item Name</span>
+                        <span class="col-span-6">Item</span>
                         <span class="col-span-1">UOM</span>
                         <span class="col-span-2">Qty</span>
                         <span class="col-span-2">Notes</span>
@@ -187,39 +186,18 @@
                     @foreach ($lines as $i => $line)
                         <div class="grid grid-cols-2 md:grid-cols-12 gap-2 items-start p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/50">
 
-                            {{-- SKU Search --}}
-                            <div class="md:col-span-3">
-                                <div class="relative">
-                                    <input
-                                        wire:model="lines.{{ $i }}.item_sku"
-                                        wire:keydown.enter.prevent="searchItem({{ $i }}, $el.value)"
-                                        type="text"
-                                        placeholder="SKU or name, Enter to search"
-                                        class="input input-sm font-mono pr-8"
-                                        @disabled(! $this->isDraft)
-                                    />
-                                    @if ($this->isDraft)
-                                        <button
-                                            type="button"
-                                            wire:click="searchItem({{ $i }}, '{{ $line['item_sku'] }}')"
-                                            class="absolute inset-y-0 right-2 flex items-center text-slate-400 hover:text-slate-600"
-                                        >
-                                            <x-ui.icon name="search" class="w-4 h-4" />
-                                        </button>
-                                    @endif
-                                </div>
+                            {{-- Item Dropdown --}}
+                            <div class="col-span-2 md:col-span-6">
+                                <select wire:model="lines.{{ $i }}.item_id" class="input input-sm" @disabled(! $this->isDraft)>
+                                    <option value="">— Select item —</option>
+                                    @foreach ($this->items as $item)
+                                        <option value="{{ $item->id }}">{{ $item->sku }} — {{ $item->name }}</option>
+                                    @endforeach
+                                </select>
+                                @if ($line['available_qty'] !== null)
+                                    <p class="hint">Avail: {{ number_format($line['available_qty'], 2) }} {{ $line['uom_code'] }}</p>
+                                @endif
                                 @error('lines.' . $i . '.item_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                            </div>
-
-                            {{-- Item Name (auto-filled) --}}
-                            <div class="md:col-span-3">
-                                <input
-                                    type="text"
-                                    value="{{ $line['item_name'] }}"
-                                    placeholder="Item name"
-                                    readonly
-                                    class="input input-sm bg-slate-100 dark:bg-slate-700 cursor-default"
-                                />
                             </div>
 
                             {{-- UOM (auto-filled) --}}
@@ -244,9 +222,6 @@
                                     class="input input-sm tabular-nums"
                                     @disabled(! $this->isDraft)
                                 />
-                                @if ($line['available_qty'] !== null)
-                                    <p class="hint">Avail: {{ number_format($line['available_qty'], 2) }}</p>
-                                @endif
                                 @error('lines.' . $i . '.qty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                             </div>
 

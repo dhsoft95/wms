@@ -95,6 +95,12 @@ class Create extends Component
     }
 
     #[Computed]
+    public function items(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Item::where('is_active', true)->with('baseUom')->orderBy('name')->get();
+    }
+
+    #[Computed]
     public function totalQty(): int|float
     {
         return array_sum(array_map('floatval', array_column($this->lines, 'qty')));
@@ -104,19 +110,18 @@ class Create extends Component
 
     public function updatedLines(mixed $value, ?string $key): void
     {
-        if ($key === null) {
+        if ($key === null || ! str_ends_with($key, '.item_id')) {
             return;
         }
 
-        if (str_ends_with($key, '.item_sku')) {
-            $index = (int) explode('.', $key)[0];
-            $query = trim((string) $value);
-            if ($query === '') {
-                $this->lines[$index]['search_results'] = [];
-            } else {
-                $this->liveSearch($index, $query);
-            }
+        $index = (int) explode('.', $key)[0];
+
+        if ((string) $value === '') {
+            $this->clearLineItem($index);
+            return;
         }
+
+        $this->fillLineFromItem($index, (int) $value);
     }
 
     public function addLine(): void
@@ -128,57 +133,6 @@ class Create extends Component
     {
         unset($this->lines[$index]);
         $this->lines = array_values($this->lines);
-    }
-
-    public function liveSearch(int $lineIndex, string $query): void
-    {
-        if (trim($query) === '') {
-            $this->lines[$lineIndex]['search_results'] = [];
-            return;
-        }
-
-        $this->lines[$lineIndex]['search_results'] = Item::where('is_active', true)
-            ->where(fn ($q) => $q
-                ->where('sku', 'like', '%' . $query . '%')
-                ->orWhere('name', 'like', '%' . $query . '%')
-            )
-            ->with('baseUom')
-            ->limit(8)
-            ->get()
-            ->map(fn ($item) => [
-                'id'       => (string) $item->id,
-                'sku'      => $item->sku,
-                'name'     => $item->name,
-                'uom_id'   => (string) ($item->baseUom?->id ?? ''),
-                'uom_code' => $item->baseUom?->code ?? '',
-            ])
-            ->toArray();
-    }
-
-    public function selectItem(int $lineIndex, int $itemId): void
-    {
-        $item = Item::where('is_active', true)->with('baseUom')->find($itemId);
-        if ($item === null) {
-            return;
-        }
-
-        // Sum available qty across all balances for this item in the selected VW
-        $availableQty = null;
-        if ($this->virtualWarehouseId !== '') {
-            $availableQty = StockBalance::where('item_id', $item->id)
-                ->where('virtual_warehouse_id', $this->virtualWarehouseId)
-                ->where('stock_status', \App\Enums\Inventory\StockStatus::Available->value)
-                ->get()
-                ->sum(fn ($b) => (float) $b->qtyAvailable());
-        }
-
-        $this->lines[$lineIndex]['item_id']       = (string) $item->id;
-        $this->lines[$lineIndex]['item_name']      = $item->name;
-        $this->lines[$lineIndex]['item_sku']       = $item->sku;
-        $this->lines[$lineIndex]['uom_id']         = (string) ($item->baseUom?->id ?? '');
-        $this->lines[$lineIndex]['uom_code']       = $item->baseUom?->code ?? '';
-        $this->lines[$lineIndex]['available_qty']  = $availableQty;
-        $this->lines[$lineIndex]['search_results'] = [];
     }
 
     // ─── Save ─────────────────────────────────────────────────────────────────
@@ -259,15 +213,47 @@ class Create extends Component
     private function blankLine(): array
     {
         return [
-            'item_id'        => '',
-            'uom_id'         => '',
-            'qty'            => 1,
-            'notes'          => '',
-            'item_name'      => '',
-            'item_sku'       => '',
-            'uom_code'       => '',
-            'available_qty'  => null,
-            'search_results' => [],
+            'item_id'       => '',
+            'uom_id'        => '',
+            'qty'           => 1,
+            'notes'         => '',
+            'item_name'     => '',
+            'item_sku'      => '',
+            'uom_code'      => '',
+            'available_qty' => null,
         ];
+    }
+
+    private function fillLineFromItem(int $index, int $itemId): void
+    {
+        $item = Item::where('is_active', true)->with('baseUom')->find($itemId);
+        if ($item === null) {
+            $this->clearLineItem($index);
+            return;
+        }
+
+        $availableQty = null;
+        if ($this->virtualWarehouseId !== '') {
+            $availableQty = StockBalance::where('item_id', $item->id)
+                ->where('virtual_warehouse_id', $this->virtualWarehouseId)
+                ->where('stock_status', \App\Enums\Inventory\StockStatus::Available->value)
+                ->get()
+                ->sum(fn ($b) => (float) $b->qtyAvailable());
+        }
+
+        $this->lines[$index]['item_name']     = $item->name;
+        $this->lines[$index]['item_sku']      = $item->sku;
+        $this->lines[$index]['uom_id']        = (string) ($item->baseUom?->id ?? '');
+        $this->lines[$index]['uom_code']      = $item->baseUom?->code ?? '';
+        $this->lines[$index]['available_qty'] = $availableQty;
+    }
+
+    private function clearLineItem(int $index): void
+    {
+        $this->lines[$index]['item_name']     = '';
+        $this->lines[$index]['item_sku']      = '';
+        $this->lines[$index]['uom_id']        = '';
+        $this->lines[$index]['uom_code']      = '';
+        $this->lines[$index]['available_qty'] = null;
     }
 }

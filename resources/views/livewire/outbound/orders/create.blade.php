@@ -148,8 +148,7 @@
 
                     {{-- Column headers --}}
                     <div class="hidden md:grid grid-cols-12 gap-2 px-2 section-label">
-                        <span class="col-span-3">Item Search</span>
-                        <span class="col-span-3">Item Name</span>
+                        <span class="col-span-6">Item</span>
                         <span class="col-span-1">UOM</span>
                         <span class="col-span-2">Qty</span>
                         <span class="col-span-2">Notes</span>
@@ -159,58 +158,18 @@
                     @foreach ($lines as $i => $line)
                         <div class="grid grid-cols-2 md:grid-cols-12 gap-2 items-start p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/50">
 
-                            {{-- SKU Search --}}
-                            <div class="md:col-span-3">
-                                <div class="relative" x-data="{ open: false }" @click.away="open = false" @keydown.escape="open = false">
-                                    <div class="relative">
-                                        <x-ui.icon name="search" class="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                                        <input
-                                            wire:model.live.debounce.300ms="lines.{{ $i }}.item_sku"
-                                            @focus="open = true"
-                                            @keydown.enter.prevent="open = false"
-                                            type="text"
-                                            placeholder="Search SKU or name…"
-                                            class="input input-sm font-mono pl-7"
-                                            autocomplete="off"
-                                        />
-                                    </div>
-                                    @if (!empty($line['search_results']))
-                                        <ul
-                                            x-show="open"
-                                            x-transition:enter="transition ease-out duration-100"
-                                            x-transition:enter-start="opacity-0 scale-95"
-                                            x-transition:enter-end="opacity-100 scale-100"
-                                            class="absolute z-50 mt-1 w-full min-w-[20rem] bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg max-h-56 overflow-y-auto"
-                                        >
-                                            @foreach ($line['search_results'] as $result)
-                                                <li>
-                                                    <button
-                                                        type="button"
-                                                        wire:click="selectItem({{ $i }}, {{ $result['id'] }})"
-                                                        @click="open = false"
-                                                        class="w-full text-left px-3 py-2 text-sm hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
-                                                    >
-                                                        <span class="font-mono text-xs text-slate-500 w-24 shrink-0">{{ $result['sku'] }}</span>
-                                                        <span class="truncate flex-1">{{ $result['name'] }}</span>
-                                                        <span class="text-xs text-slate-400 shrink-0">{{ $result['uom_code'] }}</span>
-                                                    </button>
-                                                </li>
-                                            @endforeach
-                                        </ul>
-                                    @endif
-                                </div>
+                            {{-- Item Dropdown --}}
+                            <div class="col-span-2 md:col-span-6">
+                                <select wire:model="lines.{{ $i }}.item_id" class="input input-sm">
+                                    <option value="">— Select item —</option>
+                                    @foreach ($this->items as $item)
+                                        <option value="{{ $item->id }}">{{ $item->sku }} — {{ $item->name }}</option>
+                                    @endforeach
+                                </select>
+                                @if ($line['available_qty'] !== null)
+                                    <p class="hint">Avail: {{ number_format($line['available_qty'], 2) }} {{ $line['uom_code'] }}</p>
+                                @endif
                                 @error('lines.' . $i . '.item_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
-                            </div>
-
-                            {{-- Item Name (auto-filled) --}}
-                            <div class="md:col-span-3">
-                                <input
-                                    type="text"
-                                    value="{{ $line['item_name'] }}"
-                                    placeholder="Item name"
-                                    readonly
-                                    class="input input-sm bg-slate-100 dark:bg-slate-700 cursor-default"
-                                />
                             </div>
 
                             {{-- UOM (auto-filled) --}}
@@ -234,9 +193,6 @@
                                     placeholder="Qty"
                                     class="input input-sm tabular-nums"
                                 />
-                                @if ($line['available_qty'] !== null)
-                                    <p class="hint">Avail: {{ number_format($line['available_qty'], 2) }}</p>
-                                @endif
                                 @error('lines.' . $i . '.qty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                             </div>
 
