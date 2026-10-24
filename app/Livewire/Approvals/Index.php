@@ -120,9 +120,12 @@ class Index extends Component
 
         $query = DeliveryOrder::with(['department', 'consigneePartner', 'requestedBy', 'virtualWarehouse', 'approvals' => fn ($q) => $q->latest()]);
 
+        $canAccept = $user->can('orders.allocate');
+
         if ($this->tab === 'pending') {
             $query->whereIn('status', [
                 DeliveryOrderStatus::Submitted,
+                DeliveryOrderStatus::Approved,
                 DeliveryOrderStatus::ReturnedForCorrection,
                 DeliveryOrderStatus::AwaitingRequesterCorrection,
             ]);
@@ -131,8 +134,13 @@ class Index extends Component
         }
 
         return $query->get()
-            ->filter(function ($do) use ($user) {
+            ->filter(function ($do) use ($user, $canAccept) {
                 if ($user->hasRole('system-admin')) {
+                    return true;
+                }
+                // WM sees Approved DOs waiting for acceptance
+                if ($do->status === DeliveryOrderStatus::Approved
+                    && $user->hasRole('warehouse-manager') && $canAccept) {
                     return true;
                 }
                 // HOD sees ReturnedForCorrection for their dept (their turn to forward)
@@ -140,7 +148,7 @@ class Index extends Component
                     && $do->department?->head_user_id === $user->id) {
                     return true;
                 }
-                // Requester: PendingApproval is not their action — hide
+                // Requester: Submitted is not their action — hide
                 if ($do->status === DeliveryOrderStatus::Submitted
                     && $do->requested_by === $user->id
                     && $do->department?->head_user_id !== $user->id) {
