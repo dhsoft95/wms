@@ -1,35 +1,31 @@
 @php
     /** @var \App\Models\Grn $grn */
-    /** @var array|null $brand  ['name','address','logoDataUri'] */
-    /** @var string|null $brandName */
+    /** @var array $brand  ['name','address','logoDataUri'] */
 
     $brand = array_merge(
-        ['name' => $brandName ?? '', 'address' => null, 'logoDataUri' => null],
+        ['name' => '', 'address' => null, 'logoDataUri' => null],
         $brand ?? []
     );
 
-    $qty = function ($v): string {
-        $v = (float) $v;
-        return number_format($v, floor(abs($v)) == abs($v) ? 0 : 2);
-    };
-
+    $qty    = fn ($v): string => number_format((float) $v, floor(abs((float) $v)) == abs((float) $v) ? 0 : 2);
     $signed = fn ($v): string => ((float) $v > 0 ? '+' : '') . $qty($v);
-    $tone   = fn ($v): string => $v < 0 ? 'neg' : ($v > 0 ? 'pos' : 'zero');
+    $tone   = fn ($v): string => (float) $v < 0 ? 'neg' : ((float) $v > 0 ? 'pos' : 'zero');
 
+    // ── Pre-process lines ──────────────────────────────────────────────────
     $lines = $grn->lines->values()->map(function ($line) {
         $good     = (float) ($line->received_good_qty ?? 0);
         $damaged  = (float) ($line->received_damaged_qty ?? 0);
         $expected = (float) ($line->expected_qty ?? 0);
         $receipts = $line->receipts ?? collect();
 
-        $trace = function (string $condition) use ($receipts) {
-            $rows = $receipts->where('condition', $condition);
-
+        // condition is cast to ReceiptCondition enum — compare via .value
+        $trace = function (string $conditionValue) use ($receipts) {
+            $rows = $receipts->where('condition.value', $conditionValue);
             return (object) [
                 'batches'  => $rows->pluck('batch_no')->filter()->unique()->values(),
                 'expiries' => $rows->pluck('expiry_date')->filter()
-                    ->map(fn ($d) => \Illuminate\Support\Carbon::parse($d)->format('d M Y'))
-                    ->unique()->values(),
+                                   ->map(fn ($d) => \Illuminate\Support\Carbon::parse($d)->format('d M Y'))
+                                   ->unique()->values(),
                 'serials'  => $rows->flatMap(fn ($r) => $r->serial_nos ?? [])->filter()->unique()->values(),
             ];
         };
@@ -47,6 +43,7 @@
         ];
     });
 
+    // ── Aggregates ─────────────────────────────────────────────────────────
     $lineCount    = $lines->count();
     $hasDamaged   = $lines->sum('damaged') > 0;
     $singleUom    = $lines->pluck('uom')->unique()->count() === 1;
@@ -55,27 +52,32 @@
     $damagedLines = $lines->filter(fn ($l) => $l->damaged > 0)->count();
     $hasVariance  = $lines->contains(fn ($l) => $l->variance != 0 || $l->damaged > 0);
 
+    // ── Related objects ────────────────────────────────────────────────────
     $receivedAt = $grn->confirmed_at ?? $grn->created_at;
     $po         = $grn->purchaseOrder;
     $supplier   = $po?->supplierPartner;
     $consignee  = $po?->consigneePartner;
-    $sealIntact = strtolower((string) $grn->seal_check_result) === 'intact';
+    $sealIntact = strtolower((string) ($grn->seal_check_result ?? '')) === 'intact';
 
-    $supplierAddress = collect([$supplier?->address, $supplier?->city, $supplier?->country])->filter()->implode(', ');
+    $supplierAddr = collect([
+        $supplier?->address,
+        $supplier?->city,
+        $supplier?->country,
+    ])->filter()->implode(', ');
 
+    // ── Row colour helper ──────────────────────────────────────────────────
     $rowClass = function ($l, bool $even): string {
-        $classes = $even ? ['stripe'] : [];
-        if ($l->damaged > 0 || $l->variance < 0) {
-            $classes[] = 'flag';
-        } elseif ($l->variance > 0) {
-            $classes[] = 'warn';
-        }
-        return implode(' ', $classes);
+        $cls = $even ? ['stripe'] : [];
+        if ($l->damaged > 0 || $l->variance < 0) { $cls[] = 'flag'; }
+        elseif ($l->variance > 0)                 { $cls[] = 'warn'; }
+        return implode(' ', $cls);
     };
 
-    $hasTrace = fn ($t): bool => $t->batches->isNotEmpty() || $t->expiries->isNotEmpty() || $t->serials->isNotEmpty();
+    $hasTrace = fn ($t): bool => $t->batches->isNotEmpty()
+                              || $t->expiries->isNotEmpty()
+                              || $t->serials->isNotEmpty();
 @endphp
-    <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
@@ -91,21 +93,21 @@
         }
         table { border-collapse: collapse; }
 
-        /* Header */
+        /* ── Header ──────────────────────────────────────────────────── */
         .hdr { width: 100%; margin-bottom: 8px; }
         .hdr td { vertical-align: top; padding: 0; }
-        .hdr-logo { max-height: 46px; max-width: 170px; margin-bottom: 4px; }
+        .hdr-logo { max-height: 46px; max-width: 170px; margin-bottom: 4px; display: block; }
         .hdr-company { font-size: 10px; font-weight: bold; color: #111; }
         .hdr-address { font-size: 7.5px; color: #6b7280; margin-top: 2px; line-height: 1.5; }
         .doc-title { font-size: 15px; font-weight: bold; color: #a22631; text-align: right; }
         .doc-sub { font-size: 7.5px; color: #6b7280; text-align: right; margin: 2px 0 6px; }
         .meta { margin-left: auto; border: 1px solid #e5e7eb; }
         .meta td { padding: 3px 8px; font-size: 8px; border-bottom: 1px solid #f0f0f0; }
-        .meta td.k { color: #6b7280; background: #f9fafb; }
+        .meta td.k { color: #6b7280; background: #f9fafb; white-space: nowrap; }
         .meta td.v { font-weight: bold; color: #111; text-align: right; }
         .brand-rule { height: 2.5px; background: #a22631; margin: 0 0 10px; }
 
-        /* From / To */
+        /* ── From / To ───────────────────────────────────────────────── */
         .parties { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 5px 0; margin-bottom: 10px; }
         .party { border: 1px solid #e5e7eb; vertical-align: top; padding: 0; }
         .party-head {
@@ -122,15 +124,15 @@
         .party-line { font-size: 7.8px; color: #374151; line-height: 1.55; }
         .party-line .lbl { color: #6b7280; }
 
-        /* KPI */
+        /* ── KPIs ────────────────────────────────────────────────────── */
         .kpi { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 5px 0; margin-bottom: 12px; }
-        .kpi td { border: 1px solid #e5e7eb; padding: 6px 8px; vertical-align: top; }
+        .kpi td { border: 1px solid #e5e7eb; padding: 7px 10px; vertical-align: top; }
         .kpi-label { font-size: 6.8px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
-        .kpi-value { font-size: 13px; font-weight: bold; color: #111; margin-top: 2px; }
+        .kpi-value { font-size: 14px; font-weight: bold; color: #111; margin-top: 3px; }
         .kpi-value.neg { color: #b91c1c; }
-        .kpi-hint { font-size: 7px; color: #6b7280; margin-top: 1px; }
+        .kpi-hint { font-size: 7px; color: #6b7280; margin-top: 2px; }
 
-        /* Items table */
+        /* ── Items table ─────────────────────────────────────────────── */
         .section-title { font-size: 9px; font-weight: bold; color: #a22631; margin: 2px 0 5px; }
         .data { width: 100%; }
         .data thead { display: table-header-group; }
@@ -153,25 +155,26 @@
         .data tr.totals td { background: #f3f4f6; font-weight: bold; border-top: 1.5px solid #a22631; }
         .data tr.empty td { text-align: center; color: #9ca3af; padding: 14px; }
         .code { font-family: DejaVu Sans Mono, monospace; font-size: 7.6px; }
-
         .text-right { text-align: right; }
         .text-center { text-align: center; }
         .neg { color: #b91c1c; font-weight: bold; }
         .pos { color: #b45309; font-weight: bold; }
         .zero { color: #9ca3af; }
 
-        .tag { display: inline-block; padding: 0 4px; font-size: 6.5px; font-weight: bold; border-radius: 2px; margin-bottom: 1px; }
-        .tag-good { background: #dcfce7; color: #166534; }
+        /* ── Trace cell ──────────────────────────────────────────────── */
+        .tag { display: inline-block; padding: 0 4px; font-size: 6.5px; font-weight: bold; border-radius: 2px; margin-bottom: 2px; }
+        .tag-good    { background: #dcfce7; color: #166534; }
         .tag-damaged { background: #fee2e2; color: #991b1b; }
-        .trace { font-size: 7.4px; color: #374151; line-height: 1.5; }
+        .trace { font-size: 7.4px; color: #374151; line-height: 1.6; }
         .trace .lbl { color: #6b7280; }
-        .trace-group + .trace-group { margin-top: 3px; padding-top: 3px; border-top: 1px dashed #e5e7eb; }
+        .trace-group { margin-bottom: 2px; }
+        .trace-group + .trace-group { margin-top: 4px; padding-top: 3px; border-top: 1px dashed #e5e7eb; }
 
         .notes { margin-top: 6px; font-size: 7.5px; color: #6b7280; line-height: 1.5; }
 
-        /* Transport & receiving (below items) */
+        /* ── Transport / Receiving cards ─────────────────────────────── */
         .cards { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 5px 0; margin-top: 12px; page-break-inside: avoid; }
-        .card { border: 1px solid #e5e7eb; vertical-align: top; padding: 0; }
+        .card  { border: 1px solid #e5e7eb; vertical-align: top; padding: 0; }
         .card-head {
             background: #f3f4f6;
             color: #a22631;
@@ -184,38 +187,41 @@
         }
         .card-body { width: 100%; }
         .card-body td { padding: 3px 8px; font-size: 8px; }
-        .card-body td.k { color: #6b7280; width: 36%; }
+        .card-body td.k { color: #6b7280; width: 38%; white-space: nowrap; }
         .card-body td.v { color: #111; }
 
+        /* ── Remarks ─────────────────────────────────────────────────── */
         .remarks { margin-top: 10px; border: 1px solid #e5e7eb; padding: 6px 8px; font-size: 8px; page-break-inside: avoid; }
         .remarks strong { color: #a22631; }
 
-        /* Signatures */
+        /* ── Signatures ──────────────────────────────────────────────── */
         .sig { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 14px 0; margin-top: 30px; page-break-inside: avoid; }
         .sig td { vertical-align: top; }
-        .sig-line { border-top: 1px solid #333; margin-top: 30px; padding-top: 4px; font-size: 8px; font-weight: bold; text-align: center; }
-        .sig-name { font-size: 7.5px; color: #6b7280; text-align: center; margin-top: 2px; }
-        .sig-date { font-size: 7px; color: #9ca3af; text-align: center; margin-top: 6px; }
+        .sig-box { margin-top: 30px; border-top: 1px solid #333; padding-top: 5px; text-align: center; }
+        .sig-role { font-size: 8px; font-weight: bold; }
+        .sig-name { font-size: 7.5px; color: #6b7280; margin-top: 2px; }
+        .sig-date { font-size: 7px; color: #9ca3af; margin-top: 6px; }
 
-        /* Footer */
+        /* ── Footer (fixed, appears on every page) ───────────────────── */
         .footer {
             position: fixed;
-            bottom: -12mm;
+            bottom: -13mm;
             left: 0;
             right: 0;
             font-size: 7px;
             color: #9ca3af;
             border-top: 1px solid #e5e7eb;
-            padding-top: 4px;
+            padding-top: 3px;
         }
         .footer table { width: 100%; }
         .footer td { padding: 0; }
-        .pagenum:before { content: counter(page); }
+        .pagenum:before   { content: counter(page); }
         .pagecount:before { content: counter(pages); }
     </style>
 </head>
 <body>
 
+{{-- ── Footer (renders on every page) ──────────────────────────────────── --}}
 <div class="footer">
     <table>
         <tr>
@@ -225,12 +231,12 @@
     </table>
 </div>
 
-{{-- Header --}}
+{{-- ── 1. Header ──────────────────────────────────────────────────────── --}}
 <table class="hdr">
     <tr>
         <td width="55%">
             @if (! empty($brand['logoDataUri']))
-                <img src="{{ $brand['logoDataUri'] }}" class="hdr-logo" alt=""><br>
+                <img src="{{ $brand['logoDataUri'] }}" class="hdr-logo" alt="">
             @endif
             <div class="hdr-company">{{ $brand['name'] }}</div>
             @if (! empty($brand['address']))
@@ -241,26 +247,27 @@
             <div class="doc-title">Goods Received Note</div>
             <div class="doc-sub">Original — retain for your records</div>
             <table class="meta">
-                <tr><td class="k">GRN No.</td><td class="v code">{{ $grn->number }}</td></tr>
+                <tr><td class="k">GRN No.</td>   <td class="v code">{{ $grn->number }}</td></tr>
                 @if ($po)
                     <tr><td class="k">PO No.</td><td class="v code">{{ $po->number }}</td></tr>
                 @endif
-                <tr><td class="k">Received</td><td class="v">{{ $receivedAt->format('d M Y H:i') }}</td></tr>
+                <tr><td class="k">Received</td>   <td class="v">{{ $receivedAt->format('d M Y H:i') }}</td></tr>
             </table>
         </td>
     </tr>
 </table>
 <div class="brand-rule"></div>
 
-{{-- From / To --}}
+{{-- ── 2. From / To ───────────────────────────────────────────────────── --}}
 <table class="parties">
     <tr>
+        {{-- FROM: supplier --}}
         <td class="party">
-            <div class="party-head">From</div>
+            <div class="party-head">From (Supplier)</div>
             <div class="party-body">
                 <div class="party-name">{{ $supplier?->name ?? '—' }}</div>
-                @if ($supplierAddress)
-                    <div class="party-line">{{ $supplierAddress }}</div>
+                @if ($supplierAddr)
+                    <div class="party-line">{{ $supplierAddr }}</div>
                 @endif
                 @if ($supplier?->phone)
                     <div class="party-line"><span class="lbl">Tel:</span> {{ $supplier->phone }}</div>
@@ -269,12 +276,13 @@
                     <div class="party-line"><span class="lbl">Email:</span> {{ $supplier->email }}</div>
                 @endif
                 @if ($po?->customer_po_ref)
-                    <div class="party-line"><span class="lbl">Supplier ref:</span> {{ $po->customer_po_ref }}</div>
+                    <div class="party-line"><span class="lbl">Supplier / Customer PO ref:</span> {{ $po->customer_po_ref }}</div>
                 @endif
             </div>
         </td>
+        {{-- TO: destination --}}
         <td class="party">
-            <div class="party-head">To (destination)</div>
+            <div class="party-head">To (Destination)</div>
             <div class="party-body">
                 <div class="party-name">{{ $consignee?->name ?? $brand['name'] }}</div>
                 <div class="party-line"><span class="lbl">Warehouse:</span> {{ $grn->warehouse?->name ?? '—' }}</div>
@@ -282,25 +290,35 @@
                     <div class="party-line">{{ $grn->warehouse->address }}</div>
                 @endif
                 @if ($grn->receivingDock)
-                    <div class="party-line"><span class="lbl">Receiving dock:</span> <span class="code">{{ $grn->receivingDock->code }}</span></div>
+                    <div class="party-line">
+                        <span class="lbl">Receiving dock:</span>
+                        <span class="code">{{ $grn->receivingDock->code }}</span>
+                    </div>
                 @endif
-                <div class="party-line"><span class="lbl">Delivery:</span> {{ ucfirst($grn->delivery_type ?? 'full') }}</div>
+                <div class="party-line">
+                    <span class="lbl">Delivery type:</span> {{ ucfirst($grn->delivery_type ?? 'full') }}
+                </div>
             </div>
         </td>
     </tr>
 </table>
 
-{{-- KPIs --}}
+{{-- ── 3. KPIs ─────────────────────────────────────────────────────────── --}}
 <table class="kpi">
     <tr>
+        {{-- Lines --}}
         <td>
             <div class="kpi-label">Lines</div>
             <div class="kpi-value">{{ $lineCount }}</div>
         </td>
+
+        {{-- Received in full --}}
         <td>
             <div class="kpi-label">Received in full</div>
             <div class="kpi-value">{{ $fullLines }} / {{ $lineCount }}</div>
         </td>
+
+        {{-- Total received — only when all lines share one UoM --}}
         @if ($singleUom && $lineCount)
             <td>
                 <div class="kpi-label">Total received</div>
@@ -308,34 +326,35 @@
                 <div class="kpi-hint">{{ $lines->first()->uom }}</div>
             </td>
         @endif
+
+        {{-- Damaged lines --}}
         <td>
             <div class="kpi-label">Damaged lines</div>
-            <div class="kpi-value {{ $damagedLines ? 'neg' : '' }}">{{ $damagedLines }}</div>
+            <div class="kpi-value {{ $damagedLines > 0 ? 'neg' : '' }}">{{ $damagedLines }}</div>
             @if ($hasDamaged && $singleUom)
-                <div class="kpi-hint">{{ $qty($lines->sum('damaged')) }} {{ $lines->first()->uom }}</div>
+                <div class="kpi-hint">{{ $qty($lines->sum('damaged')) }} {{ $lines->first()->uom }} damaged</div>
             @endif
         </td>
     </tr>
 </table>
 
-{{-- Items --}}
-<div class="section-title">Received items</div>
-
+{{-- ── 4. Received items table ─────────────────────────────────────────── --}}
+<div class="section-title">Received Items</div>
 <table class="data">
     <thead>
-    <tr>
-        <th class="text-center" style="width: 18px">#</th>
-        <th style="width: 72px">Item code</th>
-        <th>Description</th>
-        <th class="text-center" style="width: 34px">UoM</th>
-        <th class="text-right" style="width: 50px">Expected</th>
-        <th class="text-right" style="width: 50px">Good</th>
-        @if ($hasDamaged)
-            <th class="text-right" style="width: 50px">Damaged</th>
-        @endif
-        <th class="text-right" style="width: 50px">Variance</th>
-        <th style="width: 150px">Batch / expiry / serials</th>
-    </tr>
+        <tr>
+            <th class="text-center" style="width:18px">#</th>
+            <th style="width:72px">Item code</th>
+            <th>Description</th>
+            <th class="text-center" style="width:32px">UoM</th>
+            <th class="text-right" style="width:50px">Expected</th>
+            <th class="text-right" style="width:48px">Good</th>
+            @if ($hasDamaged)
+                <th class="text-right" style="width:50px">Damaged</th>
+            @endif
+            <th class="text-right" style="width:50px">Variance</th>
+            <th style="width:150px">Batch / Expiry / Serials</th>
+        </tr>
     </thead>
     <tbody>
     @forelse ($lines as $i => $l)
@@ -350,21 +369,23 @@
                 <td class="text-right {{ $l->damaged > 0 ? 'neg' : 'zero' }}">{{ $qty($l->damaged) }}</td>
             @endif
             <td class="text-right {{ $tone($l->variance) }}">{{ $signed($l->variance) }}</td>
+
+            {{-- Trace: GOOD / DAMAGED tags, batch, expiry, serials. No empty gaps. --}}
             <td class="trace">
-                @foreach (['good' => $l->goodTrace, 'damaged' => $l->damagedTrace] as $condition => $t)
+                @foreach (['good' => $l->goodTrace, 'damaged' => $l->damagedTrace] as $conditionKey => $t)
                     @if ($hasTrace($t))
                         <div class="trace-group">
-                            @if ($condition === 'damaged' || $hasDamaged)
-                                <span class="tag tag-{{ $condition }}">{{ strtoupper($condition) }}</span><br>
+                            @if ($conditionKey === 'damaged' || $hasDamaged)
+                                <div><span class="tag tag-{{ $conditionKey }}">{{ strtoupper($conditionKey) }}</span></div>
                             @endif
                             @if ($t->batches->isNotEmpty())
-                                <span class="lbl">Batch:</span> {{ $t->batches->implode(', ') }}<br>
+                                <div><span class="lbl">Batch:</span> {{ $t->batches->implode(', ') }}</div>
                             @endif
                             @if ($t->expiries->isNotEmpty())
-                                <span class="lbl">Expiry:</span> {{ $t->expiries->implode(', ') }}<br>
+                                <div><span class="lbl">Expiry:</span> {{ $t->expiries->implode(', ') }}</div>
                             @endif
                             @if ($t->serials->isNotEmpty())
-                                <span class="lbl">S/N:</span> <span class="code">{{ $t->serials->implode(', ') }}</span>
+                                <div><span class="lbl">S/N:</span> <span class="code">{{ $t->serials->implode(', ') }}</span></div>
                             @endif
                         </div>
                     @endif
@@ -380,6 +401,7 @@
         </tr>
     @endforelse
 
+    {{-- Totals row — only when all lines share one UoM --}}
     @if ($lineCount && $singleUom)
         @php $totalVariance = $lines->sum('variance'); @endphp
         <tr class="totals">
@@ -398,72 +420,91 @@
 
 @if ($hasVariance)
     <div class="notes">
-        Red rows are short or damaged lines; amber rows are over-received. Variance = good + damaged − expected.
+        Red rows = short or damaged; amber rows = over-received. Variance = (good + damaged) − expected.
     </div>
 @endif
 
-{{-- Transport and receiving details --}}
+{{-- ── 5. Transport & Receiving cards ─────────────────────────────────── --}}
 <table class="cards">
     <tr>
+        {{-- Transport details --}}
         <td class="card">
-            <div class="card-head">Transport details</div>
+            <div class="card-head">Transport Details</div>
             <table class="card-body">
-                <tr><td class="k">Transporter</td><td class="v">{{ $grn->transporter_name ?: '—' }}</td></tr>
-                <tr>
-                    <td class="k">Vehicle</td>
+                <tr><td class="k">Transporter</td>
+                    <td class="v">{{ $grn->transporter_name ?: '—' }}</td></tr>
+                <tr><td class="k">Vehicle</td>
                     <td class="v">
                         {{ $grn->vehicle_plate ?: '—' }}
-                        @if ($grn->vehicle_type) ({{ $grn->vehicle_type }}) @endif
-                    </td>
-                </tr>
-                <tr><td class="k">Driver</td><td class="v">{{ $grn->driver_name ?: '—' }}</td></tr>
-                @if ($grn->container_no)
-                    <tr><td class="k">Container</td><td class="v code">{{ $grn->container_no }}</td></tr>
+                        @if ($grn->vehicle_type) &nbsp;({{ $grn->vehicle_type }}) @endif
+                    </td></tr>
+                <tr><td class="k">Driver</td>
+                    <td class="v">{{ $grn->driver_name ?: '—' }}</td></tr>
+                @if ($grn->container?->container_no)
+                    <tr><td class="k">Container no.</td>
+                        <td class="v code">{{ $grn->container->container_no }}</td></tr>
                 @endif
                 @if ($grn->seal_check_result)
-                    <tr>
-                        <td class="k">Seal check</td>
-                        <td class="v {{ $sealIntact ? '' : 'neg' }}">{{ ucfirst($grn->seal_check_result) }}</td>
-                    </tr>
+                    <tr><td class="k">Seal check</td>
+                        <td class="v {{ $sealIntact ? '' : 'neg' }}">
+                            {{ ucfirst($grn->seal_check_result) }}
+                            @if (! $sealIntact && $grn->seal_mismatch_reason)
+                                — {{ $grn->seal_mismatch_reason }}
+                            @endif
+                        </td></tr>
                 @endif
             </table>
         </td>
+
+        {{-- Receiving details --}}
         <td class="card">
-            <div class="card-head">Receiving details</div>
+            <div class="card-head">Receiving Details</div>
             <table class="card-body">
-                <tr><td class="k">Received by</td><td class="v">{{ $grn->confirmedBy?->name ?? '—' }}</td></tr>
-                <tr><td class="k">Date &amp; time</td><td class="v">{{ $receivedAt->format('d M Y H:i') }}</td></tr>
-                <tr><td class="k">Warehouse</td><td class="v">{{ $grn->warehouse?->name ?? '—' }}</td></tr>
+                <tr><td class="k">Received by</td>
+                    <td class="v">{{ $grn->confirmedBy?->name ?? '—' }}</td></tr>
+                <tr><td class="k">Date &amp; time</td>
+                    <td class="v">{{ $receivedAt->format('d M Y H:i') }}</td></tr>
+                <tr><td class="k">Warehouse</td>
+                    <td class="v">{{ $grn->warehouse?->name ?? '—' }}</td></tr>
                 @if ($grn->receivingDock)
-                    <tr><td class="k">Dock</td><td class="v code">{{ $grn->receivingDock->code }}</td></tr>
+                    <tr><td class="k">Dock</td>
+                        <td class="v code">{{ $grn->receivingDock->code }}</td></tr>
                 @endif
-                <tr><td class="k">Delivery</td><td class="v">{{ ucfirst($grn->delivery_type ?? 'full') }}</td></tr>
+                <tr><td class="k">Delivery type</td>
+                    <td class="v">{{ ucfirst($grn->delivery_type ?? 'full') }}</td></tr>
             </table>
         </td>
     </tr>
 </table>
 
+{{-- ── 6. Remarks ───────────────────────────────────────────────────────── --}}
 @if (! empty($grn->notes))
     <div class="remarks"><strong>Remarks:</strong> {{ $grn->notes }}</div>
 @endif
 
-{{-- Signatures --}}
+{{-- ── 7. Signatures ────────────────────────────────────────────────────── --}}
 <table class="sig">
     <tr>
         <td>
-            <div class="sig-line">Received by</div>
-            <div class="sig-name">{{ $grn->confirmedBy?->name ?? '' }}</div>
-            <div class="sig-date">Date: ____________</div>
+            <div class="sig-box">
+                <div class="sig-role">Received by</div>
+                <div class="sig-name">{{ $grn->confirmedBy?->name ?? '' }}</div>
+                <div class="sig-date">Date: ____________</div>
+            </div>
         </td>
         <td>
-            <div class="sig-line">Checked by (Supervisor)</div>
-            <div class="sig-name">&nbsp;</div>
-            <div class="sig-date">Date: ____________</div>
+            <div class="sig-box">
+                <div class="sig-role">Checked by (Supervisor)</div>
+                <div class="sig-name">&nbsp;</div>
+                <div class="sig-date">Date: ____________</div>
+            </div>
         </td>
         <td>
-            <div class="sig-line">Delivered by (Driver)</div>
-            <div class="sig-name">{{ $grn->driver_name ?? '' }}</div>
-            <div class="sig-date">Date: ____________</div>
+            <div class="sig-box">
+                <div class="sig-role">Delivered by (Driver)</div>
+                <div class="sig-name">{{ $grn->driver_name ?? '' }}</div>
+                <div class="sig-date">Date: ____________</div>
+            </div>
         </td>
     </tr>
 </table>
