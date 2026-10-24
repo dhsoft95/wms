@@ -108,20 +108,8 @@ final class AllocationService
     /**
      * Resume picking for a Picked order that has lines not fully picked.
      *
-     * Root-cause of the double-dispatch serial error:
-     *   When executeTask() picks partial qty, the ledger deducts the picked amount
-     *   from the reservation but leaves the remainder still holding qty_allocated on
-     *   the source bin.  The old resumeFromShort only released *Reserved* allocations,
-     *   so the bin showed net-available = 0, and getCandidates() fell back to staging
-     *   (a pickable type), creating a staging→staging pick task.  Both tasks then had
-     *   the same serials, causing a double-debit on dispatch.
-     *
-     * Fix:
-     *   1. Release the reservation on *Picked* allocations too, freeing the bin's
-     *      remaining qty_allocated so re-allocation finds the correct source location.
-     *   2. After re-allocating, strip any new Reserved allocations that landed on the
-     *      default staging location (picking FROM staging makes no sense—staging is
-     *      only ever the pick destination / dispatch source).
+     * Releases reservations on ALL allocations (including Picked ones) so the
+     * source bin's qty_allocated is fully freed before re-allocating the remainder.
      *
      * @return string[] Warning messages for lines still unallocatable.
      */
@@ -131,10 +119,9 @@ final class AllocationService
             throw new \DomainException('Can only resume picking on a Picked order.');
         }
 
-        $stagingId = $do->warehouse?->defaultStagingLocation?->id;
-        $warnings  = [];
+        $warnings = [];
 
-        DB::transaction(function () use ($do, $stagingId, &$warnings) {
+        DB::transaction(function () use ($do, &$warnings) {
             $hasUnmet = false;
 
             foreach ($do->lines()->with('allocations.stockReservation')->get() as $line) {
@@ -146,14 +133,12 @@ final class AllocationService
 
                 $hasUnmet = true;
 
-                // Release reservations on ALL allocations for this line — both Reserved
-                // and Picked — so the source bin's qty_allocated is fully freed and
-                // re-allocation can find the remaining physical stock there.
+                // Release reservations on ALL allocations (Reserved and Picked) so the
+                // source bin's qty_allocated is fully freed before re-allocating.
                 foreach ($line->allocations as $alloc) {
                     if ($alloc->stockReservation) {
                         $this->reservations->release($alloc->stockReservation);
                     }
-                    // Remove Reserved allocations; keep Picked ones (they record history)
                     if ($alloc->status === AllocationStatus::Reserved) {
                         $alloc->delete();
                     }
@@ -170,48 +155,7 @@ final class AllocationService
                 throw new \DomainException('All lines are fully picked — nothing to resume.');
             }
 
-            // Re-allocate from bin/storage/hazardous locations
             $warnings = $this->allocate($do);
-
-            // Safety net: strip any new Reserved allocations that landed on staging.
-            // If the allocator still picked staging (e.g. FEFO ordering), remove those
-            // to prevent a staging→staging pick task that double-counts serials on dispatch.
-            if ($stagingId !== null) {
-                $removedQty = false;
-                foreach ($do->lines()->with('allocations.stockReservation')->get() as $line) {
-                    foreach ($line->allocations()
-                                 ->where('status', AllocationStatus::Reserved->value)
-                                 ->where('location_id', $stagingId)
-                                 ->with('stockReservation')
-                                 ->get() as $alloc) {
-                        if ($alloc->stockReservation) {
-                            $this->reservations->release($alloc->stockReservation);
-                        }
-                        $line->allocated_qty = bcsub((string) $line->allocated_qty, (string) $alloc->qty, 4);
-                        $alloc->delete();
-                        $removedQty = true;
-                    }
-                    if ($removedQty) {
-                        $line->status = bccomp(
-                            (string) $line->allocated_qty,
-                            (string) $line->requested_qty_base, 4
-                        ) >= 0 ? DoLineStatus::Allocated : DoLineStatus::PartiallyAllocated;
-                        $line->save();
-                    }
-                }
-
-                if ($removedQty) {
-                    // Recalculate DO status after staging allocations were stripped
-                    $lines        = $do->lines()->get();
-                    $allAllocated = $lines->isNotEmpty() && $lines->every(fn ($l) => bccomp((string) $l->allocated_qty, (string) $l->requested_qty_base, 4) >= 0);
-                    $do->status   = $allAllocated
-                        ? DeliveryOrderStatus::Allocated
-                        : DeliveryOrderStatus::PartiallyAllocated;
-                    $do->save();
-
-                    $warnings[] = 'Some remaining stock was in staging (already picked for this order) and was excluded — check source bin availability.';
-                }
-            }
         });
 
         return $warnings;
@@ -274,8 +218,13 @@ final class AllocationService
         $minShelfLife = (int) $this->settings->get('outbound.min_shelf_life_days', 0);
         $minExpiry    = $minShelfLife > 0 ? now()->addDays($minShelfLife)->toDateString() : null;
 
-        // Pickable location types: storage, staging, hazardous
-        $pickableTypes = ['storage', 'staging', 'hazardous'];
+        // Pickable location types: storage bins and hazardous bays only.
+        // Staging is intentionally excluded — stock there was already picked
+        // for an outbound order and is awaiting dispatch; allowing it as a pick
+        // source would create staging→staging pick tasks and block dispatch with
+        // "Insufficient available stock" (staging.qty_allocated > 0 from the
+        // new reservation while the original order still needs to dispatch it).
+        $pickableTypes = ['storage', 'hazardous'];
 
         $query = StockBalance::with(['batch', 'location'])
             ->where('virtual_warehouse_id', $do->virtual_warehouse_id)
@@ -351,6 +300,17 @@ final class AllocationService
             return 'Stock has been received but putaway is not yet complete. Complete the putaway tasks to move stock into storage bins before allocating.';
         }
 
+        // Check 2b: stock is in staging (already picked for another order, awaiting dispatch)?
+        $inStaging = StockBalance::whereIn('item_id', $itemIds)
+            ->where('virtual_warehouse_id', $vwId)
+            ->whereRaw('qty_on_hand - qty_allocated > 0')
+            ->whereHas('location', fn ($q) => $q->where('type', 'staging'))
+            ->exists();
+
+        if ($inStaging) {
+            return 'Available stock is currently in the staging area awaiting dispatch for another order. Dispatch that order first, or check for stock in storage bins.';
+        }
+
         // Check 3: stock in pickable location but wrong status?
         $wrongStatus = StockBalance::whereIn('item_id', $itemIds)
             ->where('virtual_warehouse_id', $vwId)
@@ -411,11 +371,21 @@ final class AllocationService
         $inDock = StockBalance::where('item_id', $line->item_id)
             ->where('virtual_warehouse_id', $vwId)
             ->whereRaw('qty_on_hand - qty_allocated > 0')
-            ->whereHas('location', fn ($q) => $q->whereNotIn('type', $pickable))
+            ->whereHas('location', fn ($q) => $q->whereNotIn('type', array_merge($pickable, ['staging'])))
             ->exists();
 
         if ($inDock) {
             return "{$sku}: putaway not complete — stock is still in the receiving dock.";
+        }
+
+        $inStaging = StockBalance::where('item_id', $line->item_id)
+            ->where('virtual_warehouse_id', $vwId)
+            ->whereRaw('qty_on_hand - qty_allocated > 0')
+            ->whereHas('location', fn ($q) => $q->where('type', 'staging'))
+            ->exists();
+
+        if ($inStaging) {
+            return "{$sku}: stock is in staging awaiting dispatch — dispatch the pending order first.";
         }
 
         $wrongStatus = StockBalance::where('item_id', $line->item_id)
