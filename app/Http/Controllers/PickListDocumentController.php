@@ -7,13 +7,14 @@ namespace App\Http\Controllers;
 use App\Models\PickList;
 use App\Support\PdfBrand;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Gate;
 use Symfony\Component\HttpFoundation\Response;
 
 class PickListDocumentController extends Controller
 {
     public function pdf(PickList $pickList): Response
     {
-        $this->authorize('view', $pickList->deliveryOrder);
+        Gate::authorize('view', $pickList->deliveryOrder);
 
         $pickList->load([
             'deliveryOrder.consigneePartner',
