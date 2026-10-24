@@ -100,11 +100,15 @@ class StockTransferPolicy
 
     public function approveDepartment(User $user, StockTransfer $transfer): bool
     {
-        if (! $user->can('transfers.accept')) {
+        if ($transfer->status !== TransferStatus::Submitted) {
             return false;
         }
 
-        if ($transfer->status !== TransferStatus::Submitted) {
+        $canAct = $user->can('transfers.accept')
+            || $user->can('approvals.approve')
+            || $transfer->department?->head_user_id === $user->id;
+
+        if (! $canAct) {
             return false;
         }
 
@@ -118,7 +122,11 @@ class StockTransferPolicy
             return false;
         }
 
-        if (! $user->can('transfers.accept')) {
+        $canAct = $user->can('transfers.accept')
+            || $user->can('approvals.approve')
+            || $transfer->department?->head_user_id === $user->id;
+
+        if (! $canAct) {
             return false;
         }
 
@@ -132,7 +140,11 @@ class StockTransferPolicy
             return false;
         }
 
-        if (! $user->can('transfers.accept')) {
+        $canAct = $user->can('transfers.accept')
+            || $user->can('approvals.approve')
+            || $transfer->department?->head_user_id === $user->id;
+
+        if (! $canAct) {
             return false;
         }
 
