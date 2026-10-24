@@ -107,8 +107,21 @@ final class AllocationService
 
     /**
      * Resume picking for a Picked order that has lines not fully picked.
-     * Releases leftover Reserved allocations, resets line state, and re-allocates
-     * the unmet quantity so a new pick list can be generated.
+     *
+     * Root-cause of the double-dispatch serial error:
+     *   When executeTask() picks partial qty, the ledger deducts the picked amount
+     *   from the reservation but leaves the remainder still holding qty_allocated on
+     *   the source bin.  The old resumeFromShort only released *Reserved* allocations,
+     *   so the bin showed net-available = 0, and getCandidates() fell back to staging
+     *   (a pickable type), creating a staging→staging pick task.  Both tasks then had
+     *   the same serials, causing a double-debit on dispatch.
+     *
+     * Fix:
+     *   1. Release the reservation on *Picked* allocations too, freeing the bin's
+     *      remaining qty_allocated so re-allocation finds the correct source location.
+     *   2. After re-allocating, strip any new Reserved allocations that landed on the
+     *      default staging location (picking FROM staging makes no sense—staging is
+     *      only ever the pick destination / dispatch source).
      *
      * @return string[] Warning messages for lines still unallocatable.
      */
@@ -118,9 +131,10 @@ final class AllocationService
             throw new \DomainException('Can only resume picking on a Picked order.');
         }
 
-        $warnings = [];
+        $stagingId = $do->warehouse?->defaultStagingLocation?->id;
+        $warnings  = [];
 
-        DB::transaction(function () use ($do, &$warnings) {
+        DB::transaction(function () use ($do, $stagingId, &$warnings) {
             $hasUnmet = false;
 
             foreach ($do->lines()->with('allocations.stockReservation')->get() as $line) {
@@ -132,15 +146,20 @@ final class AllocationService
 
                 $hasUnmet = true;
 
-                // Release any still-Reserved allocations for this line
-                foreach ($line->allocations()->where('status', AllocationStatus::Reserved->value)->get() as $alloc) {
+                // Release reservations on ALL allocations for this line — both Reserved
+                // and Picked — so the source bin's qty_allocated is fully freed and
+                // re-allocation can find the remaining physical stock there.
+                foreach ($line->allocations as $alloc) {
                     if ($alloc->stockReservation) {
                         $this->reservations->release($alloc->stockReservation);
                     }
-                    $alloc->delete();
+                    // Remove Reserved allocations; keep Picked ones (they record history)
+                    if ($alloc->status === AllocationStatus::Reserved) {
+                        $alloc->delete();
+                    }
                 }
 
-                // Reset line so allocateLine() will allocate exactly the unmet qty
+                // Reset line so allocateLine() targets exactly the unmet qty
                 $line->allocated_qty = $line->picked_qty;
                 $line->short_qty     = '0.0000';
                 $line->status        = DoLineStatus::Pending;
@@ -151,8 +170,48 @@ final class AllocationService
                 throw new \DomainException('All lines are fully picked — nothing to resume.');
             }
 
-            // Re-allocate; this also sets DO status to Allocated / PartiallyAllocated
+            // Re-allocate from bin/storage/hazardous locations
             $warnings = $this->allocate($do);
+
+            // Safety net: strip any new Reserved allocations that landed on staging.
+            // If the allocator still picked staging (e.g. FEFO ordering), remove those
+            // to prevent a staging→staging pick task that double-counts serials on dispatch.
+            if ($stagingId !== null) {
+                $removedQty = false;
+                foreach ($do->lines()->with('allocations.stockReservation')->get() as $line) {
+                    foreach ($line->allocations()
+                                 ->where('status', AllocationStatus::Reserved->value)
+                                 ->where('location_id', $stagingId)
+                                 ->with('stockReservation')
+                                 ->get() as $alloc) {
+                        if ($alloc->stockReservation) {
+                            $this->reservations->release($alloc->stockReservation);
+                        }
+                        $line->allocated_qty = bcsub((string) $line->allocated_qty, (string) $alloc->qty, 4);
+                        $alloc->delete();
+                        $removedQty = true;
+                    }
+                    if ($removedQty) {
+                        $line->status = bccomp(
+                            (string) $line->allocated_qty,
+                            (string) $line->requested_qty_base, 4
+                        ) >= 0 ? DoLineStatus::Allocated : DoLineStatus::PartiallyAllocated;
+                        $line->save();
+                    }
+                }
+
+                if ($removedQty) {
+                    // Recalculate DO status after staging allocations were stripped
+                    $lines        = $do->lines()->get();
+                    $allAllocated = $lines->isNotEmpty() && $lines->every(fn ($l) => bccomp((string) $l->allocated_qty, (string) $l->requested_qty_base, 4) >= 0);
+                    $do->status   = $allAllocated
+                        ? DeliveryOrderStatus::Allocated
+                        : DeliveryOrderStatus::PartiallyAllocated;
+                    $do->save();
+
+                    $warnings[] = 'Some remaining stock was in staging (already picked for this order) and was excluded — check source bin availability.';
+                }
+            }
         });
 
         return $warnings;
