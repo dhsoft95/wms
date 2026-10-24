@@ -104,11 +104,12 @@ class StockTransferPolicy
             return false;
         }
 
-        $canAct = $user->can('transfers.accept')
-            || $user->can('approvals.approve')
-            || $transfer->department?->head_user_id === $user->id;
+        // Department head can always approve — bypass chain check
+        if ($transfer->department?->head_user_id === $user->id) {
+            return true;
+        }
 
-        if (! $canAct) {
+        if (! $user->can('transfers.accept') && ! $user->can('approvals.approve')) {
             return false;
         }
 
@@ -122,11 +123,12 @@ class StockTransferPolicy
             return false;
         }
 
-        $canAct = $user->can('transfers.accept')
-            || $user->can('approvals.approve')
-            || $transfer->department?->head_user_id === $user->id;
+        // Department head can send back their department's transfers
+        if ($transfer->department?->head_user_id === $user->id) {
+            return true;
+        }
 
-        if (! $canAct) {
+        if (! $user->can('transfers.accept') && ! $user->can('approvals.approve')) {
             return false;
         }
 
@@ -140,11 +142,12 @@ class StockTransferPolicy
             return false;
         }
 
-        $canAct = $user->can('transfers.accept')
-            || $user->can('approvals.approve')
-            || $transfer->department?->head_user_id === $user->id;
+        // Department head forwards the return to the requester
+        if ($transfer->department?->head_user_id === $user->id) {
+            return true;
+        }
 
-        if (! $canAct) {
+        if (! $user->can('transfers.accept') && ! $user->can('approvals.approve')) {
             return false;
         }
 
