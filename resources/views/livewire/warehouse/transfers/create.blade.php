@@ -5,6 +5,7 @@
     $fromVwName   = $warehouses->firstWhere('id', $fromVwId)?->name;
     $toVwName     = $warehouses->firstWhere('id', $toVwId)?->name;
     $filledLines  = collect($lines)->filter(fn ($l) => ! empty($l['item_id']) && (float) ($l['qty'] ?? 0) > 0)->count();
+    $physicalReady = ! $isPhysical || collect($lines)->every(fn ($l) => ! empty($l['to_location_id']));
 @endphp
 
 <div class="space-y-6">
@@ -68,6 +69,27 @@
                         <label class="label">Notes <span class="text-xs font-normal text-slate-400">(optional)</span></label>
                         <textarea wire:model="notes" rows="2" class="input resize-none" placeholder="Reason for transfer, reference, etc."></textarea>
                     </div>
+
+                    {{-- Physical relocation toggle --}}
+                    <div class="flex items-start gap-4 p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/60 dark:bg-slate-800/30">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">Physical Relocation</p>
+                            <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                                @if($isPhysical)
+                                    Stock will physically move to a new bin <span class="font-semibold">and</span> change ownership.
+                                @else
+                                    Ownership changes only — stock stays in the same bin.
+                                @endif
+                            </p>
+                        </div>
+                        <button type="button"
+                                wire:click="$toggle('isPhysical')"
+                                class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none
+                                       {{ $isPhysical ? 'bg-simba-500' : 'bg-slate-200 dark:bg-slate-700' }}">
+                            <span class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out
+                                         {{ $isPhysical ? 'translate-x-5' : 'translate-x-0' }}"></span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -121,19 +143,45 @@
 
                                 {{-- Bin + Item --}}
                                 <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <div>
-                                        <label class="label">Source Bin <span class="text-red-500">*</span></label>
-                                        <select wire:model.live="lines.{{ $i }}.location_id"
-                                                class="input font-mono @error('lines.'.$i.'.location_id') border-red-400 @enderror"
-                                            @disabled(! $hasFromVw)>
-                                            <option value="">{{ $hasFromVw ? 'Select bin…' : 'Select warehouse first' }}</option>
-                                            @if($hasFromVw)
-                                                @foreach($this->locations as $loc)
-                                                    <option value="{{ $loc->id }}">{{ $loc->code }}</option>
-                                                @endforeach
+                                    <div class="{{ $isPhysical ? 'md:col-span-2' : '' }}">
+                                        <div class="grid grid-cols-1 gap-4 {{ $isPhysical ? 'md:grid-cols-[1fr_auto_1fr]' : '' }} md:items-start">
+                                            <div>
+                                                <label class="label">Source Bin <span class="text-red-500">*</span></label>
+                                                <select wire:model.live="lines.{{ $i }}.location_id"
+                                                        class="input font-mono @error('lines.'.$i.'.location_id') border-red-400 @enderror"
+                                                    @disabled(! $hasFromVw)>
+                                                    <option value="">{{ $hasFromVw ? 'Select bin…' : 'Select warehouse first' }}</option>
+                                                    @if($hasFromVw)
+                                                        @foreach($this->locations as $loc)
+                                                            <option value="{{ $loc->id }}">{{ $loc->code }}</option>
+                                                        @endforeach
+                                                    @endif
+                                                </select>
+                                                @error('lines.'.$i.'.location_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                            </div>
+
+                                            @if($isPhysical)
+                                                <div class="hidden md:flex items-center justify-center w-10 h-10 mt-5 rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 shrink-0">
+                                                    <x-ui.icon name="arrow-right" class="w-4 h-4 shrink-0" />
+                                                </div>
+                                                <div>
+                                                    <label class="label">Destination Bin <span class="text-red-500">*</span></label>
+                                                    <select wire:model="lines.{{ $i }}.to_location_id"
+                                                            class="input font-mono @error('lines.'.$i.'.to_location_id') border-red-400 @enderror"
+                                                        @disabled(! $hasBin)>
+                                                        <option value="">{{ $hasBin ? 'Select destination…' : 'Select source bin first' }}</option>
+                                                        @if($hasBin)
+                                                            @foreach($this->locations as $loc)
+                                                                <option value="{{ $loc->id }}" @disabled($loc->id == ($line['location_id'] ?? 0))>
+                                                                    {{ $loc->code }}
+                                                                </option>
+                                                            @endforeach
+                                                        @endif
+                                                    </select>
+                                                    @error('lines.'.$i.'.to_location_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                                </div>
                                             @endif
-                                        </select>
-                                        @error('lines.'.$i.'.location_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                        </div>
                                     </div>
 
                                     <div>
@@ -158,7 +206,7 @@
                                         </select>
                                         @error('lines.'.$i.'.item_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                                     </div>
-                                </div>
+                                </div>{{-- end bin+item grid --}}
 
                                 {{-- Stock at bin (shown until an item is picked) --}}
                                 @if($hasBin && $hasFromVw && ! $hasItem)
@@ -279,7 +327,14 @@
                         </div>
                     </div>
 
-                    <div class="flex items-center justify-between pt-4 text-sm border-t border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center justify-between pt-3 text-sm border-t border-slate-100 dark:border-slate-800">
+                        <span class="text-slate-500">Type</span>
+                        <span class="font-semibold {{ $isPhysical ? 'text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-slate-400' }}">
+                            {{ $isPhysical ? 'Physical relocation' : 'Ownership only' }}
+                        </span>
+                    </div>
+
+                    <div class="flex items-center justify-between text-sm">
                         <span class="text-slate-500">Lines ready</span>
                         <span class="font-semibold tabular-nums {{ $filledLines === count($lines) && $filledLines > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200' }}">
                             {{ $filledLines }} / {{ count($lines) }}

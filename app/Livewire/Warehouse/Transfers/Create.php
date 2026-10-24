@@ -22,10 +22,11 @@ use Livewire\WithFileUploads;
 class Create extends Component
 {
     use WithFileUploads, WithBulkLineUpload;
-    public int    $fromVwId = 0;
-    public int    $toVwId   = 0;
-    public string $notes    = '';
-    public array  $lines    = [];
+    public int    $fromVwId   = 0;
+    public int    $toVwId     = 0;
+    public bool   $isPhysical = false;
+    public string $notes      = '';
+    public array  $lines      = [];
 
     public static function lineFields(): array
     {
@@ -55,11 +56,12 @@ class Create extends Component
 
         foreach ($rows as $row) {
             $this->lines[] = [
-                'item_id'     => $row['item_id']     ?? '',
-                'location_id' => $row['location_id'] ?? '',
-                'batch_no'    => $row['batch_no']    ?? '',
-                'qty'         => $row['qty']         ?? '',
-                'uom_id'      => $row['uom_id']      ?? '',
+                'item_id'        => $row['item_id']        ?? '',
+                'location_id'    => $row['location_id']    ?? '',
+                'to_location_id' => $row['to_location_id'] ?? '',
+                'batch_no'       => $row['batch_no']       ?? '',
+                'qty'            => $row['qty']            ?? '',
+                'uom_id'         => $row['uom_id']         ?? '',
             ];
         }
 
@@ -80,12 +82,21 @@ class Create extends Component
         // From VW changed → reset all line items/locations
         if ($property === 'fromVwId') {
             foreach (array_keys($this->lines) as $i) {
-                $this->lines[$i]['item_id']     = '';
-                $this->lines[$i]['location_id'] = '';
-                $this->lines[$i]['uom_id']      = '';
-                $this->lines[$i]['qty']         = '';
+                $this->lines[$i]['item_id']        = '';
+                $this->lines[$i]['location_id']    = '';
+                $this->lines[$i]['to_location_id'] = '';
+                $this->lines[$i]['uom_id']         = '';
+                $this->lines[$i]['qty']            = '';
             }
             unset($this->stockByLine, $this->availableByLine);
+            return;
+        }
+
+        // Physical toggle turned off → clear all destination bins
+        if ($property === 'isPhysical' && ! $value) {
+            foreach (array_keys($this->lines) as $i) {
+                $this->lines[$i]['to_location_id'] = '';
+            }
             return;
         }
 
@@ -210,11 +221,12 @@ class Create extends Component
     public function addLine(): void
     {
         $this->lines[] = [
-            'item_id'     => '',
-            'location_id' => '',
-            'batch_no'    => '',
-            'qty'         => '',
-            'uom_id'      => '',
+            'item_id'        => '',
+            'location_id'    => '',
+            'to_location_id' => '',
+            'batch_no'       => '',
+            'qty'            => '',
+            'uom_id'         => '',
         ];
         unset($this->stockByLine, $this->availableByLine);
     }
@@ -231,15 +243,25 @@ class Create extends Component
         $this->authorize('create', \App\Models\StockTransfer::class);
 
         $this->validate([
-            'fromVwId'            => 'required|integer|exists:virtual_warehouses,id',
-            'toVwId'              => 'required|integer|exists:virtual_warehouses,id|different:fromVwId',
-            'lines'               => 'required|array|min:1',
-            'lines.*.item_id'     => 'required|integer|exists:items,id',
-            'lines.*.location_id' => 'required|integer|exists:locations,id',
-            'lines.*.batch_no'    => 'nullable|string|max:100',
-            'lines.*.qty'         => 'required|numeric|min:0.0001',
-            'lines.*.uom_id'      => 'required|integer|exists:units_of_measure,id',
+            'fromVwId'               => 'required|integer|exists:virtual_warehouses,id',
+            'toVwId'                 => 'required|integer|exists:virtual_warehouses,id|different:fromVwId',
+            'lines'                  => 'required|array|min:1',
+            'lines.*.item_id'        => 'required|integer|exists:items,id',
+            'lines.*.location_id'    => 'required|integer|exists:locations,id',
+            'lines.*.to_location_id' => $this->isPhysical ? 'required|integer|exists:locations,id' : 'nullable',
+            'lines.*.batch_no'       => 'nullable|string|max:100',
+            'lines.*.qty'            => 'required|numeric|min:0.0001',
+            'lines.*.uom_id'         => 'required|integer|exists:units_of_measure,id',
         ]);
+
+        if ($this->isPhysical) {
+            foreach ($this->lines as $i => $l) {
+                if ((int) $l['location_id'] === (int) $l['to_location_id']) {
+                    $this->addError("lines.{$i}.to_location_id", 'Destination bin must differ from source bin.');
+                    return;
+                }
+            }
+        }
 
         // Resolve batch_no → batch_id
         $resolvedLines = [];
@@ -257,17 +279,19 @@ class Create extends Component
             }
 
             $resolvedLines[] = [
-                'item_id'     => (int) $l['item_id'],
-                'location_id' => (int) $l['location_id'],
-                'batch_id'    => $batchId,
-                'qty'         => $l['qty'],
-                'uom_id'      => (int) $l['uom_id'],
+                'item_id'        => (int) $l['item_id'],
+                'location_id'    => (int) $l['location_id'],
+                'to_location_id' => $this->isPhysical && ! empty($l['to_location_id']) ? (int) $l['to_location_id'] : null,
+                'batch_id'       => $batchId,
+                'qty'            => $l['qty'],
+                'uom_id'         => (int) $l['uom_id'],
             ];
         }
 
         $data = [
             'from_virtual_warehouse_id' => $this->fromVwId,
             'to_virtual_warehouse_id'   => $this->toVwId,
+            'is_physical'               => $this->isPhysical,
             'notes'                     => $this->notes ?: null,
             'lines'                     => $resolvedLines,
             'department_id'             => auth()->user()->department_id,
