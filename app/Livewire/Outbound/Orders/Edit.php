@@ -214,20 +214,24 @@ class Edit extends Component
         ]);
 
         // Stock validation — only count allocatable stock (pickable locations, available status)
-        $hasStockErrors = false;
-        foreach ($this->lines as $i => $line) {
+        $stockErrors = [];
+        foreach ($this->lines as $line) {
+            if ((string) ($line['item_id'] ?? '') === '') {
+                continue;
+            }
+            $itemLabel = trim(($line['item_sku'] ?? '') . ' ' . ($line['item_name'] ?? '')) ?: "Item #{$line['item_id']}";
             [$available, $warning] = $this->checkLineStock((int) $line['item_id']);
 
             if ($available <= 0) {
-                $this->addError("lines.{$i}.item_id", $warning ?? 'No allocatable stock available.');
-                $hasStockErrors = true;
+                $stockErrors[] = "{$itemLabel}: " . ($warning ?? 'No allocatable stock available.');
             } elseif ((float) $line['qty'] > $available) {
-                $this->addError("lines.{$i}.qty", "Requested {$line['qty']} exceeds available {$available} {$line['uom_code']}.");
-                $hasStockErrors = true;
+                $uom = $line['uom_code'] ?? '';
+                $stockErrors[] = "{$itemLabel}: Requested {$line['qty']} {$uom} exceeds available {$available} {$uom}.";
             }
         }
 
-        if ($hasStockErrors) {
+        if (! empty($stockErrors)) {
+            $this->dispatch('stock-errors', errors: $stockErrors);
             return;
         }
 

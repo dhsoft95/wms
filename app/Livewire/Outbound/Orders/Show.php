@@ -7,7 +7,9 @@ namespace App\Livewire\Outbound\Orders;
 use App\Enums\Outbound\DeliveryOrderStatus;
 use App\Enums\Outbound\PickListStatus;
 use App\Models\DeliveryOrder;
+use App\Models\Inventory\SerialNumber;
 use App\Models\PickList;
+use App\Models\PickTask;
 use App\Services\Outbound\AllocationService;
 use App\Services\Outbound\DeliveryOrderWorkflow;
 use App\Services\Outbound\PickingService;
@@ -39,7 +41,11 @@ class Show extends Component
             'consigneePartner', 'requestedBy',
             'lines.item.baseUom', 'lines.uom', 'lines.allocations.location', 'lines.allocations.batch',
             'approvals.decidedBy',
-            'pickLists.assignedTo', 'pickLists.tasks',
+            'pickLists.assignedTo',
+            'pickLists.tasks.location',
+            'pickLists.tasks.item.baseUom',
+            'pickLists.tasks.batch',
+            'pickLists.tasks.pickedBy',
             'dispatches.gatePass', 'dispatches.dispatchedBy',
             'proofOfDelivery',
         ]);
@@ -96,6 +102,13 @@ class Show extends Component
             ->orderBy('name')
             ->get();
     }
+
+    // Pick task modal (inline picking from DO page)
+    public bool   $showPickTaskModal = false;
+    public ?int   $activePickTaskId  = null;
+    public string $pickedQty         = '';
+    public array  $availableSerials  = [];
+    public array  $selectedSerials   = [];
 
     // Return-for-correction modal
     public bool   $showReturnModal  = false;
@@ -265,6 +278,90 @@ class Show extends Component
             $this->deliveryOrder->refresh();
             unset($this->do, $this->activePickList);
             $this->dispatch('toast', message: 'Pick list cancelled. You may regenerate.', type: 'success');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function openPickTask(int $taskId): void
+    {
+        $task = PickTask::with(['allocation.item', 'allocation.location', 'allocation.batch'])->find($taskId);
+
+        $this->activePickTaskId = $taskId;
+        $this->pickedQty        = $task ? number_format((float) $task->qty_to_pick, 4, '.', '') : '';
+        $this->availableSerials = [];
+        $this->selectedSerials  = [];
+
+        if ($task && $task->allocation?->item?->track_serial) {
+            $alloc = $task->allocation;
+
+            $rows = SerialNumber::with('location')
+                ->where('item_id', $alloc->item_id)
+                ->where('status', 'in_stock')
+                ->orderByRaw('location_id = ? DESC', [$alloc->location_id])
+                ->orderBy('serial_no')
+                ->get();
+
+            $this->availableSerials = $rows->map(fn ($s) => [
+                'serial_no'         => $s->serial_no,
+                'location_code'     => $s->location?->code ?? '—',
+                'at_alloc_location' => $s->location_id === $alloc->location_id,
+            ])->toArray();
+
+            $atLocation = array_values(array_filter($this->availableSerials, fn ($s) => $s['at_alloc_location']));
+            $qty        = (int) round((float) $task->qty_to_pick);
+            $this->selectedSerials = array_column(array_slice($atLocation, 0, $qty), 'serial_no');
+        }
+
+        $this->showPickTaskModal = true;
+    }
+
+    public function confirmPick(): void
+    {
+        $this->validate(['pickedQty' => ['required', 'numeric', 'min:0.0001']]);
+
+        $task    = PickTask::with(['allocation.item'])->findOrFail($this->activePickTaskId);
+        $serials = array_values(array_filter($this->selectedSerials, fn ($s) => $s !== ''));
+
+        if ($task->allocation?->item?->track_serial && count($serials) === 0) {
+            $this->addError('selectedSerials', 'Select at least one serial number for this item.');
+            return;
+        }
+
+        if ($task->allocation?->item?->track_serial) {
+            $expected = (int) round((float) $this->pickedQty);
+            if (count($serials) !== $expected) {
+                $this->addError('selectedSerials', "Select exactly {$expected} serial(s) — got " . count($serials) . '.');
+                return;
+            }
+        }
+
+        try {
+            app(PickingService::class)->executeTask(
+                $task,
+                number_format((float) $this->pickedQty, 4, '.', ''),
+                auth()->user(),
+                $serials,
+            );
+            $this->showPickTaskModal = false;
+            $this->activePickTaskId  = null;
+            $this->deliveryOrder->refresh();
+            unset($this->do, $this->activePickList);
+            $this->dispatch('toast', message: 'Task picked.', type: 'success');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function unconfirmTask(int $taskId): void
+    {
+        $this->authorize('allocate', $this->deliveryOrder);
+        try {
+            $task = PickTask::with(['stockTransaction', 'allocation.stockBalance'])->findOrFail($taskId);
+            app(PickingService::class)->unconfirmTask($task, auth()->user());
+            $this->deliveryOrder->refresh();
+            unset($this->do, $this->activePickList);
+            $this->dispatch('toast', message: 'Task reversed — stock returned to bin.', type: 'info');
         } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }

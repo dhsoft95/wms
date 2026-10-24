@@ -92,7 +92,7 @@
                 @endcan
             @endif
 
-            {{-- Allocated / PartiallyAllocated / Picking: generate or view pick list --}}
+            {{-- Allocated / PartiallyAllocated / Picking: generate or start picking --}}
             @if (in_array($this->do->status, [$S::Picking, $S::Allocated, $S::PartiallyAllocated]))
                 @can('allocate', $this->do)
                     @if ($this->activePickList === null)
@@ -100,10 +100,9 @@
                             <x-ui.icon name="clipboard-list" class="w-4 h-4" /> Generate Pick List
                         </button>
                     @else
-                        <button wire:click="$set('activeTab', 'pick_lists')" class="btn btn-secondary">
-                            <x-ui.icon name="clipboard-list" class="w-4 h-4" />
-                            View Pick List
-                            <span class="badge badge-slate ml-1 py-0">{{ $this->activePickList->status->label() }}</span>
+                        <button wire:click="$set('activeTab', 'pick_lists')" class="btn btn-primary">
+                            <x-ui.icon name="play" class="w-4 h-4" /> Start Pick
+                            <span class="badge badge-white ml-1 py-0 !text-simba-700">{{ $this->activePickList->status->label() }}</span>
                         </button>
                     @endif
                 @endcan
@@ -338,81 +337,223 @@
 
         {{-- Pick Lists Tab --}}
         @if ($activeTab === 'pick_lists')
-        <x-ui.table>
-            <thead>
-                <tr>
-                    <th>Pick List #</th>
-                    <th>Assigned To</th>
-                    <th>Status</th>
-                    <th>Tasks Progress</th>
-                    <th>Started At</th>
-                    <th>Completed At</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse ($this->do->pickLists as $pickList)
-                    @php
-                        $totalTasks     = $pickList->tasks->count();
-                        $doneTasks      = $pickList->tasks->whereIn('status.value', ['picked', 'short'])->count();
-                        $canCancel      = in_array($pickList->status->value, ['open', 'in_progress'])
-                                          && $doneTasks === 0;
-                    @endphp
-                    <tr>
-                        <td class="font-mono text-sm font-semibold text-slate-700 dark:text-slate-300">
-                            {{ $pickList->number }}
-                        </td>
-                        <td class="text-sm">{{ $pickList->assignedTo?->name ?? '—' }}</td>
-                        <td>
-                            <span @class([
-                                'badge',
-                                'badge-slate'   => $pickList->status === \App\Enums\Outbound\PickListStatus::Open,
-                                'badge-violet'  => $pickList->status === \App\Enums\Outbound\PickListStatus::InProgress,
-                                'badge-green'   => $pickList->status === \App\Enums\Outbound\PickListStatus::Completed,
-                                'badge-red'     => $pickList->status === \App\Enums\Outbound\PickListStatus::Cancelled,
+            @forelse ($this->do->pickLists as $pickList)
+                @php
+                    $totalTasks  = $pickList->tasks->count();
+                    $doneTasks   = $pickList->tasks->filter(fn ($t) => in_array($t->status->value, ['picked', 'short']))->count();
+                    $canCancel   = in_array($pickList->status->value, ['open', 'in_progress']) && $doneTasks === 0;
+                    $isActive    = in_array($pickList->status->value, ['open', 'in_progress']);
+                @endphp
+
+                {{-- Pick List Header --}}
+                <div @class([
+                    'px-5 py-3 flex flex-wrap items-center gap-3 border-b border-slate-100 dark:border-slate-800',
+                    'bg-slate-50 dark:bg-slate-800/30' => ! $isActive,
+                ])>
+                    <span class="font-mono text-sm font-bold text-slate-800 dark:text-slate-200">{{ $pickList->number }}</span>
+                    <span @class([
+                        'badge',
+                        'badge-slate'   => $pickList->status === \App\Enums\Outbound\PickListStatus::Open,
+                        'badge-violet'  => $pickList->status === \App\Enums\Outbound\PickListStatus::InProgress,
+                        'badge-green'   => $pickList->status === \App\Enums\Outbound\PickListStatus::Completed,
+                        'badge-red'     => $pickList->status === \App\Enums\Outbound\PickListStatus::Cancelled,
+                    ])><span class="dot"></span>{{ $pickList->status->label() }}</span>
+
+                    @if ($pickList->assignedTo)
+                        <span class="text-xs text-slate-500">
+                            <x-ui.icon name="user" class="w-3 h-3 inline" /> {{ $pickList->assignedTo->name }}
+                        </span>
+                    @endif
+
+                    @if ($totalTasks > 0)
+                        <div class="flex items-center gap-2">
+                            <div class="w-24 bg-slate-200 dark:bg-slate-700 rounded-full h-1.5">
+                                <div class="bg-simba-500 h-1.5 rounded-full transition-all"
+                                     style="width: {{ round($doneTasks / $totalTasks * 100) }}%"></div>
+                            </div>
+                            <span class="text-xs text-slate-500 tabular-nums">{{ $doneTasks }}/{{ $totalTasks }}</span>
+                        </div>
+                    @endif
+
+                    @if ($pickList->started_at)
+                        <span class="text-xs text-slate-400">Started {{ $pickList->started_at->format('d M H:i') }}</span>
+                    @endif
+                    @if ($pickList->completed_at)
+                        <span class="text-xs text-emerald-600 dark:text-emerald-400">Done {{ $pickList->completed_at->format('d M H:i') }}</span>
+                    @endif
+
+                    <div class="ml-auto flex items-center gap-2">
+                        {{-- Print PDF --}}
+                        <a href="{{ route('outbound.pick-lists.pdf', $pickList) }}"
+                           target="_blank"
+                           class="btn btn-secondary btn-sm">
+                            <x-ui.icon name="printer" class="w-3.5 h-3.5" /> Print PDF
+                        </a>
+
+                        {{-- Cancel --}}
+                        @if ($canCancel)
+                            @can('allocate', $this->do)
+                                <button
+                                    wire:click="cancelPickList({{ $pickList->id }})"
+                                    wire:confirm="Cancel this pick list? Tasks will be cancelled and you can regenerate."
+                                    class="btn btn-secondary btn-sm !text-red-600 dark:!text-red-400">
+                                    <x-ui.icon name="x" class="w-3.5 h-3.5" /> Cancel
+                                </button>
+                            @endcan
+                        @endif
+                    </div>
+                </div>
+
+                {{-- Task rows for active pick lists --}}
+                @if ($isActive && $pickList->tasks->isNotEmpty())
+                    <div class="divide-y divide-slate-100 dark:divide-slate-800">
+
+                        {{-- Column headers --}}
+                        <div class="hidden md:grid md:grid-cols-12 gap-2 px-5 py-2 text-[10px] font-semibold uppercase tracking-wide text-slate-400 bg-slate-50/80 dark:bg-slate-800/20">
+                            <span class="col-span-1 text-center">#</span>
+                            <span class="col-span-2">Location</span>
+                            <span class="col-span-4">Item</span>
+                            <span class="col-span-2">Batch</span>
+                            <span class="col-span-1 text-right">Qty</span>
+                            <span class="col-span-2 text-center">Status / Action</span>
+                        </div>
+
+                        @foreach ($pickList->tasks->sortBy('sequence') as $task)
+                            @php
+                                $isPicked    = $task->status->value === 'picked';
+                                $isShort     = $task->status->value === 'short';
+                                $isTaskOpen  = $task->status->value === 'open';
+                            @endphp
+                            <div @class([
+                                'grid grid-cols-6 md:grid-cols-12 gap-2 items-center px-5 py-3 text-sm',
+                                'bg-emerald-50/40 dark:bg-emerald-900/10' => $isPicked,
+                                'bg-amber-50/40 dark:bg-amber-900/10'     => $isShort,
                             ])>
-                                <span class="dot"></span>{{ $pickList->status->label() }}
-                            </span>
-                        </td>
-                        <td>
-                            @if ($totalTasks > 0)
-                                <div class="flex items-center gap-2">
-                                    <div class="flex-1 bg-slate-200 dark:bg-slate-700 rounded-full h-1.5 min-w-[60px]">
-                                        <div class="bg-simba-500 h-1.5 rounded-full transition-all"
-                                             style="width: {{ round($doneTasks / $totalTasks * 100) }}%"></div>
-                                    </div>
-                                    <span class="text-xs text-slate-500 tabular-nums whitespace-nowrap">
-                                        {{ $doneTasks }}/{{ $totalTasks }}
+                                {{-- Seq --}}
+                                <div class="col-span-1 text-center">
+                                    @if ($isPicked)
+                                        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500 text-white">
+                                            <x-ui.icon name="check" class="w-3.5 h-3.5" />
+                                        </span>
+                                    @elseif ($isShort)
+                                        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-400 text-white text-xs font-bold">
+                                            !
+                                        </span>
+                                    @else
+                                        <span class="text-xs font-semibold text-slate-400">{{ $task->sequence }}</span>
+                                    @endif
+                                </div>
+
+                                {{-- Location --}}
+                                <div class="col-span-2">
+                                    <span class="font-mono text-sm font-bold text-slate-800 dark:text-slate-200">
+                                        {{ $task->location?->code ?? '—' }}
                                     </span>
                                 </div>
-                            @else
-                                <span class="text-slate-400 text-xs">—</span>
-                            @endif
-                        </td>
-                        <td class="tabular-nums text-xs text-slate-500">
-                            {{ $pickList->started_at?->format('d M H:i') ?? '—' }}
-                        </td>
-                        <td class="tabular-nums text-xs text-slate-500">
-                            {{ $pickList->completed_at?->format('d M H:i') ?? '—' }}
-                        </td>
-                        <td>
-                            @if ($canCancel)
-                                @can('allocate', $this->do)
-                                    <button
-                                        wire:click="cancelPickList({{ $pickList->id }})"
-                                        wire:confirm="Cancel this pick list? Tasks will be cancelled and you can regenerate."
-                                        class="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400 font-medium">
-                                        Cancel
-                                    </button>
-                                @endcan
-                            @endif
-                        </td>
-                    </tr>
-                @empty
-                    <tr><td colspan="7" class="!py-8 text-center text-slate-500">No pick lists generated yet.</td></tr>
-                @endforelse
-            </tbody>
-        </x-ui.table>
+
+                                {{-- Item --}}
+                                <div class="col-span-6 md:col-span-4">
+                                    <div class="font-mono text-xs text-slate-400">{{ $task->item?->sku ?? '' }}</div>
+                                    <div class="text-slate-700 dark:text-slate-300 text-sm leading-tight">{{ $task->item?->name ?? '—' }}</div>
+                                </div>
+
+                                {{-- Batch --}}
+                                <div class="col-span-2 text-xs text-slate-500 italic">
+                                    {{ $task->batch?->batch_no ?? '—' }}
+                                </div>
+
+                                {{-- Qty --}}
+                                <div class="col-span-1 text-right tabular-nums">
+                                    @if ($isPicked)
+                                        <span class="text-emerald-600 font-semibold">{{ number_format((float) $task->qty_picked, 2) }}</span>
+                                        <span class="text-xs text-slate-400 block">of {{ number_format((float) $task->qty_to_pick, 2) }}</span>
+                                    @else
+                                        <span class="font-semibold">{{ number_format((float) $task->qty_to_pick, 2) }}</span>
+                                        <span class="text-xs text-slate-400 block">{{ $task->item?->baseUom?->code }}</span>
+                                    @endif
+                                </div>
+
+                                {{-- Action --}}
+                                <div class="col-span-2 flex items-center justify-center gap-2">
+                                    @if ($isPicked)
+                                        <span class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Picked</span>
+                                        @can('allocate', $this->do)
+                                            <button
+                                                wire:click="unconfirmTask({{ $task->id }})"
+                                                wire:confirm="Reverse this pick? Stock will be returned to the bin."
+                                                class="text-xs text-slate-400 hover:text-red-500 underline">
+                                                Undo
+                                            </button>
+                                        @endcan
+                                    @elseif ($isShort)
+                                        <span class="badge badge-amber">Short</span>
+                                    @elseif ($isTaskOpen)
+                                        @can('allocate', $this->do)
+                                            <button
+                                                wire:click="openPickTask({{ $task->id }})"
+                                                class="btn btn-primary btn-sm">
+                                                <x-ui.icon name="check" class="w-3.5 h-3.5" /> Pick
+                                            </button>
+                                        @endcan
+                                    @endif
+                                </div>
+
+                            </div>
+                        @endforeach
+
+                    </div>
+                @elseif (! $isActive && $pickList->tasks->isNotEmpty())
+                    {{-- Completed/cancelled: condensed task summary --}}
+                    <div class="px-5 py-3">
+                        <x-ui.table>
+                            <thead>
+                                <tr>
+                                    <th class="w-8">#</th>
+                                    <th>Location</th>
+                                    <th>Item</th>
+                                    <th class="text-right">Qty to Pick</th>
+                                    <th class="text-right">Qty Picked</th>
+                                    <th>Picked By</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($pickList->tasks->sortBy('sequence') as $task)
+                                    <tr>
+                                        <td class="tabular-nums text-slate-400 text-xs">{{ $task->sequence }}</td>
+                                        <td class="font-mono text-sm">{{ $task->location?->code ?? '—' }}</td>
+                                        <td>
+                                            <div class="font-mono text-xs text-slate-400">{{ $task->item?->sku }}</div>
+                                            <div class="text-sm">{{ $task->item?->name }}</div>
+                                        </td>
+                                        <td class="tabular-nums text-right">{{ number_format((float) $task->qty_to_pick, 2) }}</td>
+                                        <td class="tabular-nums text-right {{ (float) $task->qty_picked > 0 ? 'text-emerald-600 dark:text-emerald-400 font-semibold' : '' }}">
+                                            {{ number_format((float) $task->qty_picked, 2) }}
+                                        </td>
+                                        <td class="text-xs text-slate-500">{{ $task->pickedBy?->name ?? '—' }}</td>
+                                        <td>
+                                            <span @class([
+                                                'badge',
+                                                'badge-green'  => $task->status->value === 'picked',
+                                                'badge-amber'  => $task->status->value === 'short',
+                                                'badge-slate'  => $task->status->value === 'open',
+                                                'badge-red'    => $task->status->value === 'cancelled',
+                                            ])>{{ ucfirst($task->status->value) }}</span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </x-ui.table>
+                    </div>
+                @endif
+
+            @empty
+                <div class="py-12 text-center text-slate-500">
+                    <x-ui.icon name="clipboard-list" class="w-8 h-8 mx-auto mb-2 text-slate-300 dark:text-slate-600" />
+                    <p class="text-sm font-medium">No pick lists generated yet.</p>
+                    <p class="text-xs text-slate-400 mt-1">Complete allocation first, then generate a pick list.</p>
+                </div>
+            @endforelse
         @endif
 
         {{-- Approvals Tab --}}
@@ -631,6 +772,108 @@
                     <button wire:click="rejectOrder" wire:loading.attr="disabled"
                             class="btn btn-primary !bg-red-600 hover:!bg-red-700">Reject</button>
                 </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Pick Task Modal --}}
+    @if ($showPickTaskModal)
+        @php
+            $activeTask = $activePickTaskId
+                ? $this->do->pickLists->flatMap(fn ($pl) => $pl->tasks)->firstWhere('id', $activePickTaskId)
+                : null;
+        @endphp
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+             x-data wire:click.self="$set('showPickTaskModal', false)">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-lg space-y-4 overflow-hidden">
+
+                {{-- Header --}}
+                <div class="px-6 pt-5 flex items-center justify-between">
+                    <h3 class="text-base font-semibold text-slate-800 dark:text-slate-200">Confirm Pick</h3>
+                    <button wire:click="$set('showPickTaskModal', false)" class="icon-btn">
+                        <x-ui.icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+
+                {{-- Task details --}}
+                @if ($activeTask)
+                    <div class="mx-6 rounded-xl bg-slate-50 dark:bg-slate-800/50 p-4 grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Location</p>
+                            <p class="mt-0.5 font-mono font-bold text-slate-800 dark:text-slate-200 text-base">
+                                {{ $activeTask->location?->code ?? '—' }}
+                            </p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Item</p>
+                            <p class="mt-0.5 font-mono text-xs text-slate-400">{{ $activeTask->item?->sku }}</p>
+                            <p class="text-slate-800 dark:text-slate-200 font-medium leading-tight">{{ $activeTask->item?->name }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Batch</p>
+                            <p class="mt-0.5 text-slate-700 dark:text-slate-300">{{ $activeTask->batch?->batch_no ?? '—' }}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">Qty to Pick</p>
+                            <p class="mt-0.5 font-semibold tabular-nums text-slate-800 dark:text-slate-200">
+                                {{ number_format((float) $activeTask->qty_to_pick, 2) }}
+                                {{ $activeTask->item?->baseUom?->code }}
+                            </p>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- Qty input --}}
+                <div class="px-6">
+                    <label class="label">Qty Picked <span class="text-red-500">*</span></label>
+                    <input
+                        wire:model="pickedQty"
+                        type="number"
+                        min="0.0001"
+                        step="any"
+                        class="input tabular-nums"
+                        autofocus
+                    >
+                    @error('pickedQty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                </div>
+
+                {{-- Serial selection (only for serial-tracked items) --}}
+                @if (! empty($availableSerials))
+                    <div class="px-6">
+                        <label class="label">Serial Numbers</label>
+                        <p class="text-xs text-slate-500 mb-2">Check off serials from the allocated location (highlighted) — must match qty picked.</p>
+                        <div class="max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-lg divide-y divide-slate-100 dark:divide-slate-800">
+                            @foreach ($availableSerials as $serial)
+                                <label @class([
+                                    'flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50',
+                                    'bg-simba-50 dark:bg-simba-900/10' => $serial['at_alloc_location'],
+                                ])>
+                                    <input
+                                        type="checkbox"
+                                        wire:model="selectedSerials"
+                                        value="{{ $serial['serial_no'] }}"
+                                        class="rounded border-slate-300 text-simba-600 focus:ring-simba-600"
+                                    >
+                                    <span class="font-mono text-sm text-slate-800 dark:text-slate-200">{{ $serial['serial_no'] }}</span>
+                                    <span class="text-xs text-slate-400 ml-auto">{{ $serial['location_code'] }}</span>
+                                    @if ($serial['at_alloc_location'])
+                                        <span class="text-xs text-simba-600 font-medium">← allocated</span>
+                                    @endif
+                                </label>
+                            @endforeach
+                        </div>
+                        @error('selectedSerials') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    </div>
+                @endif
+
+                {{-- Footer --}}
+                <div class="px-6 pb-5 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800 pt-4">
+                    <button wire:click="$set('showPickTaskModal', false)" class="btn btn-ghost">Cancel</button>
+                    <button wire:click="confirmPick" wire:loading.attr="disabled" class="btn btn-primary">
+                        <x-ui.icon name="check" class="w-4 h-4" /> Confirm Pick
+                    </button>
+                </div>
+
             </div>
         </div>
     @endif

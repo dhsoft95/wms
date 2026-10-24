@@ -352,6 +352,9 @@ $hasLogo = !empty($logoUrl);
 {{-- Toast notifications --}}
 <livewire:toast />
 
+{{-- Stock validation error dialog --}}
+<x-ui.stock-alert-dialog />
+
 {{-- ─── Global loading indicator ───────────────────────────────────────────── --}}
 
 {{-- Top progress bar --}}
