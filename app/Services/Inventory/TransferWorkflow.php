@@ -185,7 +185,11 @@ final class TransferWorkflow
             activity()->performedOn($transfer)->causedBy($user)->log('Department approval granted');
 
             if ($this->approvalService->isFullyApproved($transfer)) {
-                return $this->accept($transfer, $user);
+                // Bypass VW access check so restricted users (e.g. department heads)
+                // can trigger ledger movements across VWs they are not assigned to.
+                return \App\Support\VirtualWarehouseAccess::withoutChecks(
+                    fn () => $this->accept($transfer, $user)
+                );
             }
 
             return $transfer;
