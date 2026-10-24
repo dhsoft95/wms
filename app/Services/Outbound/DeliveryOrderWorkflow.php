@@ -73,6 +73,20 @@ final class DeliveryOrderWorkflow
         });
     }
 
+    public function returnFromWarehouse(DeliveryOrder $do, User $by, string $notes = ''): void
+    {
+        if (! in_array($do->status, [DeliveryOrderStatus::Approved, DeliveryOrderStatus::Acceptance], true)) {
+            throw new \DomainException('Can only send back an approved or accepted order.');
+        }
+
+        DB::transaction(function () use ($do, $by, $notes) {
+            $do->status = DeliveryOrderStatus::ReturnedForCorrection;
+            $do->save();
+
+            activity()->performedOn($do)->causedBy($by)->log("Sent back by warehouse: {$notes}");
+        });
+    }
+
     public function returnForCorrection(DeliveryOrder $do, User $by, string $notes = ''): void
     {
         $this->assertCanTransition($do, DeliveryOrderStatus::ReturnedForCorrection);

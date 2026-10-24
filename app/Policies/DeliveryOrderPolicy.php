@@ -164,6 +164,16 @@ class DeliveryOrderPolicy
         return $lineCategoryIds->diff($assignedCategoryIds)->isEmpty();
     }
 
+    public function returnFromWarehouse(User $user, DeliveryOrder $do): bool
+    {
+        if (! in_array($do->status, [DeliveryOrderStatus::Approved, DeliveryOrderStatus::Acceptance], true)) {
+            return false;
+        }
+
+        return $user->hasAnyRole(['system-admin', 'warehouse-manager'])
+            || $user->can('orders.approve.warehouse');
+    }
+
     public function allocate(User $user, DeliveryOrder $do): bool
     {
         return $user->can('orders.allocate');

@@ -83,6 +83,11 @@
                         <x-ui.icon name="check-circle" class="w-4 h-4" /> Accept Order
                     </button>
                 @endcan
+                @can('returnFromWarehouse', $this->do)
+                    <button wire:click="$set('showWarehouseReturnModal', true)" class="btn btn-secondary">
+                        <x-ui.icon name="arrow-uturn-left" class="w-4 h-4" /> Send Back
+                    </button>
+                @endcan
             @endif
 
             {{-- Acceptance: allocate stock --}}
@@ -90,6 +95,11 @@
                 @can('allocate', $this->do)
                     <button wire:click="allocate" wire:loading.attr="disabled" class="btn btn-primary">
                         <x-ui.icon name="check" class="w-4 h-4" /> Allocate Stock
+                    </button>
+                @endcan
+                @can('returnFromWarehouse', $this->do)
+                    <button wire:click="$set('showWarehouseReturnModal', true)" class="btn btn-secondary">
+                        <x-ui.icon name="arrow-uturn-left" class="w-4 h-4" /> Send Back
                     </button>
                 @endcan
             @endif
@@ -777,6 +787,39 @@
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="$set('showReturnModal', false)" class="btn btn-ghost">Cancel</button>
                     <button wire:click="returnForCorrection" wire:loading.attr="disabled" class="btn btn-secondary">Return</button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Warehouse Send Back Modal --}}
+    @if ($showWarehouseReturnModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4"
+             x-data wire:click.self="$set('showWarehouseReturnModal', false)">
+            <div class="card w-full max-w-md p-6 space-y-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <x-ui.icon name="arrow-uturn-left" class="w-5 h-5 text-amber-500" />
+                        <h3 class="font-bold text-slate-900 dark:text-white">Send Back for Correction</h3>
+                    </div>
+                    <button wire:click="$set('showWarehouseReturnModal', false)" class="icon-btn">
+                        <x-ui.icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+                <p class="text-sm text-slate-600 dark:text-slate-400">
+                    The order will be returned to the department for correction. Please explain what needs to be changed.
+                </p>
+                <div>
+                    <label class="label">Reason <span class="text-red-500">*</span></label>
+                    <textarea wire:model="warehouseReturnNotes" rows="3" class="input resize-none"
+                              placeholder="What needs to be corrected…"></textarea>
+                    @error('warehouseReturnNotes') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <button wire:click="$set('showWarehouseReturnModal', false)" class="btn btn-ghost">Cancel</button>
+                    <button wire:click="warehouseSendBack" wire:loading.attr="disabled" class="btn btn-secondary">
+                        <x-ui.icon name="arrow-uturn-left" class="w-4 h-4" /> Send Back
+                    </button>
                 </div>
             </div>
         </div>

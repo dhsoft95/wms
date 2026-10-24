@@ -140,8 +140,10 @@ class Show extends Component
     public bool   $createBackorder       = false;
 
     // Return-for-correction modal
-    public bool   $showReturnModal  = false;
-    public string $returnNotes      = '';
+    public bool   $showReturnModal          = false;
+    public string $returnNotes              = '';
+    public bool   $showWarehouseReturnModal = false;
+    public string $warehouseReturnNotes     = '';
 
     // Reject modal
     public bool   $showRejectModal  = false;
@@ -192,6 +194,22 @@ class Show extends Component
             $this->deliveryOrder->refresh();
             unset($this->do);
             $this->dispatch('toast', message: 'Order returned for correction.', type: 'info');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function warehouseSendBack(): void
+    {
+        $this->validate(['warehouseReturnNotes' => ['required', 'string', 'min:5']]);
+        $this->authorize('returnFromWarehouse', $this->deliveryOrder);
+        try {
+            app(DeliveryOrderWorkflow::class)->returnFromWarehouse($this->deliveryOrder, auth()->user(), $this->warehouseReturnNotes);
+            $this->showWarehouseReturnModal = false;
+            $this->warehouseReturnNotes     = '';
+            $this->deliveryOrder->refresh();
+            unset($this->do);
+            $this->dispatch('toast', message: 'Order sent back for correction.', type: 'info');
         } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }
