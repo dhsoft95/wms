@@ -72,12 +72,13 @@ final class DoApprovalService
         int $level,
         ?int $chainId,
         ?string $notes = null,
+        string $approverRole = 'department',
     ): DeliveryOrderApproval {
         return DeliveryOrderApproval::create([
             'delivery_order_id' => $do->id,
             'approval_chain_id' => $chainId,
             'level'             => $level,
-            'approver_role'     => 'department',
+            'approver_role'     => $approverRole,
             'decided_by'        => $user->id,
             'decision'          => $decision,
             'notes'             => $notes,

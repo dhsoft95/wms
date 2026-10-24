@@ -73,6 +73,14 @@ final class DeliveryOrderWorkflow
         }
 
         DB::transaction(function () use ($do, $by, $notes) {
+            $this->approvalService->record(
+                $do, $by, 'returned',
+                0,
+                null,
+                $notes,
+                'warehouse',
+            );
+
             $do->status = DeliveryOrderStatus::ReturnedForCorrection;
             $do->save();
 

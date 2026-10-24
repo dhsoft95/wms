@@ -620,6 +620,8 @@
                             <span class="badge badge-green shrink-0"><span class="dot"></span>Approved</span>
                         @elseif ($approval->decision === 'rejected')
                             <span class="badge badge-red shrink-0"><span class="dot"></span>Rejected</span>
+                        @elseif ($approval->decision === 'returned')
+                            <span class="badge badge-orange shrink-0"><span class="dot"></span>Returned</span>
                         @else
                             <span class="badge badge-amber shrink-0"><span class="dot"></span>Pending</span>
                         @endif
