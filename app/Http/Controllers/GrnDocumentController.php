@@ -18,6 +18,8 @@ class GrnDocumentController extends Controller
         $grn->load([
             'warehouse',
             'purchaseOrder.supplierPartner',
+            'purchaseOrder.consigneePartner',
+            'container',
             'receivingDock',
             'lines.item.baseUom',
             'lines.uom',
