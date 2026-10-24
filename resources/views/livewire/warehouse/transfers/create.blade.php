@@ -78,7 +78,7 @@
                                 @if($isPhysical)
                                     Stock will physically move to a new bin <span class="font-semibold">and</span> change ownership.
                                 @else
-                                    Ownership changes only — stock stays in the same bin.
+                                    Ownership changes only  stock stays in the same bin.
                                 @endif
                             </p>
                         </div>

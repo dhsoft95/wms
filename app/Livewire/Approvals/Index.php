@@ -9,17 +9,20 @@ use App\Enums\Inventory\DisposalStatus;
 use App\Enums\Inventory\StockStatusRequestStatus;
 use App\Enums\Outbound\DeliveryOrderStatus;
 use App\Enums\TransferStatus;
+use App\Enums\Transfers\WarehouseTransferStatus;
 use App\Models\DeliveryOrder;
 use App\Models\DisposalRequest;
 use App\Models\PurchaseOrder;
 use App\Models\StockStatusRequest;
 use App\Models\StockTransfer;
+use App\Models\WarehouseTransfer;
 use App\Services\Inbound\ApprovalChainService;
 use App\Services\Inbound\PurchaseOrderWorkflow;
 use App\Services\Inventory\DisposalWorkflow;
 use App\Services\Inventory\StockStatusRequestWorkflow;
 use App\Services\Inventory\TransferApprovalService;
 use App\Services\Inventory\TransferWorkflow;
+use App\Services\Transfers\WarehouseTransferWorkflow;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -37,6 +40,7 @@ class Index extends Component
             $this->pendingDisposalApprovals,
             $this->pendingStockStatusApprovals,
             $this->pendingStnApprovals,
+            $this->pendingWtrApprovals,
             $this->totalPendingCount,
         );
     }
@@ -287,13 +291,60 @@ class Index extends Component
     }
 
     #[Computed]
+    public function pendingWtrApprovals(): \Illuminate\Database\Eloquent\Collection
+    {
+        $user = auth()->user();
+
+        $query = WarehouseTransfer::with([
+            'fromWarehouse',
+            'toWarehouse',
+            'fromVirtualWarehouse',
+            'toVirtualWarehouse',
+            'createdBy',
+        ]);
+
+        if ($this->tab === 'pending') {
+            $query->whereIn('status', [
+                WarehouseTransferStatus::Submitted,
+                WarehouseTransferStatus::Accepted,
+            ]);
+        } else {
+            $query->whereNotIn('status', [WarehouseTransferStatus::Draft]);
+        }
+
+        return $query->get()
+            ->filter(function ($wtr) use ($user) {
+                if ($user->hasRole('system-admin')) {
+                    return true;
+                }
+                // WM sees Submitted WTRs (to accept)
+                if ($wtr->status === WarehouseTransferStatus::Submitted
+                    && $user->hasRole('warehouse-manager')) {
+                    return true;
+                }
+                // WM / dispatch user sees Accepted WTRs (to dispatch)
+                if ($wtr->status === WarehouseTransferStatus::Accepted
+                    && $user->can('transfers.execute')) {
+                    return true;
+                }
+                if ($this->tab === 'all' && $wtr->created_by === $user->id) {
+                    return true;
+                }
+
+                return false;
+            })
+            ->values();
+    }
+
+    #[Computed]
     public function totalPendingCount(): int
     {
         return $this->pendingPoApprovals->count()
             + $this->pendingDoApprovals->count()
             + $this->pendingDisposalApprovals->count()
             + $this->pendingStockStatusApprovals->count()
-            + $this->pendingStnApprovals->count();
+            + $this->pendingStnApprovals->count()
+            + $this->pendingWtrApprovals->count();
     }
 
     // ─── PO approval actions ──────────────────────────────────────────────────
@@ -391,6 +442,22 @@ class Index extends Component
             app(TransferWorkflow::class)->approveDepartment($stn, auth()->user());
             $this->dispatch('toast', message: "Transfer {$stn->number} approved.", type: 'success');
             unset($this->pendingStnApprovals, $this->totalPendingCount);
+        } catch (\Exception $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    // ─── WTR approval actions ─────────────────────────────────────────────────
+
+    public function acceptWtr(int $id): void
+    {
+        $wtr = WarehouseTransfer::findOrFail($id);
+        $this->authorize('accept', $wtr);
+
+        try {
+            app(WarehouseTransferWorkflow::class)->accept($wtr, auth()->user());
+            $this->dispatch('toast', message: "WTR {$wtr->number} accepted.", type: 'success');
+            unset($this->pendingWtrApprovals, $this->totalPendingCount);
         } catch (\Exception $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }

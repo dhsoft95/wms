@@ -68,12 +68,14 @@ class Show extends Component
 
         $this->wtr->load('lines');
 
-        $lineData = $this->wtr->lines->map(fn ($line) => [
-            'source_location_id' => null,
-        ])->toArray();
+        $missing = $this->wtr->lines->filter(fn ($line) => $line->source_location_id === null);
+        if ($missing->isNotEmpty()) {
+            $this->dispatch('toast', message: 'All lines must have a source bin recorded before dispatching.', type: 'error');
+            return;
+        }
 
         try {
-            $workflow->dispatch($this->wtr, ['lines' => $lineData], auth()->user());
+            $workflow->dispatch($this->wtr, [], auth()->user());
             $this->wtr->refresh();
             $this->dispatch('toast', message: "Transfer {$this->wtr->number} dispatched", type: 'success');
         } catch (\Throwable $e) {
@@ -110,7 +112,7 @@ class Show extends Component
     public function render(): View
     {
         $this->wtr->load(
-            'lines.item', 'lines.uom',
+            'lines.item', 'lines.uom', 'lines.sourceLocation',
             'fromWarehouse', 'toWarehouse',
             'fromVirtualWarehouse', 'toVirtualWarehouse',
             'createdBy', 'acceptedBy',

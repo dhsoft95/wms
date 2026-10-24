@@ -6,8 +6,8 @@
     $isSubmitted  = $status === Status::Submitted;
     $isAccepted   = $status === Status::Accepted;
     $isDispatched = $status === Status::Dispatched;
-    $isRejected   = $status->name === 'Rejected';
-    $isCancelled  = $status->name === 'Cancelled';
+    $isRejected   = $status === Status::Rejected;
+    $isCancelled  = $status === Status::Cancelled;
     $canBeCancelled = ! $status->isTerminal() && ! $isDispatched;
 
     $lineCount = $wtr->lines->count();
@@ -17,10 +17,11 @@
     $spinner = '<svg class="w-4 h-4 shrink-0 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25"/><path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
 
     $steps = [
-        ['label' => 'Created',    'done' => true,                    'by' => $wtr->createdBy?->name,  'at' => $dt($wtr->created_at)],
-        ['label' => 'Accepted',   'done' => (bool) $wtr->acceptedBy, 'by' => $wtr->acceptedBy?->name, 'at' => null],
-        ['label' => 'Dispatched', 'done' => (bool) $wtr->dispatched_at, 'by' => null,                 'at' => $dt($wtr->dispatched_at)],
-        ['label' => 'Received',   'done' => (bool) $wtr->received_at,   'by' => null,                 'at' => $dt($wtr->received_at)],
+        ['label' => 'Created',    'done' => true,                                                                                  'by' => $wtr->createdBy?->name,  'at' => $dt($wtr->created_at)],
+        ['label' => 'Submitted',  'done' => $status !== Status::Draft,                                                             'by' => null,                    'at' => null],
+        ['label' => 'Accepted',   'done' => in_array($status, [Status::Accepted, Status::Dispatched, Status::Completed], true),    'by' => $wtr->acceptedBy?->name, 'at' => $wtr->accepted_at ? $dt($wtr->accepted_at) : null],
+        ['label' => 'Dispatched', 'done' => (bool) $wtr->dispatched_at,                                                           'by' => null,                    'at' => $dt($wtr->dispatched_at)],
+        ['label' => 'Received',   'done' => (bool) $wtr->received_at,                                                             'by' => null,                    'at' => $dt($wtr->received_at)],
     ];
 
     if ($isRejected || $isCancelled) {
@@ -34,7 +35,7 @@
     {{-- Page Header --}}
     <div class="page-header">
         <div class="min-w-0">
-            <a href="{{ route('warehouse.wtr.index') }}" wire:navigate
+            <a href="{{ route('wtr.index') }}" wire:navigate
                class="inline-flex items-center gap-1.5 mb-2 text-xs font-semibold text-slate-500 transition-colors hover:text-simba-600 dark:text-slate-400 dark:hover:text-simba-400">
                 <x-ui.icon name="arrow-left" class="w-3.5 h-3.5 shrink-0" />
                 <span>Back to Warehouse Transfers</span>
@@ -209,6 +210,7 @@
                     <tr>
                         <th class="w-10">#</th>
                         <th>Item</th>
+                        <th>Source Bin</th>
                         <th>Batch</th>
                         <th class="text-right">Qty</th>
                     </tr>
@@ -220,6 +222,13 @@
                             <td class="min-w-[12rem]">
                                 <div class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ $line->item?->name ?? '—' }}</div>
                                 <div class="font-mono text-xs text-slate-500 dark:text-slate-400">{{ $line->item?->sku }}</div>
+                            </td>
+                            <td class="text-sm whitespace-nowrap">
+                                @if($line->sourceLocation)
+                                    <span class="font-mono text-slate-600 dark:text-slate-300">{{ $line->sourceLocation->code }}</span>
+                                @else
+                                    <span class="text-slate-300 dark:text-slate-600">—</span>
+                                @endif
                             </td>
                             <td class="text-sm whitespace-nowrap">
                                 @if($line->batch_no)
@@ -234,7 +243,7 @@
                             </td>
                         </tr>
                     @empty
-                        <x-ui.empty-state title="No lines recorded." :cols="4" />
+                        <x-ui.empty-state title="No lines recorded." :cols="5" />
                     @endforelse
                     </tbody>
                 </x-ui.table>

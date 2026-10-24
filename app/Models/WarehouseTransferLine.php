@@ -47,4 +47,9 @@ class WarehouseTransferLine extends Model
     {
         return $this->belongsTo(UnitOfMeasure::class, 'uom_id');
     }
+
+    public function sourceLocation(): BelongsTo
+    {
+        return $this->belongsTo(Location::class, 'source_location_id');
+    }
 }

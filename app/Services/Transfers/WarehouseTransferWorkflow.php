@@ -62,6 +62,7 @@ final class WarehouseTransferWorkflow
                 WarehouseTransferLine::create([
                     'warehouse_transfer_id' => $wtr->id,
                     'line_no'               => $lineNo + 1,
+                    'source_location_id'    => $lineData['source_location_id'] ?? null,
                     'item_id'               => $lineData['item_id'],
                     'uom_id'                => $lineData['uom_id'],
                     'qty'                   => $lineData['qty'],

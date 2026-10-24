@@ -202,6 +202,75 @@
         </div>
     @endif
 
+    {{-- Warehouse Transfers (WTR) section --}}
+    @if ($this->pendingWtrApprovals->isNotEmpty())
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Warehouse Transfers</h3>
+                <span class="badge badge-amber ml-2">{{ $this->pendingWtrApprovals->count() }}</span>
+            </div>
+            <x-ui.table>
+                <thead>
+                    <tr>
+                        <th>Number</th>
+                        <th>Status</th>
+                        <th>From</th>
+                        <th>To</th>
+                        <th>Created By</th>
+                        <th>Date</th>
+                        <th class="text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($this->pendingWtrApprovals as $wtr)
+                        <tr wire:key="wtr-{{ $wtr->id }}">
+                            <td>
+                                <a href="{{ route('wtr.show', $wtr) }}" wire:navigate
+                                   class="mono font-semibold text-simba-600 dark:text-simba-400 hover:underline">
+                                    {{ $wtr->number }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge {{ $wtr->status->badge() }}">
+                                    <span class="dot"></span>{{ $wtr->status->label() }}
+                                </span>
+                            </td>
+                            <td class="text-sm text-slate-600 dark:text-slate-400">
+                                <div>{{ $wtr->fromWarehouse?->name ?? '—' }}</div>
+                                @if($wtr->fromVirtualWarehouse)
+                                    <div class="text-xs text-slate-400">{{ $wtr->fromVirtualWarehouse->name }}</div>
+                                @endif
+                            </td>
+                            <td class="text-sm text-slate-600 dark:text-slate-400">
+                                <div>{{ $wtr->toWarehouse?->name ?? '—' }}</div>
+                                @if($wtr->toVirtualWarehouse)
+                                    <div class="text-xs text-slate-400">{{ $wtr->toVirtualWarehouse->name }}</div>
+                                @endif
+                            </td>
+                            <td class="text-sm text-slate-600 dark:text-slate-400">{{ $wtr->createdBy?->name ?? '—' }}</td>
+                            <td class="text-xs text-slate-500 tabular-nums">{{ $wtr->created_at->format('d M Y') }}</td>
+                            <td class="text-right">
+                                <div class="flex items-center justify-end gap-2">
+                                    <a href="{{ route('wtr.show', $wtr) }}" wire:navigate class="btn btn-ghost btn-sm">View</a>
+                                    @if ($wtr->status === \App\Enums\Transfers\WarehouseTransferStatus::Submitted)
+                                        @can('accept', $wtr)
+                                            <button wire:click="acceptWtr({{ $wtr->id }})"
+                                                    wire:loading.attr="disabled"
+                                                    wire:confirm="Accept transfer {{ $wtr->number }}?"
+                                                    class="btn btn-primary btn-sm">
+                                                Accept
+                                            </button>
+                                        @endcan
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </x-ui.table>
+        </div>
+    @endif
+
     {{-- Department Transfers (STN) section --}}
     @if ($this->pendingStnApprovals->isNotEmpty())
         <div class="card">
@@ -333,7 +402,7 @@
     @endif
 
     {{-- Empty state --}}
-    @if ($this->pendingPoApprovals->isEmpty() && $this->pendingDoApprovals->isEmpty() && $this->pendingDisposalApprovals->isEmpty() && $this->pendingStockStatusApprovals->isEmpty() && $this->pendingStnApprovals->isEmpty())
+    @if ($this->pendingPoApprovals->isEmpty() && $this->pendingDoApprovals->isEmpty() && $this->pendingDisposalApprovals->isEmpty() && $this->pendingStockStatusApprovals->isEmpty() && $this->pendingStnApprovals->isEmpty() && $this->pendingWtrApprovals->isEmpty())
         <div class="card p-12 flex flex-col items-center justify-center text-center space-y-3">
             <div class="w-14 h-14 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                 <x-ui.icon name="check" class="w-7 h-7 text-emerald-600" />

@@ -31,7 +31,7 @@ return [
 
     // Branding — override via .env or a child config to white-label the product
     'branding' => [
-        'name'            => env('WMS_BRAND_NAME', null), // null → falls back to config('app.name')
+        'name'            => env('WMS_BRAND_NAME', 'SIMBA WMS'), // null → falls back to config('app.name')
         'subtitle'        => env('WMS_BRAND_SUBTITLE', 'Warehouse Management System'),
         'initials'        => env('WMS_BRAND_INITIALS', 'SC'),
         'logo'            => env('WMS_BRAND_LOGO', 'images/logo/logo.png'),
