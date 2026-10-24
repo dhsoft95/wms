@@ -117,6 +117,24 @@ class Create extends Component
         return VirtualWarehouse::active()->orderBy('name')->get();
     }
 
+    // ─── Lifecycle ────────────────────────────────────────────────────────────
+
+    public function updatedLines(mixed $value, string $key): void
+    {
+        // Auto-fill UoM when item is selected on a line
+        if (preg_match('/^(\d+)\.item_id$/', $key, $m)) {
+            $i      = (int) $m[1];
+            $itemId = (int) ($this->lines[$i]['item_id'] ?? 0);
+
+            if ($itemId && empty($this->lines[$i]['uom_id'])) {
+                $item = Item::find($itemId);
+                if ($item?->base_uom_id) {
+                    $this->lines[$i]['uom_id'] = (string) $item->base_uom_id;
+                }
+            }
+        }
+    }
+
     // ─── Lines ────────────────────────────────────────────────────────────────
 
     public function addLine(): void

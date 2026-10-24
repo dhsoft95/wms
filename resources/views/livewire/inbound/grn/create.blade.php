@@ -166,7 +166,7 @@
 
                             {{-- Item --}}
                             <td>
-                                <select wire:model="lines.{{ $i }}.item_id"
+                                <select wire:model.live="lines.{{ $i }}.item_id"
                                         class="input input-sm @error("lines.{$i}.item_id") border-red-400 @enderror">
                                     <option value="">Select item…</option>
                                     @foreach ($this->items as $item)
