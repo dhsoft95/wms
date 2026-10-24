@@ -18,6 +18,7 @@ use App\Models\Dispatch;
 use App\Models\DispatchItem;
 use App\Models\GatePass;
 use App\Models\DeliveryOrder;
+use App\Models\DeliveryOrderLine;
 use App\Models\User;
 use App\Services\Foundation\DocumentNumber;
 use App\Services\Inventory\StockLedger;
@@ -33,12 +34,13 @@ final class DispatchService
         DeliveryOrder $do,
         array $data,
         User $by,
+        bool $createBackorder = false,
         ?string $requestId = null
     ): Dispatch {
         // Default idempotency key
         $idempotencyKey = $requestId ?? "do:{$do->id}:dispatch";
 
-        return DB::transaction(function () use ($do, $data, $by, $idempotencyKey) {
+        return DB::transaction(function () use ($do, $data, $by, $idempotencyKey, $createBackorder) {
             // Idempotency check
             $existingTx = \App\Models\Inventory\StockTransaction::where('idempotency_key', $idempotencyKey)->first();
             if ($existingTx !== null) {
@@ -155,8 +157,59 @@ final class DispatchService
 
             activity()->performedOn($do)->causedBy($by)->log("Dispatched as {$dispatch->number}");
 
+            if ($createBackorder) {
+                $this->maybeCreateBackorder($do, $by);
+            }
+
             return $dispatch;
         });
+    }
+
+    private function maybeCreateBackorder(DeliveryOrder $do, User $by): void
+    {
+        $shortLines = $do->lines()->get()->filter(function ($line) {
+            return bccomp(
+                bcsub((string) $line->requested_qty_base, (string) $line->dispatched_qty, 4),
+                '0', 4
+            ) > 0;
+        });
+
+        if ($shortLines->isEmpty()) {
+            return;
+        }
+
+        $backorder = DeliveryOrder::create([
+            'number'               => DocumentNumber::next('DO'),
+            'virtual_warehouse_id' => $do->virtual_warehouse_id,
+            'warehouse_id'         => $do->warehouse_id,
+            'department_id'        => $do->department_id,
+            'consignee_partner_id' => $do->consignee_partner_id,
+            'delivery_address'     => $do->delivery_address,
+            'required_date'        => $do->required_date,
+            'priority'             => $do->priority,
+            'allocation_rule'      => $do->allocation_rule,
+            'status'               => DeliveryOrderStatus::Approved,
+            'requested_by'         => $do->requested_by,
+            'remarks'              => "Backorder of {$do->number}",
+            'backorder_of_id'      => $do->id,
+        ]);
+
+        foreach ($shortLines as $line) {
+            $remainder = bcsub((string) $line->requested_qty_base, (string) $line->dispatched_qty, 4);
+            DeliveryOrderLine::create([
+                'delivery_order_id'  => $backorder->id,
+                'line_no'            => $line->line_no,
+                'item_id'            => $line->item_id,
+                'uom_id'             => $line->uom_id,
+                'requested_qty'      => $remainder,
+                'requested_qty_base' => $remainder,
+                'requested_batch_id' => $line->requested_batch_id,
+                'status'             => DoLineStatus::Pending,
+            ]);
+        }
+
+        activity()->performedOn($do)->causedBy($by)
+            ->log("Backorder {$backorder->number} created for {$shortLines->count()} short line(s).");
     }
 
     public function verifyGateExit(GatePass $gatePass, User $by): GatePass

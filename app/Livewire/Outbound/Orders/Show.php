@@ -6,12 +6,16 @@ namespace App\Livewire\Outbound\Orders;
 
 use App\Enums\Outbound\DeliveryOrderStatus;
 use App\Enums\Outbound\PickListStatus;
+use App\Enums\Outbound\ContainerSize;
+use App\Enums\Outbound\PackageType;
 use App\Models\DeliveryOrder;
 use App\Models\Inventory\SerialNumber;
+use App\Models\Partner;
 use App\Models\PickList;
 use App\Models\PickTask;
 use App\Services\Outbound\AllocationService;
 use App\Services\Outbound\DeliveryOrderWorkflow;
+use App\Services\Outbound\DispatchService;
 use App\Services\Outbound\PickingService;
 use App\Models\User;
 use Illuminate\Contracts\View\View;
@@ -103,12 +107,37 @@ class Show extends Component
             ->get();
     }
 
+    #[Computed]
+    public function transporters(): \Illuminate\Database\Eloquent\Collection
+    {
+        return Partner::ofType('transporter')->where('is_active', true)->orderBy('name')->get();
+    }
+
+    #[Computed]
+    public function containerSizes(): array
+    {
+        return ContainerSize::cases();
+    }
+
     // Pick task modal (inline picking from DO page)
     public bool   $showPickTaskModal = false;
     public ?int   $activePickTaskId  = null;
     public string $pickedQty         = '';
     public array  $availableSerials  = [];
     public array  $selectedSerials   = [];
+
+    // Dispatch modal
+    public bool   $showDispatchModal     = false;
+    public string $vehicleRegNo          = '';
+    public string $containerNo           = '';
+    public string $containerSize         = '';
+    public string $sealNo                = '';
+    public string $driverName            = '';
+    public string $driverPhone           = '';
+    public string $driverIdNo            = '';
+    public string $transporterPartnerId  = '';
+    public string $dispatchNotes         = '';
+    public bool   $createBackorder       = false;
 
     // Return-for-correction modal
     public bool   $showReturnModal  = false;
@@ -268,6 +297,82 @@ class Show extends Component
             } else {
                 $this->dispatch('toast', message: 'Partially re-allocated. ' . implode(' ', $warnings), type: 'warning');
             }
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
+    public function openDispatchModal(): void
+    {
+        $this->vehicleRegNo         = '';
+        $this->containerNo          = '';
+        $this->containerSize        = '';
+        $this->sealNo               = '';
+        $this->driverName           = '';
+        $this->driverPhone          = '';
+        $this->driverIdNo           = '';
+        $this->transporterPartnerId = '';
+        $this->dispatchNotes        = '';
+        $this->createBackorder      = $this->deliveryOrder->lines()
+            ->whereColumn('picked_qty', '<', 'requested_qty_base')
+            ->exists();
+        $this->showDispatchModal    = true;
+    }
+
+    public function dispatchOrder(): void
+    {
+        $this->authorize('allocate', $this->deliveryOrder);
+
+        $packageType = $this->deliveryOrder->package_type?->value ?? '';
+        $isContainer = $packageType === PackageType::Container->value;
+
+        $this->validate([
+            'vehicleRegNo'  => ['required', 'string', 'max:20'],
+            'driverName'    => ['required', 'string', 'max:100'],
+            'driverPhone'   => ['nullable', 'string', 'regex:/^(\+?255|0)7[0-9]{8}$/'],
+            'driverIdNo'    => ['nullable', 'string', 'max:50'],
+            'sealNo'        => $isContainer ? ['required', 'string', 'max:50'] : ['nullable', 'string', 'max:50'],
+            'containerNo'   => $isContainer ? ['required', 'string', 'max:50'] : ['nullable', 'string', 'max:50'],
+            'containerSize' => $isContainer ? ['required', 'string'] : ['nullable', 'string'],
+        ], [
+            'driverPhone.regex'      => 'Enter a valid Tanzanian phone number (e.g. 0712345678).',
+            'sealNo.required'        => 'Seal No is required for container shipments.',
+            'containerNo.required'   => 'Container No is required for container shipments.',
+            'containerSize.required' => 'Container Size is required for container shipments.',
+        ]);
+
+        $hadShortLines = $this->createBackorder && $this->deliveryOrder->lines()
+            ->whereColumn('picked_qty', '<', 'requested_qty_base')
+            ->exists();
+
+        $data = [
+            'vehicle_reg_no'         => strtoupper(trim($this->vehicleRegNo)),
+            'container_no'           => $isContainer ? strtoupper(trim($this->containerNo)) : null,
+            'container_size'         => $isContainer ? ($this->containerSize ?: null) : null,
+            'seal_no'                => $this->sealNo ?: null,
+            'driver_name'            => $this->driverName,
+            'driver_phone'           => $this->driverPhone ?: null,
+            'driver_id_no'           => $this->driverIdNo ?: null,
+            'transporter_partner_id' => $this->transporterPartnerId ?: null,
+            'notes'                  => $this->dispatchNotes ?: null,
+        ];
+
+        try {
+            $dispatch = app(DispatchService::class)->confirmDispatch(
+                $this->deliveryOrder,
+                $data,
+                auth()->user(),
+                $this->createBackorder,
+            );
+            $this->showDispatchModal = false;
+            $this->deliveryOrder->refresh();
+            unset($this->do);
+
+            $msg = "Dispatched as {$dispatch->number}. Gate pass issued.";
+            if ($hadShortLines) {
+                $msg .= ' Backorder created for remaining items.';
+            }
+            $this->dispatch('toast', message: $msg, type: 'success');
         } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }

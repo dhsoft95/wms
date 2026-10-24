@@ -108,8 +108,13 @@
                 @endcan
             @endif
 
-            {{-- Picked: resume if any lines are short --}}
+            {{-- Picked: dispatch + optionally resume picking --}}
             @if ($this->do->status === $S::Picked)
+                @can('allocate', $this->do)
+                    <button wire:click="openDispatchModal" class="btn btn-primary">
+                        <x-ui.icon name="truck" class="w-4 h-4" /> Dispatch
+                    </button>
+                @endcan
                 @php
                     $hasShortLines = $this->do->lines->some(
                         fn ($l) => bccomp((string) $l->picked_qty, (string) $l->requested_qty_base, 4) < 0
@@ -891,6 +896,174 @@
                     <button wire:click="$set('showPickTaskModal', false)" class="btn btn-ghost">Cancel</button>
                     <button wire:click="confirmPick" wire:loading.attr="disabled" class="btn btn-primary">
                         <x-ui.icon name="check" class="w-4 h-4" /> Confirm Pick
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    @endif
+
+    {{-- Dispatch Modal --}}
+    @if ($showDispatchModal)
+        @php
+            $isContainer = $this->do->package_type?->value === \App\Enums\Outbound\PackageType::Container->value;
+            $shortDispatchLines = $this->do->lines->filter(
+                fn ($l) => bccomp((string) $l->picked_qty, (string) $l->requested_qty_base, 4) < 0
+            );
+        @endphp
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+             x-data wire:click.self="$set('showDispatchModal', false)">
+            <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-2xl space-y-4 overflow-hidden max-h-[90vh] overflow-y-auto">
+
+                {{-- Header --}}
+                <div class="px-6 pt-5 flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                    <div class="flex items-center gap-2">
+                        <x-ui.icon name="truck" class="w-5 h-5 text-simba-600" />
+                        <h3 class="text-base font-semibold text-slate-800 dark:text-slate-200">Confirm Dispatch</h3>
+                        <span class="font-mono text-sm text-slate-500">{{ $this->do->number }}</span>
+                    </div>
+                    <button wire:click="$set('showDispatchModal', false)" class="icon-btn">
+                        <x-ui.icon name="x" class="w-5 h-5" />
+                    </button>
+                </div>
+
+                <div class="px-6 space-y-4">
+
+                    {{-- Short lines warning + backorder option --}}
+                    @if ($shortDispatchLines->isNotEmpty())
+                        <div class="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 space-y-3">
+                            <div class="flex items-center gap-2">
+                                <x-ui.icon name="exclamation-triangle" class="w-4 h-4 text-amber-600 shrink-0" />
+                                <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">Short-pick detected</p>
+                            </div>
+                            <p class="text-xs text-amber-700 dark:text-amber-400">
+                                The following lines were not fully picked. You can dispatch what was picked now and optionally create a backorder for the remainder.
+                            </p>
+                            <table class="w-full text-xs border-collapse">
+                                <thead>
+                                    <tr class="text-amber-700 dark:text-amber-400">
+                                        <th class="text-left pb-1 font-semibold">Item</th>
+                                        <th class="text-right pb-1 font-semibold">Ordered</th>
+                                        <th class="text-right pb-1 font-semibold">Picked</th>
+                                        <th class="text-right pb-1 font-semibold">Remaining</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-amber-200 dark:divide-amber-800">
+                                    @foreach ($shortDispatchLines as $line)
+                                        <tr>
+                                            <td class="py-1 text-slate-700 dark:text-slate-300">
+                                                <span class="font-mono text-slate-400 mr-1">{{ $line->item?->sku }}</span>
+                                                {{ $line->item?->name }}
+                                            </td>
+                                            <td class="py-1 text-right tabular-nums text-slate-600 dark:text-slate-400">
+                                                {{ number_format((float) $line->requested_qty_base, 2) }}
+                                            </td>
+                                            <td class="py-1 text-right tabular-nums text-emerald-700 dark:text-emerald-400 font-medium">
+                                                {{ number_format((float) $line->picked_qty, 2) }}
+                                            </td>
+                                            <td class="py-1 text-right tabular-nums text-amber-700 dark:text-amber-400 font-semibold">
+                                                {{ number_format((float) bcsub((string) $line->requested_qty_base, (string) $line->picked_qty, 4), 2) }}
+                                                {{ $line->uom?->code }}
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                            <label class="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" wire:model="createBackorder"
+                                       class="rounded border-amber-400 text-simba-600 focus:ring-simba-600">
+                                <span class="text-sm font-medium text-amber-800 dark:text-amber-300">
+                                    Create a backorder for the remaining {{ number_format($shortDispatchLines->sum(fn ($l) => (float) bcsub((string) $l->requested_qty_base, (string) $l->picked_qty, 4)), 2) }} units
+                                </span>
+                            </label>
+                        </div>
+                    @endif
+
+                    {{-- Vehicle & driver fields --}}
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+
+                        <div>
+                            <label class="label">Vehicle Registration No <span class="text-rose-500">*</span></label>
+                            <input wire:model="vehicleRegNo" type="text" placeholder="T 452 ABC"
+                                   class="input w-full mono uppercase @error('vehicleRegNo') border-red-400 @enderror" />
+                            @error('vehicleRegNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="label">Seal No @if($isContainer)<span class="text-rose-500">*</span>@endif</label>
+                            <input wire:model="sealNo" type="text" placeholder="SL-55021"
+                                   class="input w-full mono @error('sealNo') border-red-400 @enderror" />
+                            @error('sealNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        @if ($isContainer)
+                            <div>
+                                <label class="label">Container No <span class="text-rose-500">*</span></label>
+                                <input wire:model="containerNo" type="text" placeholder="TCKU 123456-7"
+                                       class="input w-full mono uppercase @error('containerNo') border-red-400 @enderror" />
+                                @error('containerNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                            <div>
+                                <label class="label">Container Size <span class="text-rose-500">*</span></label>
+                                <select wire:model="containerSize" class="input w-full @error('containerSize') border-red-400 @enderror">
+                                    <option value="">— Select size —</option>
+                                    @foreach ($this->containerSizes as $size)
+                                        <option value="{{ $size->value }}">{{ $size->label() }}</option>
+                                    @endforeach
+                                </select>
+                                @error('containerSize') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            </div>
+                        @endif
+
+                        <div>
+                            <label class="label">Driver Name <span class="text-rose-500">*</span></label>
+                            <input wire:model="driverName" type="text" placeholder="Juma Kassim"
+                                   class="input w-full @error('driverName') border-red-400 @enderror" />
+                            @error('driverName') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="label">Driver Phone</label>
+                            <input wire:model="driverPhone" type="tel" placeholder="+255 712 000 000"
+                                   class="input w-full tabular-nums @error('driverPhone') border-red-400 @enderror" />
+                            @error('driverPhone') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="label">Driver ID No</label>
+                            <input wire:model="driverIdNo" type="text" placeholder="DL-4410923"
+                                   class="input w-full mono @error('driverIdNo') border-red-400 @enderror" />
+                            @error('driverIdNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        <div>
+                            <label class="label">Transporter</label>
+                            <select wire:model="transporterPartnerId" class="input w-full">
+                                <option value="">— None / Own transport —</option>
+                                @foreach ($this->transporters as $transporter)
+                                    <option value="{{ $transporter->id }}">{{ $transporter->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                    </div>
+
+                    <div>
+                        <label class="label">Notes</label>
+                        <textarea wire:model="dispatchNotes" rows="2" placeholder="Optional dispatch notes…"
+                                  class="input w-full resize-none"></textarea>
+                    </div>
+
+                </div>
+
+                {{-- Footer --}}
+                <div class="px-6 pb-5 flex justify-end gap-3 border-t border-slate-100 dark:border-slate-800 pt-4">
+                    <button wire:click="$set('showDispatchModal', false)" class="btn btn-ghost">Cancel</button>
+                    <button wire:click="dispatchOrder" wire:loading.attr="disabled" class="btn btn-primary">
+                        <span wire:loading.remove wire:target="dispatchOrder">
+                            <x-ui.icon name="truck" class="w-4 h-4" /> Confirm Dispatch
+                        </span>
+                        <span wire:loading wire:target="dispatchOrder">Dispatching…</span>
                     </button>
                 </div>
 

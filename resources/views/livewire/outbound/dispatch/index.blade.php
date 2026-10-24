@@ -188,7 +188,12 @@
         <x-ui.modal title="Confirm Dispatch" wireClose="closeDispatchModal" maxWidth="xl">
 
             {{-- Package Type (read-only) --}}
-            @php $isContainer = $packageType === \App\Enums\Outbound\PackageType::Container->value; @endphp
+            @php
+                $isContainer  = $packageType === \App\Enums\Outbound\PackageType::Container->value;
+                $shortIndexLines = $this->actionDo?->lines->filter(
+                    fn ($l) => bccomp((string) $l->picked_qty, (string) $l->requested_qty_base, 4) < 0
+                ) ?? collect();
+            @endphp
             <div class="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700">
                 <x-ui.icon name="cube" class="w-5 h-5 text-slate-500 shrink-0" />
                 <div>
@@ -198,6 +203,56 @@
                     </p>
                 </div>
             </div>
+
+            {{-- Short lines warning + backorder option --}}
+            @if ($shortIndexLines->isNotEmpty())
+                <div class="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 space-y-3">
+                    <div class="flex items-center gap-2">
+                        <x-ui.icon name="exclamation-triangle" class="w-4 h-4 text-amber-600 shrink-0" />
+                        <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">Short-pick detected</p>
+                    </div>
+                    <p class="text-xs text-amber-700 dark:text-amber-400">
+                        The following lines were not fully picked. Dispatch what was picked and optionally create a backorder for the remainder.
+                    </p>
+                    <table class="w-full text-xs border-collapse">
+                        <thead>
+                            <tr class="text-amber-700 dark:text-amber-400">
+                                <th class="text-left pb-1 font-semibold">Item</th>
+                                <th class="text-right pb-1 font-semibold">Ordered</th>
+                                <th class="text-right pb-1 font-semibold">Picked</th>
+                                <th class="text-right pb-1 font-semibold">Remaining</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-amber-200 dark:divide-amber-800">
+                            @foreach ($shortIndexLines as $line)
+                                <tr>
+                                    <td class="py-1 text-slate-700 dark:text-slate-300">
+                                        <span class="font-mono text-slate-400 mr-1">{{ $line->item?->sku }}</span>
+                                        {{ $line->item?->name }}
+                                    </td>
+                                    <td class="py-1 text-right tabular-nums text-slate-600 dark:text-slate-400">
+                                        {{ number_format((float) $line->requested_qty_base, 2) }}
+                                    </td>
+                                    <td class="py-1 text-right tabular-nums text-emerald-700 dark:text-emerald-400 font-medium">
+                                        {{ number_format((float) $line->picked_qty, 2) }}
+                                    </td>
+                                    <td class="py-1 text-right tabular-nums text-amber-700 dark:text-amber-400 font-semibold">
+                                        {{ number_format((float) bcsub((string) $line->requested_qty_base, (string) $line->picked_qty, 4), 2) }}
+                                        {{ $line->uom?->code }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" wire:model="createBackorder"
+                               class="rounded border-amber-400 text-simba-600 focus:ring-simba-600">
+                        <span class="text-sm font-medium text-amber-800 dark:text-amber-300">
+                            Create a backorder for the remaining items
+                        </span>
+                    </label>
+                </div>
+            @endif
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 

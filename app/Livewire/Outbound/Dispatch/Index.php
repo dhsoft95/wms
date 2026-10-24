@@ -37,6 +37,7 @@ class Index extends Component
     public string  $driverIdNo           = '';
     public string  $transporterPartnerId = '';
     public string  $dispatchNotes        = '';
+    public bool    $createBackorder      = false;
 
     // Gate verify modal
     public bool  $showGateModal  = false;
@@ -112,7 +113,7 @@ class Index extends Component
 
     public function openDispatchModal(int $doId): void
     {
-        $do = DeliveryOrder::findOrFail($doId);
+        $do = DeliveryOrder::with('lines')->findOrFail($doId);
 
         $this->actionDoId           = $doId;
         $this->packageType          = $do->package_type?->value ?? '';
@@ -125,13 +126,27 @@ class Index extends Component
         $this->driverIdNo           = '';
         $this->transporterPartnerId = '';
         $this->dispatchNotes        = '';
+        $this->createBackorder      = $do->lines->some(
+            fn ($l) => bccomp((string) $l->picked_qty, (string) $l->requested_qty_base, 4) < 0
+        );
         $this->showDispatchModal    = true;
+        unset($this->actionDo);
+    }
+
+    #[Computed]
+    public function actionDo(): ?DeliveryOrder
+    {
+        if ($this->actionDoId === null) {
+            return null;
+        }
+        return DeliveryOrder::with(['lines.item', 'lines.uom'])->find($this->actionDoId);
     }
 
     public function closeDispatchModal(): void
     {
         $this->showDispatchModal = false;
         $this->actionDoId        = null;
+        unset($this->actionDo);
     }
 
     public function confirmDispatch(): void
@@ -172,8 +187,14 @@ class Index extends Component
             'notes'                  => $this->dispatchNotes ?: null,
         ];
 
+        $hadShortLines = $this->createBackorder && $do->lines->some(
+            fn ($l) => bccomp((string) $l->picked_qty, (string) $l->requested_qty_base, 4) < 0
+        );
+
         try {
-            $dispatch = app(DispatchService::class)->confirmDispatch($do, $data, auth()->user());
+            $dispatch = app(DispatchService::class)->confirmDispatch(
+                $do, $data, auth()->user(), $this->createBackorder
+            );
         } catch (\DomainException $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
             return;
@@ -181,7 +202,13 @@ class Index extends Component
 
         $this->showDispatchModal = false;
         $this->actionDoId        = null;
-        $this->dispatch('toast', message: "Dispatch {$dispatch->number} confirmed. Gate pass issued.", type: 'success');
+        unset($this->actionDo);
+
+        $msg = "Dispatch {$dispatch->number} confirmed. Gate pass issued.";
+        if ($hadShortLines) {
+            $msg .= ' Backorder created for remaining items.';
+        }
+        $this->dispatch('toast', message: $msg, type: 'success');
         $this->tab = 'recent';
         unset($this->readyOrders, $this->recentDispatches);
     }
