@@ -166,7 +166,8 @@
 
                             {{-- Item --}}
                             <td>
-                                <select wire:model.live="lines.{{ $i }}.item_id"
+                                <select wire:model="lines.{{ $i }}.item_id"
+                                        x-on:change="$wire.fillItemUom({{ $i }}, $event.target.value)"
                                         class="input input-sm @error("lines.{$i}.item_id") border-red-400 @enderror">
                                     <option value="">Select item…</option>
                                     @foreach ($this->items as $item)
@@ -189,9 +190,11 @@
                             </td>
 
                             {{-- UoM --}}
+                            @php $uomLocked = ! empty($line['item_id']) && ! empty($line['uom_id']); @endphp
                             <td>
                                 <select wire:model="lines.{{ $i }}.uom_id"
-                                        class="input input-sm @error("lines.{$i}.uom_id") border-red-400 @enderror">
+                                        @disabled($uomLocked)
+                                        class="input input-sm @error("lines.{$i}.uom_id") border-red-400 @enderror {{ $uomLocked ? 'bg-slate-100 dark:bg-slate-800 cursor-not-allowed' : '' }}">
                                     <option value="">UoM…</option>
                                     @foreach ($this->uoms as $uom)
                                         <option value="{{ $uom->id }}">{{ $uom->code }}</option>

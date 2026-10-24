@@ -117,22 +117,15 @@ class Create extends Component
         return VirtualWarehouse::active()->orderBy('name')->get();
     }
 
-    // ─── Lifecycle ────────────────────────────────────────────────────────────
-
-    public function updated(string $property, mixed $value): void
+    public function fillItemUom(int $index, mixed $itemId): void
     {
-        if (preg_match('/^lines\.(\d+)\.item_id$/', $property, $m)) {
-            $i      = (int) $m[1];
-            $itemId = (int) ($value ?? 0);
+        $this->lines[$index]['item_id'] = (string) $itemId;
 
-            if ($itemId) {
-                $item = Item::find($itemId);
-                if ($item?->base_uom_id) {
-                    $this->lines[$i]['uom_id'] = (string) $item->base_uom_id;
-                }
-            } else {
-                $this->lines[$i]['uom_id'] = '';
-            }
+        if ((int) $itemId) {
+            $item = Item::find((int) $itemId);
+            $this->lines[$index]['uom_id'] = $item?->base_uom_id ? (string) $item->base_uom_id : '';
+        } else {
+            $this->lines[$index]['uom_id'] = '';
         }
     }
 

@@ -130,10 +130,12 @@
                         </div>
 
                         {{-- UoM --}}
+                        @php $uomLocked = $receiptUomId !== '' && $this->uomOptions->count() === 1; @endphp
                         <div>
                             <label class="label">Unit of Measure <span class="text-red-500">*</span></label>
                             <select wire:model="receiptUomId"
-                                    class="input @error('receiptUomId') border-red-400 @enderror">
+                                    @disabled($uomLocked)
+                                    class="input @error('receiptUomId') border-red-400 @enderror {{ $uomLocked ? 'bg-slate-100 dark:bg-slate-800 cursor-not-allowed' : '' }}">
                                 <option value="">— Select —</option>
                                 @foreach($this->uomOptions as $uom)
                                     <option value="{{ $uom->id }}">{{ $uom->code }}</option>
