@@ -74,7 +74,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {{-- Lines --}}
         <div class="card lg:col-span-2">
-            <div class="card-header"><h3 class="text-card-title">Lines</h3></div>
+            <div class="card-header"><h3 class="card-title">Lines</h3></div>
             <x-ui.table>
                 <thead>
                     <tr>
@@ -107,7 +107,7 @@
         {{-- Details --}}
         <div class="space-y-4">
             <div class="card">
-                <div class="card-header"><h3 class="text-card-title">Details</h3></div>
+                <div class="card-header"><h3 class="card-title">Details</h3></div>
                 <div class="card-body divide-y divide-slate-100 dark:divide-slate-800">
                     <div class="py-2 first:pt-0 last:pb-0">
                         <p class="text-xs font-medium text-slate-400 uppercase tracking-wide">From Warehouse</p>

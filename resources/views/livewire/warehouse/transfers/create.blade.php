@@ -1,12 +1,12 @@
 <div class="space-y-6">
     <div class="page-header">
         <div>
-            <a href="{{ route('warehouse.transfers.index') }}" wire:navigate
-               class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-simba-600 mb-2">
-                <x-ui.icon name="chevron-right" class="w-3.5 h-3.5 rotate-180" /> Back
-            </a>
-            <h2 class="page-title">New Transfer</h2>
+            <h2 class="page-title">New Department Transfer</h2>
+            <p class="page-sub">Transfer stock ownership between virtual warehouses.</p>
         </div>
+        <a href="{{ route('warehouse.transfers.index') }}" wire:navigate class="btn btn-secondary">
+            <x-ui.icon name="arrow-left" class="w-4 h-4" /> Back to Transfers
+        </a>
     </div>
 
     <form wire:submit="save" class="space-y-6">
