@@ -76,17 +76,19 @@ class Show extends Component
         return match($this->deliveryOrder->status) {
             DeliveryOrderStatus::Draft,
             DeliveryOrderStatus::Rejected,
-            DeliveryOrderStatus::Cancelled          => 0,  // at Draft
-            DeliveryOrderStatus::Submitted          => 1,  // Draft done → at Approved (pending)
-            DeliveryOrderStatus::Approved           => 2,  // Draft+Approved done → at Acceptance
+            DeliveryOrderStatus::Cancelled                    => 0,
+            DeliveryOrderStatus::Submitted,
+            DeliveryOrderStatus::ReturnedForCorrection,
+            DeliveryOrderStatus::AwaitingRequesterCorrection  => 1,
+            DeliveryOrderStatus::Approved                     => 2,
             DeliveryOrderStatus::Acceptance,
-            DeliveryOrderStatus::Assigned           => 3,  // → at Allocated
+            DeliveryOrderStatus::Assigned                     => 3,
             DeliveryOrderStatus::Allocated,
-            DeliveryOrderStatus::PartiallyAllocated => 4,  // → at Picking
+            DeliveryOrderStatus::PartiallyAllocated           => 4,
             DeliveryOrderStatus::Picking,
-            DeliveryOrderStatus::Picked             => 5,  // → at Dispatched
+            DeliveryOrderStatus::Picked                       => 5,
             DeliveryOrderStatus::Dispatched,
-            DeliveryOrderStatus::Delivered          => 6,  // all done (6 = out of range → all green)
+            DeliveryOrderStatus::Delivered                    => 6,
         };
     }
 
