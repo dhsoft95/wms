@@ -48,6 +48,7 @@ class Show extends Component
             'lines.serials',
             'virtualWarehouse',
             'createdBy',
+            'executedBy',
         );
 
         return view('livewire.warehouse.movements.show')
