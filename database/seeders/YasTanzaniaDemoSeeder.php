@@ -474,6 +474,7 @@ class YasTanzaniaDemoSeeder extends Seeder
             ApprovalChainDocumentType::Mrn,
             ApprovalChainDocumentType::Transfer,
             ApprovalChainDocumentType::Disposal,
+            ApprovalChainDocumentType::Do,
         ];
 
         foreach ($map as $deptCode => $approverEmail) {

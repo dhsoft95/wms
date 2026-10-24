@@ -96,25 +96,25 @@ class YasNetworkUsersSeeder extends Seeder
             $this->command->line("  [{$action}] {$user->name} | role: {$def['role']} | VW: {$vwTag}{$invite}{$head}");
         }
 
-        // PO approval chain: Level 1 = HOD (Raphael) only.
-        // Warehouse manager accepts after approval — no Level 2 chain needed.
+        // PO and DO approval chains: Level 1 = HOD (Raphael) only.
         $raphael = User::where('email', 'raphael.luhelo@simbalogistic.co.tz')->first();
         if ($raphael) {
-            $chain1 = \App\Models\ApprovalChain::firstOrCreate([
-                'department_id' => $deptNet->id,
-                'document_type' => 'po',
-                'level'         => 1,
-            ]);
-            \App\Models\ApprovalChainUser::firstOrCreate([
-                'approval_chain_id' => $chain1->id,
-                'user_id'           => $raphael->id,
-            ]);
-            // Remove Level 2 if it exists (WM accepts, not approves)
-            \App\Models\ApprovalChain::where('department_id', $deptNet->id)
-                ->where('document_type', 'po')
-                ->where('level', '>', 1)
-                ->delete();
-            $this->command->line('  Approval chain: Level 1 → Raphael Luhelo (HOD)');
+            foreach (['po', 'do'] as $docType) {
+                $chain = \App\Models\ApprovalChain::firstOrCreate([
+                    'department_id' => $deptNet->id,
+                    'document_type' => $docType,
+                    'level'         => 1,
+                ]);
+                \App\Models\ApprovalChainUser::firstOrCreate([
+                    'approval_chain_id' => $chain->id,
+                    'user_id'           => $raphael->id,
+                ]);
+                \App\Models\ApprovalChain::where('department_id', $deptNet->id)
+                    ->where('document_type', $docType)
+                    ->where('level', '>', 1)
+                    ->delete();
+            }
+            $this->command->line('  Approval chains (PO + DO): Level 1 → Raphael Luhelo (HOD)');
         }
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
