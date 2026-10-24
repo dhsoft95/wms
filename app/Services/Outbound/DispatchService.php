@@ -49,14 +49,10 @@ final class DispatchService
                 throw new \DomainException('Can only dispatch a picked delivery order.');
             }
 
-            // Full ordered qty must be picked before dispatch
-            foreach ($do->lines as $line) {
-                if (bccomp((string) $line->picked_qty, (string) $line->requested_qty_base, 4) !== 0) {
-                    $missing = bcsub((string) $line->requested_qty_base, (string) $line->picked_qty, 4);
-                    throw new \DomainException(
-                        "Line {$line->line_no} ({$line->item->sku}): picked {$line->picked_qty} of {$line->requested_qty_base} ordered (short {$missing}). Dispatch blocked."
-                    );
-                }
+            // Guard: at least something must have been picked across all lines
+            $totalPicked = $do->lines->sum(fn ($l) => (float) $l->picked_qty);
+            if ($totalPicked <= 0) {
+                throw new \DomainException('Nothing has been picked on this order. Dispatch blocked.');
             }
 
             $staging = $do->warehouse->defaultStagingLocation;

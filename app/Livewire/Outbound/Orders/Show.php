@@ -256,6 +256,23 @@ class Show extends Component
         }
     }
 
+    public function resumePicking(): void
+    {
+        $this->authorize('allocate', $this->deliveryOrder);
+        try {
+            $warnings = app(AllocationService::class)->resumeFromShort($this->deliveryOrder);
+            $this->deliveryOrder->refresh();
+            unset($this->do, $this->activePickList);
+            if (empty($warnings)) {
+                $this->dispatch('toast', message: 'Stock re-allocated. Generate a new pick list to continue.', type: 'success');
+            } else {
+                $this->dispatch('toast', message: 'Partially re-allocated. ' . implode(' ', $warnings), type: 'warning');
+            }
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
     public function cancel(): void
     {
         $this->authorize('cancel', $this->deliveryOrder);

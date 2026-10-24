@@ -108,6 +108,26 @@
                 @endcan
             @endif
 
+            {{-- Picked: resume if any lines are short --}}
+            @if ($this->do->status === $S::Picked)
+                @php
+                    $hasShortLines = $this->do->lines->some(
+                        fn ($l) => bccomp((string) $l->picked_qty, (string) $l->requested_qty_base, 4) < 0
+                    );
+                @endphp
+                @if ($hasShortLines)
+                    @can('allocate', $this->do)
+                        <button
+                            wire:click="resumePicking"
+                            wire:loading.attr="disabled"
+                            wire:confirm="Resume picking for the remaining quantities? This will re-allocate available stock and allow a new pick list to be generated."
+                            class="btn btn-secondary">
+                            <x-ui.icon name="arrow-path" class="w-4 h-4" /> Resume Picking
+                        </button>
+                    @endcan
+                @endif
+            @endif
+
             {{-- Cancel button for cancellable states --}}
             @if ($this->do->status->isCancellable())
                 @can('cancel', $this->do)

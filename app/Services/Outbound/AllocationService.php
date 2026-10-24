@@ -105,6 +105,59 @@ final class AllocationService
         $this->allocate($do);
     }
 
+    /**
+     * Resume picking for a Picked order that has lines not fully picked.
+     * Releases leftover Reserved allocations, resets line state, and re-allocates
+     * the unmet quantity so a new pick list can be generated.
+     *
+     * @return string[] Warning messages for lines still unallocatable.
+     */
+    public function resumeFromShort(DeliveryOrder $do): array
+    {
+        if ($do->status !== DeliveryOrderStatus::Picked) {
+            throw new \DomainException('Can only resume picking on a Picked order.');
+        }
+
+        $warnings = [];
+
+        DB::transaction(function () use ($do, &$warnings) {
+            $hasUnmet = false;
+
+            foreach ($do->lines()->with('allocations.stockReservation')->get() as $line) {
+                $owed = bcsub((string) $line->requested_qty_base, (string) $line->picked_qty, 4);
+
+                if (bccomp($owed, '0', 4) <= 0) {
+                    continue; // fully picked — nothing to do
+                }
+
+                $hasUnmet = true;
+
+                // Release any still-Reserved allocations for this line
+                foreach ($line->allocations()->where('status', AllocationStatus::Reserved->value)->get() as $alloc) {
+                    if ($alloc->stockReservation) {
+                        $this->reservations->release($alloc->stockReservation);
+                    }
+                    $alloc->delete();
+                }
+
+                // Reset line so allocateLine() will allocate exactly the unmet qty
+                $line->allocated_qty = $line->picked_qty;
+                $line->short_qty     = '0.0000';
+                $line->status        = DoLineStatus::Pending;
+                $line->save();
+            }
+
+            if (! $hasUnmet) {
+                throw new \DomainException('All lines are fully picked — nothing to resume.');
+            }
+
+            // Re-allocate; this also sets DO status to Allocated / PartiallyAllocated
+            $warnings = $this->allocate($do);
+        });
+
+        return $warnings;
+    }
+
     public function allocateLine(DeliveryOrderLine $line, DeliveryOrder $do): void
     {
         $candidates = $this->getCandidates($line, $do);
