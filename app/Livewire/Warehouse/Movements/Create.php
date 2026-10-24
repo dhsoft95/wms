@@ -125,8 +125,8 @@ class Create extends Component
             return;
         }
 
-        // Auto-fill VW if not yet set
-        if (! $this->virtualWarehouseId && $balance->virtual_warehouse_id) {
+        // Auto-fill VW from the stock's actual VW (always, not only when unset)
+        if ($balance->virtual_warehouse_id) {
             $this->virtualWarehouseId = $balance->virtual_warehouse_id;
         }
 
@@ -184,8 +184,9 @@ class Create extends Component
                 ->where('location_id', $locationId)
                 ->where('stock_status', StockStatus::Available->value)
                 ->where('qty_on_hand', '>', 0)
+                ->when($this->virtualWarehouseId, fn ($q) => $q->where('virtual_warehouse_id', $this->virtualWarehouseId))
                 ->get()
-                ->groupBy('item_id')
+                ->groupBy(fn ($b) => $b->item_id . ':' . $b->virtual_warehouse_id)
                 ->map(function ($group) {
                     $first = $group->first();
                     return [
@@ -216,9 +217,19 @@ class Create extends Component
         foreach ($this->lines as $i => $line) {
             $locationId = (int) ($line['from_location_id'] ?? 0);
             $itemId     = (int) ($line['item_id'] ?? 0);
-            $vwId       = (int) $this->virtualWarehouseId;
 
-            if (! $locationId || ! $itemId || ! $vwId) {
+            if (! $locationId || ! $itemId) {
+                $result[$i] = null;
+                continue;
+            }
+
+            // Derive VW from the matched stock entry so we never query against
+            // the wrong VW when items at the same bin belong to different VWs.
+            $stockEntries = $this->stockByLine[$i] ?? [];
+            $matched      = collect($stockEntries)->first(fn ($s) => (int) ($s['item']?->id) === $itemId);
+            $vwId         = $matched ? (int) $matched['vw_id'] : (int) $this->virtualWarehouseId;
+
+            if (! $vwId) {
                 $result[$i] = null;
                 continue;
             }
