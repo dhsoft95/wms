@@ -1,9 +1,53 @@
 @php
     /** @var \App\Models\PickList $pickList */
+    /** @var array<int, string[]> $taskSerials   [task_id => [serial_no, ...]] */
     /** @var array $brand */
-    use Carbon\Carbon;
     $do    = $pickList->deliveryOrder;
     $tasks = $pickList->tasks->sortBy('sequence');
+
+    // Expand tasks into printable rows.
+    // Serial-tracked items produce one row per serial number; others one row per task.
+    $rows = [];
+    foreach ($tasks as $task) {
+        $serials   = $taskSerials[$task->id] ?? [];
+        $isSerial  = $task->item?->track_serial && count($serials) > 0;
+
+        if ($isSerial) {
+            foreach ($serials as $idx => $sn) {
+                $rows[] = [
+                    'seq'        => $task->sequence . ($idx > 0 ? '' : ''),
+                    'seq_show'   => $idx === 0,
+                    'location'   => $task->location?->code ?? '—',
+                    'sku'        => $task->item?->sku ?? '',
+                    'name'       => $task->item?->name ?? '—',
+                    'uom'        => $task->item?->baseUom?->code ?? '',
+                    'batch'      => $idx === 0 ? ($task->batch?->batch_no ?? '—') : '',
+                    'serial_no'  => $sn,
+                    'qty'        => 1,
+                    'is_serial'  => true,
+                    'first'      => $idx === 0,
+                    'count'      => count($serials),
+                    'status'     => $task->status->value,
+                ];
+            }
+        } else {
+            $rows[] = [
+                'seq'       => $task->sequence,
+                'seq_show'  => true,
+                'location'  => $task->location?->code ?? '—',
+                'sku'       => $task->item?->sku ?? '',
+                'name'      => $task->item?->name ?? '—',
+                'uom'       => $task->item?->baseUom?->code ?? '',
+                'batch'     => $task->batch?->batch_no ?? '—',
+                'serial_no' => null,
+                'qty'       => (float) $task->qty_to_pick,
+                'is_serial' => false,
+                'first'     => true,
+                'count'     => 1,
+                'status'    => $task->status->value,
+            ];
+        }
+    }
 @endphp
 <!DOCTYPE html>
 <html>
@@ -39,32 +83,51 @@
             background: #a22631;
             color: #fff;
             font-weight: bold;
-            font-size: 8px;
+            font-size: 7.5px;
             padding: 5px 6px;
             border: 1px solid #8a1d28;
             text-align: left;
         }
-        .tasks thead th.text-center { text-align: center; }
+        .tasks thead th.center { text-align: center; }
+        .tasks thead th.right  { text-align: right; }
+
         .tasks tbody td {
             border: 1px solid #e5e7eb;
-            padding: 5px 6px;
+            padding: 4px 6px;
             font-size: 8.5px;
             vertical-align: middle;
         }
         .tasks tbody tr.stripe td { background: #fafafa; }
-        .tasks tbody tr td:first-child { text-align: center; font-weight: bold; color: #6b7280; }
 
-        .loc-code   { font-family: DejaVu Sans Mono, monospace; font-weight: bold; font-size: 10px; color: #111; }
-        .item-sku   { font-family: DejaVu Sans Mono, monospace; font-size: 7.5px; color: #9ca3af; }
-        .item-name  { font-size: 8.5px; color: #111; }
-        .batch      { font-size: 7.5px; color: #6b7280; font-style: italic; }
-        .qty-box    { text-align: right; font-weight: bold; font-size: 10px; }
+        /* Serial row continuation — lighter border top within same task group */
+        .tasks tbody tr.serial-cont td {
+            border-top: 1px dashed #e5e7eb;
+            background: #fffbf5;
+        }
 
-        .check-box {
-            width: 14px; height: 14px;
+        .seq-cell    { text-align: center; font-weight: bold; font-size: 9px; color: #6b7280; }
+        .loc-code    { font-family: DejaVu Sans Mono, monospace; font-weight: bold; font-size: 10px; color: #111; }
+        .item-sku    { font-family: DejaVu Sans Mono, monospace; font-size: 7.5px; color: #9ca3af; }
+        .item-name   { font-size: 8.5px; color: #111; }
+        .serial-pill {
+            font-family: DejaVu Sans Mono, monospace;
+            font-size: 8.5px;
+            font-weight: bold;
+            color: #1d4ed8;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            padding: 1px 5px;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        .batch-txt   { font-size: 7.5px; color: #6b7280; font-style: italic; }
+        .qty-cell    { text-align: right; font-weight: bold; font-size: 10px; }
+        .uom-cell    { text-align: right; font-size: 8px; color: #6b7280; }
+        .check-cell  { text-align: center; }
+        .check-box   {
+            width: 13px; height: 13px;
             border: 1.5px solid #374151;
             display: inline-block;
-            margin: 0 auto;
         }
 
         .sig-block  { width: 100%; border-collapse: collapse; margin-top: 18px; }
@@ -109,7 +172,7 @@
     <tr>
         <td width="60%">
             <div class="doc-title">PICK LIST</div>
-            <div class="doc-sub">Use this document to pick items from the warehouse and check off each task as completed.</div>
+            <div class="doc-sub">Pick items from the listed locations and check off each line when done.</div>
         </td>
         <td width="40%" style="text-align:right; font-size:8px; color:#555; line-height:1.8;">
             <strong style="font-size:13px; color:#111;">{{ $pickList->number }}</strong><br>
@@ -119,7 +182,7 @@
     </tr>
 </table>
 
-{{-- Meta info grid --}}
+{{-- Meta info --}}
 <table class="meta-grid" cellspacing="0" cellpadding="0">
     <tr>
         <td style="width:25%; padding: 0 4px 0 0;">
@@ -149,46 +212,89 @@
     </tr>
 </table>
 
-{{-- Task table --}}
+{{-- Task / serial table --}}
 <table class="tasks">
     <thead>
         <tr>
-            <th class="text-center" style="width:5%">#</th>
-            <th style="width:14%">Location</th>
-            <th style="width:35%">Item</th>
-            <th style="width:15%">Batch / Lot</th>
-            <th style="width:10%; text-align:right;">Qty</th>
-            <th style="width:10%; text-align:right;">UOM</th>
-            <th class="text-center" style="width:11%">Done ✓</th>
+            <th class="center" style="width:5%">#</th>
+            <th style="width:12%">Location</th>
+            <th style="width:30%">Item</th>
+            <th style="width:18%">Serial No.</th>
+            <th style="width:12%">Batch / Lot</th>
+            <th class="right" style="width:8%">Qty</th>
+            <th class="right" style="width:8%">UOM</th>
+            <th class="center" style="width:7%">Done ✓</th>
         </tr>
     </thead>
     <tbody>
-        @forelse ($tasks as $task)
-            <tr class="{{ $loop->even ? 'stripe' : '' }}">
-                <td>{{ $task->sequence }}</td>
-                <td>
-                    <div class="loc-code">{{ $task->location?->code ?? '—' }}</div>
-                    @if ($task->location?->name && $task->location->name !== $task->location->code)
-                        <div style="font-size:7px;color:#9ca3af;">{{ $task->location->name }}</div>
+        @forelse ($rows as $rowIdx => $row)
+            <tr class="{{ $row['is_serial'] && ! $row['first'] ? 'serial-cont' : ($rowIdx % 2 === 0 ? '' : 'stripe') }}">
+
+                {{-- Sequence (shown only on first row of each task group) --}}
+                <td class="seq-cell">
+                    @if ($row['seq_show'] || $row['first'])
+                        {{ $row['seq'] }}
                     @endif
                 </td>
+
+                {{-- Location (shown only on first row of each task group) --}}
                 <td>
-                    <div class="item-sku">{{ $task->item?->sku ?? '—' }}</div>
-                    <div class="item-name">{{ $task->item?->name ?? '—' }}</div>
+                    @if ($row['first'])
+                        <div class="loc-code">{{ $row['location'] }}</div>
+                    @endif
                 </td>
+
+                {{-- Item (shown only on first row) --}}
                 <td>
-                    <div class="batch">{{ $task->batch?->batch_no ?? '—' }}</div>
+                    @if ($row['first'])
+                        <div class="item-sku">{{ $row['sku'] }}</div>
+                        <div class="item-name">{{ $row['name'] }}</div>
+                        @if ($row['is_serial'])
+                            <div style="font-size:7px; color:#9ca3af; margin-top:1px;">
+                                {{ $row['count'] }} serial unit{{ $row['count'] > 1 ? 's' : '' }}
+                            </div>
+                        @endif
+                    @endif
                 </td>
-                <td class="qty-box">{{ number_format((float) $task->qty_to_pick, 2) }}</td>
-                <td style="text-align:right; font-size:8px; color:#6b7280;">
-                    {{ $task->item?->baseUom?->code ?? '' }}
+
+                {{-- Serial number --}}
+                <td>
+                    @if ($row['serial_no'])
+                        <span class="serial-pill">{{ $row['serial_no'] }}</span>
+                    @else
+                        <span style="font-size:8px; color:#9ca3af;">—</span>
+                    @endif
                 </td>
-                <td style="text-align:center;">
-                    <div class="check-box"></div>
+
+                {{-- Batch (first row only) --}}
+                <td>
+                    @if ($row['first'] && $row['batch'] && $row['batch'] !== '—')
+                        <span class="batch-txt">{{ $row['batch'] }}</span>
+                    @elseif (! $row['is_serial'])
+                        <span style="font-size:8px; color:#9ca3af;">—</span>
+                    @endif
                 </td>
+
+                {{-- Qty --}}
+                <td class="qty-cell">
+                    @if (! $row['is_serial'])
+                        {{ number_format($row['qty'], 2) }}
+                    @else
+                        1
+                    @endif
+                </td>
+
+                {{-- UOM --}}
+                <td class="uom-cell">{{ $row['uom'] }}</td>
+
+                {{-- Checkbox --}}
+                <td class="check-cell"><div class="check-box"></div></td>
+
             </tr>
         @empty
-            <tr><td colspan="7" style="text-align:center;color:#9ca3af;padding:16px;">No tasks found.</td></tr>
+            <tr>
+                <td colspan="8" style="text-align:center; color:#9ca3af; padding:16px;">No tasks found.</td>
+            </tr>
         @endforelse
     </tbody>
 </table>
