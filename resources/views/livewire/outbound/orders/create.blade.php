@@ -146,20 +146,20 @@
 
                     @error('lines') <p class="hint !text-red-600 mb-2">{{ $message }}</p> @enderror
 
-                    {{-- Column headers --}}
-                    <div class="hidden md:grid grid-cols-12 gap-2 px-2 section-label">
-                        <span class="col-span-6">Item</span>
-                        <span class="col-span-1">UOM</span>
+                    {{-- Column headers (desktop only) --}}
+                    <div class="hidden md:grid md:grid-cols-12 gap-2 px-3 section-label">
+                        <span class="col-span-5">Item</span>
+                        <span class="col-span-2">UOM</span>
                         <span class="col-span-2">Qty</span>
                         <span class="col-span-2">Notes</span>
                         <span class="col-span-1"></span>
                     </div>
 
                     @foreach ($lines as $i => $line)
-                        <div class="grid grid-cols-2 md:grid-cols-12 gap-2 items-start p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/50">
+                        <div class="grid grid-cols-6 md:grid-cols-12 gap-2 items-start p-3 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200/70 dark:border-slate-700/50">
 
-                            {{-- Item Dropdown --}}
-                            <div class="col-span-2 md:col-span-6">
+                            {{-- Item --}}
+                            <div class="col-span-6 md:col-span-5">
                                 <select wire:model="lines.{{ $i }}.item_id" class="input input-sm">
                                     <option value="">— Select item —</option>
                                     @foreach ($this->items as $item)
@@ -172,32 +172,32 @@
                                 @error('lines.' . $i . '.item_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                             </div>
 
-                            {{-- UOM (auto-filled) --}}
-                            <div class="md:col-span-1">
-                                <input
-                                    wire:model="lines.{{ $i }}.uom_code"
-                                    type="text"
-                                    placeholder="UOM"
-                                    readonly
-                                    class="input input-sm bg-slate-100 dark:bg-slate-700 cursor-default font-mono"
-                                />
+                            {{-- UOM --}}
+                            <div class="col-span-2 md:col-span-2">
+                                <select wire:model="lines.{{ $i }}.uom_id" class="input input-sm">
+                                    <option value="">—</option>
+                                    @foreach ($this->uoms as $uom)
+                                        <option value="{{ $uom->id }}">{{ $uom->code }}</option>
+                                    @endforeach
+                                </select>
+                                @error('lines.' . $i . '.uom_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                             </div>
 
                             {{-- Qty --}}
-                            <div class="md:col-span-2">
+                            <div class="col-span-2 md:col-span-2">
                                 <input
                                     wire:model="lines.{{ $i }}.qty"
                                     type="number"
                                     min="0.0001"
                                     step="any"
-                                    placeholder="Qty"
+                                    placeholder="0"
                                     class="input input-sm tabular-nums"
                                 />
                                 @error('lines.' . $i . '.qty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                             </div>
 
                             {{-- Notes --}}
-                            <div class="md:col-span-2">
+                            <div class="col-span-5 md:col-span-2">
                                 <input
                                     wire:model="lines.{{ $i }}.notes"
                                     type="text"
@@ -207,7 +207,7 @@
                             </div>
 
                             {{-- Remove --}}
-                            <div class="md:col-span-1 flex justify-end pt-1">
+                            <div class="col-span-1 md:col-span-1 flex justify-end pt-1">
                                 <button
                                     type="button"
                                     wire:click="removeLine({{ $i }})"

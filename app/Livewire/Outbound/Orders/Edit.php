@@ -12,6 +12,7 @@ use App\Models\Department;
 use App\Models\DeliveryOrder;
 use App\Models\Item;
 use App\Models\Partner;
+use App\Models\UnitOfMeasure;
 use App\Models\VirtualWarehouse;
 use App\Models\Warehouse;
 use Illuminate\Contracts\View\View;
@@ -144,6 +145,12 @@ class Edit extends Component
     public function items(): \Illuminate\Database\Eloquent\Collection
     {
         return Item::where('is_active', true)->with('baseUom')->orderBy('name')->get();
+    }
+
+    #[Computed]
+    public function uoms(): \Illuminate\Database\Eloquent\Collection
+    {
+        return UnitOfMeasure::orderBy('code')->get(['id', 'code', 'name']);
     }
 
     #[Computed]
