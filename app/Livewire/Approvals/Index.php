@@ -252,6 +252,11 @@ class Index extends Component
                 if ($user->hasRole('system-admin')) {
                     return true;
                 }
+                // HOD sees Submitted STNs from their department
+                if ($stn->status === TransferStatus::Submitted
+                    && $stn->department?->head_user_id === $user->id) {
+                    return true;
+                }
                 // HOD sees ReturnedForCorrection (their turn to forward to requester)
                 if ($stn->status === TransferStatus::ReturnedForCorrection
                     && $stn->department?->head_user_id === $user->id) {
@@ -262,10 +267,9 @@ class Index extends Component
                     && $stn->created_by === $user->id) {
                     return true;
                 }
-                // Submitted: hide from plain requester (not an approver)
+                // Submitted: hide from plain requester (not an approver or HOD)
                 if ($stn->status === TransferStatus::Submitted
                     && $stn->created_by === $user->id
-                    && $stn->department?->head_user_id !== $user->id
                     && ! $service->canActAtCurrentLevel($stn, $user)) {
                     return false;
                 }
