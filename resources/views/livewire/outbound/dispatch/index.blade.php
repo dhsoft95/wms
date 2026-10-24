@@ -461,6 +461,8 @@
                     Confirming...
                 </span>
                     </button>
+
+
                 </div>
             </x-slot:footer>
 

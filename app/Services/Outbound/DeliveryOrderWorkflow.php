@@ -190,6 +190,34 @@ final class DeliveryOrderWorkflow
         });
     }
 
+    public function adminDelete(DeliveryOrder $do, User $by): void
+    {
+        DB::transaction(function () use ($do, $by) {
+            // Release reservations and reverse any pick movements still in staging.
+            // Skip pick reversal for dispatched/delivered orders — staging is already empty.
+            $stockLeft = in_array($do->status, [
+                DeliveryOrderStatus::Allocated,
+                DeliveryOrderStatus::PartiallyAllocated,
+                DeliveryOrderStatus::Picking,
+                DeliveryOrderStatus::Picked,
+            ], true);
+
+            foreach ($do->lines()->with('allocations.stockReservation')->get() as $line) {
+                foreach ($line->allocations as $allocation) {
+                    if ($allocation->status === AllocationStatus::Reserved && $allocation->stockReservation) {
+                        $this->reservations->release($allocation->stockReservation);
+                    }
+                    if ($stockLeft && $allocation->status === AllocationStatus::Picked) {
+                        $this->moveBackFromStaging($allocation, $do, $by);
+                    }
+                }
+            }
+
+            activity()->performedOn($do)->causedBy($by)->log("Deleted by admin (was {$do->status->value})");
+            $do->delete();
+        });
+    }
+
     public function accept(DeliveryOrder $do, User $by): void
     {
         $this->assertCanTransition($do, DeliveryOrderStatus::Acceptance);

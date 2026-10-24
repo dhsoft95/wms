@@ -100,7 +100,16 @@ class DeliveryOrderPolicy
             return true;
         }
 
-        return $do->department?->head_user_id === $user->id;
+        if ($do->department?->head_user_id === $user->id) {
+            return true;
+        }
+
+        // Warehouse manager can return when there is no department head
+        if (! $do->department?->head_user_id && $user->hasRole('warehouse-manager')) {
+            return true;
+        }
+
+        return false;
     }
 
     public function forwardReturn(User $user, DeliveryOrder $do): bool
@@ -113,7 +122,16 @@ class DeliveryOrderPolicy
             return true;
         }
 
-        return $do->department?->head_user_id === $user->id;
+        if ($do->department?->head_user_id === $user->id) {
+            return true;
+        }
+
+        // Warehouse manager can forward-return when there is no department head
+        if (! $do->department?->head_user_id && $user->hasRole('warehouse-manager')) {
+            return true;
+        }
+
+        return false;
     }
 
     public function approveWarehouse(User $user, DeliveryOrder $do): bool
@@ -160,5 +178,10 @@ class DeliveryOrderPolicy
     public function uploadPod(User $user, DeliveryOrder $do): bool
     {
         return $user->can('pod.upload');
+    }
+
+    public function delete(User $user, DeliveryOrder $do): bool
+    {
+        return $user->hasRole('system-admin');
     }
 }

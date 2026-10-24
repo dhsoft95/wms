@@ -251,6 +251,12 @@
                                         <x-ui.icon name="trash" class="w-3.5 h-3.5" /> Cancel
                                     </button>
                                 @endif
+                                @can('delete', $order)
+                                    <button wire:click="$set('deleteOrderId', {{ $order->id }})"
+                                            class="btn btn-secondary btn-sm !text-red-700 dark:!text-red-400 font-semibold">
+                                        <x-ui.icon name="trash" class="w-3.5 h-3.5" /> Delete
+                                    </button>
+                                @endcan
                             </div>
                         </td>
                     </tr>
@@ -337,6 +343,40 @@
                     </button>
                 </div>
 
+            </div>
+        </div>
+    @endif
+
+    {{-- Delete Confirmation Modal --}}
+    @if ($deleteOrderId)
+        <div class="modal-backdrop"
+             x-data wire:click.self="$set('deleteOrderId', null)">
+            <div class="modal-box max-w-md">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                            <x-ui.icon name="trash" class="w-5 h-5 text-red-600 dark:text-red-400" />
+                        </div>
+                        <h3 class="text-base font-semibold text-slate-900 dark:text-white">Delete Order</h3>
+                    </div>
+                    <button wire:click="$set('deleteOrderId', null)" class="icon-btn">
+                        <x-ui.icon name="x-mark" class="w-5 h-5" />
+                    </button>
+                </div>
+                <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                    Permanently delete this order and all related records?
+                </p>
+                <p class="text-sm text-red-600 dark:text-red-400 mb-5">
+                    Stock reservations will be released and pick movements reversed. This cannot be undone.
+                </p>
+                <div class="flex justify-end gap-3">
+                    <button wire:click="$set('deleteOrderId', null)" class="btn btn-secondary">Cancel</button>
+                    <button wire:click="deleteOrder({{ $deleteOrderId }})"
+                            wire:loading.attr="disabled"
+                            class="btn bg-red-600 hover:bg-red-700 text-white">
+                        <x-ui.icon name="trash" class="w-4 h-4" /> Delete Permanently
+                    </button>
+                </div>
             </div>
         </div>
     @endif

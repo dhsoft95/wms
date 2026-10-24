@@ -391,6 +391,22 @@ class Show extends Component
         }
     }
 
+    public bool $showDeleteModal = false;
+
+    public function deleteOrder(): void
+    {
+        $this->authorize('delete', $this->deliveryOrder);
+        try {
+            app(DeliveryOrderWorkflow::class)->adminDelete($this->deliveryOrder, auth()->user());
+            $this->showDeleteModal = false;
+            $this->dispatch('toast', message: 'Order deleted.', type: 'success');
+            $this->redirectRoute('outbound.orders.index');
+        } catch (\Throwable $e) {
+            $this->showDeleteModal = false;
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
     public function cancelPickList(int $pickListId): void
     {
         $this->authorize('allocate', $this->deliveryOrder);

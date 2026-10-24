@@ -164,6 +164,23 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public ?int $deleteOrderId = null;
+
+    public function deleteOrder(int $id): void
+    {
+        $do = DeliveryOrder::findOrFail($id);
+        $this->authorize('delete', $do);
+        try {
+            app(DeliveryOrderWorkflow::class)->adminDelete($do, auth()->user());
+            $this->deleteOrderId = null;
+            $this->dispatch('toast', message: "Order {$do->number} deleted.", type: 'success');
+            $this->resetPage();
+        } catch (\Throwable $e) {
+            $this->deleteOrderId = null;
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
+
     // ─── Private ──────────────────────────────────────────────────────────────
 
     private function baseQuery(): Builder

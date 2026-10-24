@@ -143,6 +143,14 @@
                     </button>
                 @endcan
             @endif
+
+            {{-- Admin delete --}}
+            @can('delete', $this->do)
+                <button wire:click="$set('showDeleteModal', true)"
+                        class="btn btn-secondary text-red-600 dark:text-red-400">
+                    <x-ui.icon name="trash" class="w-4 h-4" /> Delete
+                </button>
+            @endcan
         </div>
     </div>
 
@@ -1099,6 +1107,38 @@
                     <button wire:click="$set('showAssignModal', false)" class="btn btn-secondary">Cancel</button>
                     <button wire:click="generatePickList" wire:loading.attr="disabled" class="btn btn-primary">
                         <x-ui.icon name="clipboard-list" class="w-4 h-4" /> Generate Pick List
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- Delete Confirmation Modal --}}
+    @if ($showDeleteModal)
+        <div class="modal-backdrop"
+             x-data wire:click.self="$set('showDeleteModal', false)">
+            <div class="modal-box max-w-md">
+                <div class="flex items-start justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                            <x-ui.icon name="trash" class="w-5 h-5 text-red-600 dark:text-red-400" />
+                        </div>
+                        <h3 class="text-base font-semibold text-slate-900 dark:text-white">Delete Order</h3>
+                    </div>
+                    <button wire:click="$set('showDeleteModal', false)" class="icon-btn">
+                        <x-ui.icon name="x-mark" class="w-5 h-5" />
+                    </button>
+                </div>
+                <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">
+                    Are you sure you want to permanently delete <strong class="font-mono">{{ $this->do->number }}</strong>?
+                </p>
+                <p class="text-sm text-red-600 dark:text-red-400 mb-5">
+                    This will delete all lines, pick lists, allocations, and dispatch records. Stock movements will be reversed where applicable. This cannot be undone.
+                </p>
+                <div class="flex justify-end gap-3">
+                    <button wire:click="$set('showDeleteModal', false)" class="btn btn-secondary">Cancel</button>
+                    <button wire:click="deleteOrder" wire:loading.attr="disabled" class="btn bg-red-600 hover:bg-red-700 text-white">
+                        <x-ui.icon name="trash" class="w-4 h-4" /> Delete Permanently
                     </button>
                 </div>
             </div>
