@@ -124,14 +124,6 @@
         .party-line { font-size: 7.8px; color: #374151; line-height: 1.55; }
         .party-line .lbl { color: #6b7280; }
 
-        /* ── KPIs ────────────────────────────────────────────────────── */
-        .kpi { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 5px 0; margin-bottom: 12px; }
-        .kpi td { border: 1px solid #e5e7eb; padding: 7px 10px; vertical-align: top; }
-        .kpi-label { font-size: 6.8px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.04em; }
-        .kpi-value { font-size: 14px; font-weight: bold; color: #111; margin-top: 3px; }
-        .kpi-value.neg { color: #b91c1c; }
-        .kpi-hint { font-size: 7px; color: #6b7280; margin-top: 2px; }
-
         /* ── Items table ─────────────────────────────────────────────── */
         .section-title { font-size: 9px; font-weight: bold; color: #a22631; margin: 2px 0 5px; }
         .data { width: 100%; }
@@ -303,41 +295,6 @@
     </tr>
 </table>
 
-{{-- ── 3. KPIs ─────────────────────────────────────────────────────────── --}}
-<table class="kpi">
-    <tr>
-        {{-- Lines --}}
-        <td>
-            <div class="kpi-label">Lines</div>
-            <div class="kpi-value">{{ $lineCount }}</div>
-        </td>
-
-        {{-- Received in full --}}
-        <td>
-            <div class="kpi-label">Received in full</div>
-            <div class="kpi-value">{{ $fullLines }} / {{ $lineCount }}</div>
-        </td>
-
-        {{-- Total received — only when all lines share one UoM --}}
-        @if ($singleUom && $lineCount)
-            <td>
-                <div class="kpi-label">Total received</div>
-                <div class="kpi-value">{{ $qty($lines->sum('good') + $lines->sum('damaged')) }}</div>
-                <div class="kpi-hint">{{ $lines->first()->uom }}</div>
-            </td>
-        @endif
-
-        {{-- Damaged lines --}}
-        <td>
-            <div class="kpi-label">Damaged lines</div>
-            <div class="kpi-value {{ $damagedLines > 0 ? 'neg' : '' }}">{{ $damagedLines }}</div>
-            @if ($hasDamaged && $singleUom)
-                <div class="kpi-hint">{{ $qty($lines->sum('damaged')) }} {{ $lines->first()->uom }} damaged</div>
-            @endif
-        </td>
-    </tr>
-</table>
-
 {{-- ── 4. Received items table ─────────────────────────────────────────── --}}
 <div class="section-title">Received Items</div>
 <table class="data">
@@ -418,12 +375,6 @@
     </tbody>
 </table>
 
-@if ($hasVariance)
-    <div class="notes">
-        Red rows = short or damaged; amber rows = over-received. Variance = (good + damaged) − expected.
-    </div>
-@endif
-
 {{-- ── 5. Transport & Receiving cards ─────────────────────────────────── --}}
 <table class="cards">
     <tr>
@@ -456,24 +407,6 @@
             </table>
         </td>
 
-        {{-- Receiving details --}}
-        <td class="card">
-            <div class="card-head">Receiving Details</div>
-            <table class="card-body">
-                <tr><td class="k">Received by</td>
-                    <td class="v">{{ $grn->confirmedBy?->name ?? '—' }}</td></tr>
-                <tr><td class="k">Date &amp; time</td>
-                    <td class="v">{{ $receivedAt->format('d M Y H:i') }}</td></tr>
-                <tr><td class="k">Warehouse</td>
-                    <td class="v">{{ $grn->warehouse?->name ?? '—' }}</td></tr>
-                @if ($grn->receivingDock)
-                    <tr><td class="k">Dock</td>
-                        <td class="v code">{{ $grn->receivingDock->code }}</td></tr>
-                @endif
-                <tr><td class="k">Delivery type</td>
-                    <td class="v">{{ ucfirst($grn->delivery_type ?? 'full') }}</td></tr>
-            </table>
-        </td>
     </tr>
 </table>
 
