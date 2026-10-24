@@ -214,10 +214,15 @@ class Show extends Component
     {
         $this->authorize('allocate', $this->deliveryOrder);
         try {
-            app(AllocationService::class)->allocate($this->deliveryOrder);
+            $warnings = app(AllocationService::class)->allocate($this->deliveryOrder);
             $this->deliveryOrder->refresh();
             unset($this->do);
-            $this->dispatch('toast', message: 'Allocation complete.', type: 'success');
+
+            if (empty($warnings)) {
+                $this->dispatch('toast', message: 'Allocation complete.', type: 'success');
+            } else {
+                $this->dispatch('toast', message: 'Partially allocated. ' . implode(' ', $warnings), type: 'warning');
+            }
         } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }

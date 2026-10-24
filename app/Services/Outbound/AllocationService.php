@@ -25,9 +25,14 @@ final class AllocationService
         private readonly SettingsService $settings,
     ) {}
 
-    public function allocate(DeliveryOrder $do): void
+    /**
+     * @return string[] Warning messages for lines that could not be fully allocated.
+     */
+    public function allocate(DeliveryOrder $do): array
     {
-        DB::transaction(function () use ($do) {
+        $warnings = [];
+
+        DB::transaction(function () use ($do, &$warnings) {
             $do->load('lines.item');
 
             if ($do->lines->isEmpty()) {
@@ -58,8 +63,17 @@ final class AllocationService
                 throw new \DomainException($this->buildAllocationError($do));
             }
 
+            // Build per-line warnings for anything still unallocated
+            if (! $allAllocated) {
+                foreach ($lines->filter(fn ($l) => bccomp((string) $l->allocated_qty, (string) $l->requested_qty_base, 4) < 0) as $l) {
+                    $warnings[] = $this->buildLineWarning($l, $do);
+                }
+            }
+
             $do->save();
         });
+
+        return $warnings;
     }
 
     public function release(DeliveryOrder $do): void
@@ -262,6 +276,63 @@ final class AllocationService
         }
 
         return 'No stock could be allocated. Ensure stock has been received and put away into storage locations for this virtual warehouse.';
+    }
+
+    private function buildLineWarning(DeliveryOrderLine $line, DeliveryOrder $do): string
+    {
+        $sku      = $line->item?->sku ?? "Line {$line->line_no}";
+        $vwId     = $do->virtual_warehouse_id;
+        $pickable = ['storage', 'staging', 'hazardous'];
+
+        $needed    = bcsub((string) $line->requested_qty_base, (string) $line->allocated_qty, 4);
+        $allocated = bccomp((string) $line->allocated_qty, '0', 4) > 0;
+
+        $anyStock = StockBalance::where('item_id', $line->item_id)
+            ->where('virtual_warehouse_id', $vwId)
+            ->where('qty_on_hand', '>', 0)
+            ->exists();
+
+        if (! $anyStock) {
+            return "{$sku}: no stock in this virtual warehouse.";
+        }
+
+        $inDock = StockBalance::where('item_id', $line->item_id)
+            ->where('virtual_warehouse_id', $vwId)
+            ->whereRaw('qty_on_hand - qty_allocated > 0')
+            ->whereHas('location', fn ($q) => $q->whereNotIn('type', $pickable))
+            ->exists();
+
+        if ($inDock) {
+            return "{$sku}: putaway not complete — stock is still in the receiving dock.";
+        }
+
+        $wrongStatus = StockBalance::where('item_id', $line->item_id)
+            ->where('virtual_warehouse_id', $vwId)
+            ->whereRaw('qty_on_hand - qty_allocated > 0')
+            ->whereHas('location', fn ($q) => $q->whereIn('type', $pickable))
+            ->where('stock_status', '!=', 'available')
+            ->exists();
+
+        if ($wrongStatus) {
+            return "{$sku}: stock is on hold or obsolete.";
+        }
+
+        $insufficientQty = StockBalance::where('item_id', $line->item_id)
+            ->where('virtual_warehouse_id', $vwId)
+            ->where('stock_status', 'available')
+            ->whereHas('location', fn ($q) => $q->whereIn('type', $pickable)->whereIn('status', ['active', 'full']))
+            ->whereRaw('qty_on_hand - qty_allocated > 0')
+            ->exists();
+
+        if ($insufficientQty && $allocated) {
+            return "{$sku}: only partially allocated — insufficient stock (short by {$needed} " . ($line->item?->baseUom?->code ?? 'units') . ').';
+        }
+
+        if ($insufficientQty) {
+            return "{$sku}: insufficient available stock.";
+        }
+
+        return "{$sku}: could not be allocated (short by {$needed}).";
     }
 
     private function sortCandidates(Collection $balances, DeliveryOrder $do, DeliveryOrderLine $line): Collection
