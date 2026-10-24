@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Livewire\Warehouse\Transfers;
 
+use App\Data\Inventory\StockKey;
+use App\Enums\Inventory\StockStatus;
 use App\Livewire\Concerns\WithBulkLineUpload;
 use App\Models\Inventory\Batch;
+use App\Models\Inventory\StockBalance;
 use App\Models\Item;
 use App\Models\Location;
 use App\Models\UnitOfMeasure;
@@ -70,6 +73,140 @@ class Create extends Component
         $this->addLine();
     }
 
+    // ─── Lifecycle ────────────────────────────────────────────────────────────
+
+    public function updated(string $property, mixed $value): void
+    {
+        // From VW changed → reset all line items/locations
+        if ($property === 'fromVwId') {
+            foreach (array_keys($this->lines) as $i) {
+                $this->lines[$i]['item_id']     = '';
+                $this->lines[$i]['location_id'] = '';
+                $this->lines[$i]['uom_id']      = '';
+                $this->lines[$i]['qty']         = '';
+            }
+            unset($this->stockByLine, $this->availableByLine);
+            return;
+        }
+
+        // Source bin changed → reset item + downstream
+        if (preg_match('/^lines\.(\d+)\.location_id$/', $property, $m)) {
+            $i = (int) $m[1];
+            $this->lines[$i]['item_id'] = '';
+            $this->lines[$i]['uom_id']  = '';
+            $this->lines[$i]['qty']     = '';
+            unset($this->stockByLine, $this->availableByLine);
+        }
+
+        // Item changed → auto-fill UoM
+        if (preg_match('/^lines\.(\d+)\.item_id$/', $property, $m)) {
+            $i = (int) $m[1];
+            $this->autoFillUom($i);
+            unset($this->availableByLine);
+        }
+    }
+
+    private function autoFillUom(int $i): void
+    {
+        $itemId = (int) ($this->lines[$i]['item_id'] ?? 0);
+        if (! $itemId || ! empty($this->lines[$i]['uom_id'])) {
+            return;
+        }
+
+        $item = Item::find($itemId);
+        if ($item?->base_uom_id) {
+            $this->lines[$i]['uom_id'] = $item->base_uom_id;
+        }
+    }
+
+    // ─── Computed ─────────────────────────────────────────────────────────────
+
+    #[Computed]
+    public function locations()
+    {
+        return Location::active()->bin()->orderBy('code')->get(['id', 'code']);
+    }
+
+    #[Computed]
+    public function uoms()
+    {
+        return UnitOfMeasure::orderBy('code')->get(['id', 'code']);
+    }
+
+    /**
+     * For each line, items with available stock at the selected source bin within fromVwId.
+     * Shape: [ lineIndex => [ ['item' => Item, 'qty' => float], ... ] ]
+     */
+    #[Computed]
+    public function stockByLine(): array
+    {
+        $result = [];
+
+        foreach ($this->lines as $i => $line) {
+            $locationId = (int) ($line['location_id'] ?? 0);
+
+            if (! $locationId || ! $this->fromVwId) {
+                $result[$i] = [];
+                continue;
+            }
+
+            $rows = StockBalance::with('item')
+                ->where('location_id', $locationId)
+                ->where('virtual_warehouse_id', $this->fromVwId)
+                ->where('stock_status', StockStatus::Available->value)
+                ->where('qty_on_hand', '>', 0)
+                ->get()
+                ->groupBy('item_id')
+                ->map(function ($group) {
+                    $first = $group->first();
+                    return [
+                        'item' => $first->item,
+                        'qty'  => $group->sum('qty_on_hand'),
+                    ];
+                })
+                ->values()
+                ->all();
+
+            $result[$i] = $rows;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Available qty for the selected item+bin+fromVwId per line.
+     * Shape: [ lineIndex => '10.0000' | null ]
+     */
+    #[Computed]
+    public function availableByLine(): array
+    {
+        $result = [];
+
+        foreach ($this->lines as $i => $line) {
+            $locationId = (int) ($line['location_id'] ?? 0);
+            $itemId     = (int) ($line['item_id'] ?? 0);
+
+            if (! $locationId || ! $itemId || ! $this->fromVwId) {
+                $result[$i] = null;
+                continue;
+            }
+
+            $key = new StockKey(
+                itemId:             $itemId,
+                batchId:            null,
+                lpnId:              null,
+                locationId:         $locationId,
+                virtualWarehouseId: $this->fromVwId,
+                stockStatus:        StockStatus::Available,
+            );
+
+            $balance    = StockBalance::where('key_hash', $key->hash())->first();
+            $result[$i] = $balance ? $balance->qtyAvailable() : '0.0000';
+        }
+
+        return $result;
+    }
+
     public function addLine(): void
     {
         $this->lines[] = [
@@ -79,30 +216,14 @@ class Create extends Component
             'qty'         => '',
             'uom_id'      => '',
         ];
+        unset($this->stockByLine, $this->availableByLine);
     }
 
     public function removeLine(int $index): void
     {
         unset($this->lines[$index]);
         $this->lines = array_values($this->lines);
-    }
-
-    #[Computed]
-    public function items()
-    {
-        return Item::active()->orderBy('name')->get();
-    }
-
-    #[Computed]
-    public function locations()
-    {
-        return Location::active()->bin()->orderBy('code')->get();
-    }
-
-    #[Computed]
-    public function uoms()
-    {
-        return UnitOfMeasure::orderBy('code')->get();
+        unset($this->stockByLine, $this->availableByLine);
     }
 
     public function save(TransferWorkflow $workflow): void
