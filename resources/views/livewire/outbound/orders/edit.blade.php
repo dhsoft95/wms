@@ -203,8 +203,8 @@
                             {{-- UOM (auto-filled) --}}
                             <div class="md:col-span-1">
                                 <input
+                                    wire:model="lines.{{ $i }}.uom_code"
                                     type="text"
-                                    value="{{ $line['uom_code'] }}"
                                     placeholder="UOM"
                                     readonly
                                     class="input input-sm bg-slate-100 dark:bg-slate-700 cursor-default font-mono"
