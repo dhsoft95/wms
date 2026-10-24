@@ -166,19 +166,20 @@ class Show extends Component
         }
     }
 
+    #[Computed]
+    public function canActOnApprovals(): bool
+    {
+        return app(\App\Services\Outbound\DoApprovalService::class)
+            ->canActAtCurrentLevel($this->deliveryOrder, auth()->user());
+    }
+
     public function approve(): void
     {
         $this->authorize('approveDepartment', $this->deliveryOrder);
         try {
-            // Find the current pending level and approve it
-            $pending = $this->deliveryOrder->approvals()
-                ->whereNull('decision')
-                ->orderBy('level')
-                ->first();
-            $level = $pending?->level ?? 1;
-            app(DeliveryOrderWorkflow::class)->approve($this->deliveryOrder, auth()->user(), $level);
+            app(DeliveryOrderWorkflow::class)->approve($this->deliveryOrder, auth()->user());
             $this->deliveryOrder->refresh();
-            unset($this->do);
+            unset($this->do, $this->canActOnApprovals);
             $this->dispatch('toast', message: 'Order approved.', type: 'success');
         } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');

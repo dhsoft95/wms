@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DeliveryOrderApproval extends Model
 {
     protected $fillable = [
-        'delivery_order_id', 'level', 'approver_role',
+        'delivery_order_id', 'approval_chain_id', 'level', 'approver_role',
         'decided_by', 'decision', 'notes', 'decided_at',
     ];
 
@@ -29,5 +29,10 @@ class DeliveryOrderApproval extends Model
     public function decidedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'decided_by');
+    }
+
+    public function approvalChain(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\ApprovalChain::class);
     }
 }

@@ -11,6 +11,7 @@ enum ApprovalChainDocumentType: string
     case Transfer    = 'transfer';
     case Disposal    = 'disposal';
     case StockStatus = 'stock_status';
+    case Do          = 'do';
 
     public function label(): string
     {
@@ -20,6 +21,7 @@ enum ApprovalChainDocumentType: string
             self::Transfer    => 'Transfer',
             self::Disposal    => 'Disposal Request',
             self::StockStatus => 'Stock Status Request',
+            self::Do          => 'Delivery Order',
         };
     }
 }

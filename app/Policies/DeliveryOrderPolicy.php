@@ -79,15 +79,7 @@ class DeliveryOrderPolicy
             return false;
         }
 
-        if ($user->hasRole('system-admin')) {
-            return true;
-        }
-
-        if ($do->department_id && $do->department) {
-            return $do->department->head_user_id === $user->id;
-        }
-
-        return $user->hasRole('warehouse-manager');
+        return app(\App\Services\Outbound\DoApprovalService::class)->canActAtCurrentLevel($do, $user);
     }
 
     public function returnOrder(User $user, DeliveryOrder $do): bool
@@ -100,16 +92,7 @@ class DeliveryOrderPolicy
             return false;
         }
 
-        if ($user->hasRole('system-admin')) {
-            return true;
-        }
-
-        if ($do->department?->head_user_id === $user->id) {
-            return true;
-        }
-
-        // Warehouse manager can always return a submitted order
-        return $user->hasRole('warehouse-manager');
+        return app(\App\Services\Outbound\DoApprovalService::class)->canActAtCurrentLevel($do, $user);
     }
 
     public function forwardReturn(User $user, DeliveryOrder $do): bool
@@ -122,15 +105,7 @@ class DeliveryOrderPolicy
             return false;
         }
 
-        if ($user->hasRole('system-admin')) {
-            return true;
-        }
-
-        if ($do->department?->head_user_id === $user->id) {
-            return true;
-        }
-
-        return $user->hasRole('warehouse-manager');
+        return app(\App\Services\Outbound\DoApprovalService::class)->canActAtCurrentLevel($do, $user);
     }
 
     public function approveWarehouse(User $user, DeliveryOrder $do): bool

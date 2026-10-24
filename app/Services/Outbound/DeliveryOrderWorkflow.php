@@ -7,14 +7,11 @@ namespace App\Services\Outbound;
 use App\Data\Inventory\StockLine;
 use App\Data\Inventory\StockPosting;
 use App\Data\Inventory\StockReference;
-use App\Enums\Inbound\ApprovalChainDocumentType;
 use App\Enums\Inventory\MovementType;
 use App\Enums\Inventory\StockStatus;
 use App\Enums\Outbound\AllocationStatus;
 use App\Enums\Outbound\DeliveryOrderStatus;
-use App\Models\ApprovalChain;
 use App\Models\DeliveryOrder;
-use App\Models\DeliveryOrderApproval;
 use App\Models\ProofOfDelivery;
 use App\Models\PodFile;
 use App\Models\User;
@@ -29,6 +26,7 @@ final class DeliveryOrderWorkflow
         private readonly SettingsService $settings,
         private readonly StockReservations $reservations,
         private readonly StockLedger $ledger,
+        private readonly DoApprovalService $approvalService,
     ) {}
 
     public function submit(DeliveryOrder $do, User $by): void
@@ -40,28 +38,23 @@ final class DeliveryOrderWorkflow
         }
 
         DB::transaction(function () use ($do, $by, $resubmit) {
-            // On resubmit, clear prior approval records so chain restarts
             if ($resubmit) {
-                DeliveryOrderApproval::where('delivery_order_id', $do->id)->delete();
+                $this->approvalService->resetApprovals($do);
             }
 
             $do->status       = DeliveryOrderStatus::Submitted;
             $do->submitted_at = now();
             $do->save();
 
-            // Seed approval chain using ApprovalChain configured for MRN + department
-            $chains = ApprovalChain::where('document_type', ApprovalChainDocumentType::Mrn->value)
-                ->where('department_id', $do->department_id)
-                ->orderBy('level')
-                ->get();
+            $chains = $this->approvalService->getDepartmentChains($do);
 
             if ($chains->isEmpty()) {
-                // No chain configured → auto-approve immediately
                 $this->doApprove($do, $by);
             } else {
                 foreach ($chains as $chain) {
-                    DeliveryOrderApproval::create([
+                    \App\Models\DeliveryOrderApproval::create([
                         'delivery_order_id' => $do->id,
+                        'approval_chain_id' => $chain->id,
                         'level'             => $chain->level,
                         'approver_role'     => 'department',
                         'decision'          => null,
@@ -92,15 +85,14 @@ final class DeliveryOrderWorkflow
         $this->assertCanTransition($do, DeliveryOrderStatus::ReturnedForCorrection);
 
         DB::transaction(function () use ($do, $by, $notes) {
-            // Mark the pending approval record with a 'returned' decision
-            DeliveryOrderApproval::where('delivery_order_id', $do->id)
-                ->whereNull('decision')
-                ->update([
-                    'decided_by' => $by->id,
-                    'decision'   => 'returned',
-                    'notes'      => $notes,
-                    'decided_at' => now(),
-                ]);
+            $chain = $this->approvalService->currentPendingChain($do);
+
+            $this->approvalService->record(
+                $do, $by, 'returned',
+                $chain?->level ?? 1,
+                $chain?->id,
+                $notes,
+            );
 
             $do->status = DeliveryOrderStatus::ReturnedForCorrection;
             $do->save();
@@ -133,22 +125,20 @@ final class DeliveryOrderWorkflow
         });
     }
 
-    public function approve(DeliveryOrder $do, User $by, int $level): void
+    public function approve(DeliveryOrder $do, User $by): void
     {
-        DB::transaction(function () use ($do, $by, $level) {
-            DeliveryOrderApproval::where('delivery_order_id', $do->id)
-                ->where('level', $level)
-                ->whereNull('decision')
-                ->update([
-                    'decided_by' => $by->id,
-                    'decision'   => 'approved',
-                    'decided_at' => now(),
-                ]);
+        DB::transaction(function () use ($do, $by) {
+            $chain = $this->approvalService->currentPendingChain($do);
 
-            activity()->performedOn($do)->causedBy($by)->log("Level {$level} approved");
+            $this->approvalService->record(
+                $do, $by, 'approved',
+                $chain?->level ?? 1,
+                $chain?->id,
+            );
 
-            $pendingCount = $do->approvals()->whereNull('decision')->count();
-            if ($pendingCount === 0) {
+            activity()->performedOn($do)->causedBy($by)->log('Level ' . ($chain?->level ?? 1) . ' approved');
+
+            if ($this->approvalService->isFullyApproved($do)) {
                 $this->doApprove($do, $by);
             }
         });
