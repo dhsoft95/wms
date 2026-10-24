@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Livewire\Outbound\Orders;
 
 use App\Actions\Outbound\UpdateDeliveryOrderAction;
+use App\Enums\Inventory\StockStatus;
 use App\Enums\Outbound\AllocationRule;
 use App\Enums\Outbound\DeliveryOrderPriority;
 use App\Enums\Outbound\DeliveryOrderStatus;
 use App\Models\Department;
+use App\Models\Inventory\StockBalance;
 use App\Models\DeliveryOrder;
 use App\Models\Item;
 use App\Models\Partner;
@@ -211,6 +213,24 @@ class Edit extends Component
             'lines.*.uom_id'       => ['required', 'exists:units_of_measure,id'],
         ]);
 
+        // Stock validation — only count allocatable stock (pickable locations, available status)
+        $hasStockErrors = false;
+        foreach ($this->lines as $i => $line) {
+            [$available, $warning] = $this->checkLineStock((int) $line['item_id']);
+
+            if ($available <= 0) {
+                $this->addError("lines.{$i}.item_id", $warning ?? 'No allocatable stock available.');
+                $hasStockErrors = true;
+            } elseif ((float) $line['qty'] > $available) {
+                $this->addError("lines.{$i}.qty", "Requested {$line['qty']} exceeds available {$available} {$line['uom_code']}.");
+                $hasStockErrors = true;
+            }
+        }
+
+        if ($hasStockErrors) {
+            return;
+        }
+
         $mrnFilePath = $this->deliveryOrder->mrn_file_path;
         if ($this->mrnFile) {
             if ($mrnFilePath) {
@@ -266,6 +286,7 @@ class Edit extends Component
             'item_sku'      => '',
             'uom_code'      => '',
             'available_qty' => null,
+            'stock_warning' => null,
         ];
     }
 
@@ -281,7 +302,10 @@ class Edit extends Component
         $this->lines[$index]['item_sku']  = $item->sku;
         $this->lines[$index]['uom_id']    = (string) ($item->baseUom?->id ?? '');
         $this->lines[$index]['uom_code']  = $item->baseUom?->code ?? '';
-        $this->lines[$index]['available_qty'] = null;
+
+        [$available, $warning] = $this->checkLineStock($itemId);
+        $this->lines[$index]['available_qty'] = $this->virtualWarehouseId !== '' ? $available : null;
+        $this->lines[$index]['stock_warning'] = $warning;
     }
 
     private function clearLineItem(int $index): void
@@ -291,5 +315,62 @@ class Edit extends Component
         $this->lines[$index]['uom_id']        = '';
         $this->lines[$index]['uom_code']      = '';
         $this->lines[$index]['available_qty'] = null;
+        $this->lines[$index]['stock_warning'] = null;
+    }
+
+    /**
+     * @return array{0: float, 1: string|null}  [available_qty, warning_message]
+     */
+    private function checkLineStock(int $itemId): array
+    {
+        if ($this->virtualWarehouseId === '') {
+            return [0.0, null];
+        }
+
+        $pickable = ['storage', 'staging', 'hazardous'];
+        $vwId     = $this->virtualWarehouseId;
+
+        $available = StockBalance::where('item_id', $itemId)
+            ->where('virtual_warehouse_id', $vwId)
+            ->where('stock_status', StockStatus::Available->value)
+            ->whereHas('location', fn ($q) => $q->whereIn('type', $pickable)->whereIn('status', ['active', 'full']))
+            ->get()
+            ->sum(fn ($b) => (float) $b->qtyAvailable());
+
+        if ($available > 0) {
+            return [$available, null];
+        }
+
+        $anyStock = StockBalance::where('item_id', $itemId)
+            ->where('virtual_warehouse_id', $vwId)
+            ->where('qty_on_hand', '>', 0)
+            ->exists();
+
+        if (! $anyStock) {
+            return [0.0, 'No stock in this virtual warehouse.'];
+        }
+
+        $inDock = StockBalance::where('item_id', $itemId)
+            ->where('virtual_warehouse_id', $vwId)
+            ->whereRaw('qty_on_hand - qty_allocated > 0')
+            ->whereHas('location', fn ($q) => $q->whereNotIn('type', $pickable))
+            ->exists();
+
+        if ($inDock) {
+            return [0.0, 'Putaway not complete — stock is still in the receiving dock.'];
+        }
+
+        $onHold = StockBalance::where('item_id', $itemId)
+            ->where('virtual_warehouse_id', $vwId)
+            ->whereRaw('qty_on_hand - qty_allocated > 0')
+            ->whereHas('location', fn ($q) => $q->whereIn('type', $pickable))
+            ->where('stock_status', '!=', StockStatus::Available->value)
+            ->exists();
+
+        if ($onHold) {
+            return [0.0, 'Stock is on hold or obsolete.'];
+        }
+
+        return [0.0, 'All available stock is already reserved by other orders.'];
     }
 }

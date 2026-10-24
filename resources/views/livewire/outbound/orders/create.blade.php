@@ -166,8 +166,13 @@
                                         <option value="{{ $item->id }}">{{ $item->sku }} — {{ $item->name }}</option>
                                     @endforeach
                                 </select>
-                                @if ($line['available_qty'] !== null)
-                                    <p class="hint">Avail: {{ number_format($line['available_qty'], 2) }} {{ $line['uom_code'] }}</p>
+                                @if ($line['stock_warning'] ?? null)
+                                    <p class="hint !text-amber-600 flex items-center gap-1">
+                                        <x-ui.icon name="exclamation-triangle" class="w-3 h-3 shrink-0" />
+                                        {{ $line['stock_warning'] }}
+                                    </p>
+                                @elseif ($line['available_qty'] !== null)
+                                    <p class="hint text-slate-500">Avail: {{ number_format($line['available_qty'], 2) }} {{ $line['uom_code'] }}</p>
                                 @endif
                                 @error('lines.' . $i . '.item_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
                             </div>
