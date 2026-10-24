@@ -35,7 +35,7 @@
     {{-- Page Header --}}
     <div class="page-header">
         <div class="min-w-0">
-            <a href="{{ route('wtr.index') }}" wire:navigate
+            <a href="{{ route('warehouse.wtr.index') }}" wire:navigate
                class="inline-flex items-center gap-1.5 mb-2 text-xs font-semibold text-slate-500 transition-colors hover:text-simba-600 dark:text-slate-400 dark:hover:text-simba-400">
                 <x-ui.icon name="arrow-left" class="w-3.5 h-3.5 shrink-0" />
                 <span>Back to Warehouse Transfers</span>

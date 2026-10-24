@@ -1,7 +1,7 @@
 <div class="space-y-6">
     <div class="page-header">
         <div>
-            <a href="{{ route('wtr.index') }}" wire:navigate
+            <a href="{{ route('warehouse.wtr.index') }}" wire:navigate
                class="inline-flex items-center gap-1.5 mb-2 text-xs font-semibold text-slate-500 transition-colors hover:text-simba-600 dark:text-slate-400 dark:hover:text-simba-400">
                 <x-ui.icon name="arrow-left" class="w-3.5 h-3.5 shrink-0" />
                 <span>Back to Warehouse Transfers</span>
@@ -224,7 +224,7 @@
 
         {{-- Actions --}}
         <div class="flex justify-end gap-3">
-            <a href="{{ route('wtr.index') }}" wire:navigate class="btn btn-secondary">Cancel</a>
+            <a href="{{ route('warehouse.wtr.index') }}" wire:navigate class="btn btn-secondary">Cancel</a>
             <button type="submit" wire:loading.attr="disabled" wire:target="save" class="btn btn-primary">
                 <span wire:loading.remove wire:target="save">Create Transfer</span>
                 <span wire:loading wire:target="save">Creating…</span>

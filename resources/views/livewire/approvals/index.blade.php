@@ -225,7 +225,7 @@
                     @foreach ($this->pendingWtrApprovals as $wtr)
                         <tr wire:key="wtr-{{ $wtr->id }}">
                             <td>
-                                <a href="{{ route('wtr.show', $wtr) }}" wire:navigate
+                                <a href="{{ route('warehouse.wtr.show', $wtr) }}" wire:navigate
                                    class="mono font-semibold text-simba-600 dark:text-simba-400 hover:underline">
                                     {{ $wtr->number }}
                                 </a>
@@ -251,7 +251,7 @@
                             <td class="text-xs text-slate-500 tabular-nums">{{ $wtr->created_at->format('d M Y') }}</td>
                             <td class="text-right">
                                 <div class="flex items-center justify-end gap-2">
-                                    <a href="{{ route('wtr.show', $wtr) }}" wire:navigate class="btn btn-ghost btn-sm">View</a>
+                                    <a href="{{ route('warehouse.wtr.show', $wtr) }}" wire:navigate class="btn btn-ghost btn-sm">View</a>
                                     @if ($wtr->status === \App\Enums\Transfers\WarehouseTransferStatus::Submitted)
                                         @can('accept', $wtr)
                                             <button wire:click="acceptWtr({{ $wtr->id }})"

@@ -5,7 +5,7 @@
             <p class="page-sub">Move stock between warehouses (WTR).</p>
         </div>
         @can('create', \App\Models\WarehouseTransfer::class)
-            <a href="{{ route('wtr.create') }}" wire:navigate class="btn btn-primary">
+            <a href="{{ route('warehouse.wtr.create') }}" wire:navigate class="btn btn-primary">
                 <x-ui.icon name="plus" class="w-4 h-4" /> New WTR
             </a>
         @endcan
@@ -42,7 +42,7 @@
                 @forelse($this->transfers as $wtr)
                     <tr wire:key="wtr-{{ $wtr->id }}">
                         <td>
-                            <a href="{{ route('wtr.show', $wtr) }}" wire:navigate
+                            <a href="{{ route('warehouse.wtr.show', $wtr) }}" wire:navigate
                                class="mono font-semibold text-simba-600 dark:text-simba-400 hover:underline">
                                 {{ $wtr->number }}
                             </a>
@@ -57,7 +57,7 @@
                         </td>
                         <td class="text-meta tabular-nums">{{ $wtr->created_at->format('d M Y') }}</td>
                         <td class="text-right">
-                            <a href="{{ route('wtr.show', $wtr) }}" wire:navigate class="btn btn-sm btn-ghost">
+                            <a href="{{ route('warehouse.wtr.show', $wtr) }}" wire:navigate class="btn btn-sm btn-ghost">
                                 <x-ui.icon name="eye" class="w-3.5 h-3.5" />
                             </a>
                         </td>
