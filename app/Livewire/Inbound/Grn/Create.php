@@ -119,18 +119,19 @@ class Create extends Component
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
 
-    public function updatedLines(mixed $value, string $key): void
+    public function updated(string $property, mixed $value): void
     {
-        // Auto-fill UoM when item is selected on a line
-        if (preg_match('/^(\d+)\.item_id$/', $key, $m)) {
+        if (preg_match('/^lines\.(\d+)\.item_id$/', $property, $m)) {
             $i      = (int) $m[1];
-            $itemId = (int) ($this->lines[$i]['item_id'] ?? 0);
+            $itemId = (int) ($value ?? 0);
 
-            if ($itemId && empty($this->lines[$i]['uom_id'])) {
+            if ($itemId) {
                 $item = Item::find($itemId);
                 if ($item?->base_uom_id) {
                     $this->lines[$i]['uom_id'] = (string) $item->base_uom_id;
                 }
+            } else {
+                $this->lines[$i]['uom_id'] = '';
             }
         }
     }
