@@ -96,25 +96,7 @@ class DeliveryOrderPolicy
             return false;
         }
 
-        if ($user->hasRole('system-admin')) {
-            return true;
-        }
-
-        if ($do->department?->head_user_id === $user->id) {
-            return true;
-        }
-
-        // Warehouse manager can return when there is no department head
-        if (! $do->department?->head_user_id && $user->hasRole('warehouse-manager')) {
-            return true;
-        }
-
-        return false;
-    }
-
-    public function forwardReturn(User $user, DeliveryOrder $do): bool
-    {
-        if ($do->status !== DeliveryOrderStatus::ReturnedForCorrection) {
+        if (! $user->can('orders.approve.department')) {
             return false;
         }
 
@@ -126,12 +108,29 @@ class DeliveryOrderPolicy
             return true;
         }
 
-        // Warehouse manager can forward-return when there is no department head
-        if (! $do->department?->head_user_id && $user->hasRole('warehouse-manager')) {
+        // Warehouse manager can always return a submitted order
+        return $user->hasRole('warehouse-manager');
+    }
+
+    public function forwardReturn(User $user, DeliveryOrder $do): bool
+    {
+        if ($do->status !== DeliveryOrderStatus::ReturnedForCorrection) {
+            return false;
+        }
+
+        if (! $user->can('orders.approve.department')) {
+            return false;
+        }
+
+        if ($user->hasRole('system-admin')) {
             return true;
         }
 
-        return false;
+        if ($do->department?->head_user_id === $user->id) {
+            return true;
+        }
+
+        return $user->hasRole('warehouse-manager');
     }
 
     public function approveWarehouse(User $user, DeliveryOrder $do): bool

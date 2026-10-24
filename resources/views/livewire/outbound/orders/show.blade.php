@@ -65,11 +65,13 @@
                     <button wire:click="approve" wire:loading.attr="disabled" class="btn btn-primary">
                         <x-ui.icon name="check" class="w-4 h-4" /> Approve
                     </button>
-                    <button wire:click="$set('showReturnModal', true)" class="btn btn-secondary">
-                        <x-ui.icon name="arrow-uturn-left" class="w-4 h-4" /> Return
-                    </button>
                     <button wire:click="$set('showRejectModal', true)" class="btn btn-secondary text-red-600 dark:text-red-400">
                         <x-ui.icon name="x-circle" class="w-4 h-4" /> Reject
+                    </button>
+                @endcan
+                @can('returnOrder', $this->do)
+                    <button wire:click="$set('showReturnModal', true)" class="btn btn-secondary">
+                        <x-ui.icon name="arrow-uturn-left" class="w-4 h-4" /> Send Back
                     </button>
                 @endcan
             @endif
