@@ -188,7 +188,7 @@
 
                             {{-- Item --}}
                             <div class="col-span-6 md:col-span-5">
-                                <select wire:model="lines.{{ $i }}.item_id" class="input input-sm" @disabled(! $this->isDraft)>
+                                <select wire:model.live="lines.{{ $i }}.item_id" class="input input-sm" @disabled(! $this->isDraft)>
                                     <option value="">— Select item —</option>
                                     @foreach ($this->items as $item)
                                         <option value="{{ $item->id }}">{{ $item->sku }} — {{ $item->name }}</option>
