@@ -265,7 +265,9 @@
                                                 <x-ui.icon name="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0" />
                                                 <span class="text-slate-400 text-sm truncate">Select bin…</span>
                                             </div>
-                                            <x-ui.icon name="chevron-down" class="w-4 h-4 text-slate-400 shrink-0 transition-transform" :class="open ? 'rotate-180' : ''" />
+                                            <span class="transition-transform duration-200" :class="open ? 'rotate-180' : ''">
+                                                <x-ui.icon name="chevron-down" class="w-4 h-4 text-slate-400 shrink-0" />
+                                            </span>
                                         </button>
 
                                         <div x-show="open"
