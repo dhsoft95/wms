@@ -122,6 +122,20 @@ class Overview extends Component
         return $this->metrics()->containersInYard($this->user());
     }
 
+    // ── Sparkline computed properties ────────────────────────────────────────
+
+    #[Computed]
+    public function sparkStockReceived(): array
+    {
+        return $this->metrics()->sparkStockReceived($this->user(), $this->warehouseId);
+    }
+
+    #[Computed]
+    public function sparkOrdersDispatched(): array
+    {
+        return $this->metrics()->sparkOrdersDispatched($this->user(), $this->warehouseId);
+    }
+
     // ── Action list computed properties ──────────────────────────────────────
 
     #[Computed]

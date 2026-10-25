@@ -18,23 +18,23 @@
 <head>
     @include('partials.head')
 </head>
-<body class="font-sans antialiased overflow-x-hidden">
+<body class="font-sans antialiased overflow-x-hidden bg-slate-900">
 
     {{-- Background image --}}
     <div class="fixed inset-0 -z-20 scale-105 origin-center"
          style="background-image: url('{{ asset($authBg) }}'); background-size: cover; background-position: center;"
          aria-hidden="true"></div>
 
-    {{-- Dark overlay --}}
-    <div class="fixed inset-0 -z-10 bg-black/75 pointer-events-none" aria-hidden="true"></div>
+    {{-- Overlay — lightened so the background image shows through --}}
+    <div class="fixed inset-0 -z-10 bg-gradient-to-b from-black/30 via-black/40 to-black/55 pointer-events-none" aria-hidden="true"></div>
 
     {{-- Centered content --}}
     <div class="min-h-screen flex flex-col items-center justify-center px-4 py-10">
 
-        {{-- Glass card --}}
-        <div class="relative w-full max-w-md glass dark:glass-dark rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl">
+        {{-- Glass card — always uses a bright/white glass surface regardless of dark mode --}}
+        <div class="relative w-full max-w-md bg-white/80 dark:bg-slate-800/80 backdrop-blur-2xl border border-white/60 dark:border-white/15 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl">
             {{-- Diagonal sheen --}}
-            <div class="absolute inset-0 bg-gradient-to-br from-white/25 via-white/5 to-transparent pointer-events-none rounded-2xl sm:rounded-3xl" aria-hidden="true"></div>
+            <div class="absolute inset-0 bg-gradient-to-br from-white/30 via-white/5 to-transparent pointer-events-none rounded-2xl sm:rounded-3xl" aria-hidden="true"></div>
             {{-- Card content --}}
             <div class="relative p-6 sm:p-10">
 

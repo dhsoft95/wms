@@ -210,6 +210,14 @@ return [
                     'can'           => 'serials.view',
                 ],
                 [
+                    'key'           => 'sku-tracker',
+                    'label'         => 'SKU Tracker',
+                    'icon'          => 'search',
+                    'route'         => 'inventory.sku-tracker.index',
+                    'active_routes' => ['inventory.sku-tracker.*'],
+                    'can'           => 'stock.view',
+                ],
+                [
                     'key'           => 'disposals',
                     'label'         => 'Disposals',
                     'icon'          => 'trash',

@@ -3,11 +3,14 @@
     $fieldName  = $attributes->get('wire:model') ?: $attributes->get('name', '');
     $hasError   = $fieldName && $errors->has($fieldName);
     $inputId    = $attributes->get('id', ($fieldName ?: 'pw') . '_' . Str::random(4));
-    $inputClass = 'glass-input rounded-xl h-14 w-full pl-12 pr-12 text-sm'
+    $inputClass = 'rounded-xl h-14 w-full pl-12 pr-12 text-sm'
+        . ' bg-white/70 dark:bg-slate-700/50'
+        . ' border border-white/80 dark:border-slate-600/60'
+        . ' backdrop-blur-sm'
         . ' text-zinc-900 dark:text-white'
         . ' placeholder:text-zinc-400 dark:placeholder:text-zinc-500'
         . ' focus:outline-none focus:ring-2 focus:ring-simba-600/40 focus:border-simba-600 transition'
-        . ($hasError ? ' ring-2 ring-red-400/50 !border-red-400/50' : '');
+        . ($hasError ? ' !ring-2 !ring-red-400/50 !border-red-400/50' : '');
 @endphp
 <div class="space-y-1.5" x-data="{ show: false }">
     @if ($label)

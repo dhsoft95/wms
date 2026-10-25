@@ -212,6 +212,56 @@ final class DashboardMetrics
         });
     }
 
+    // ── Sparkline data ────────────────────────────────────────────────────────
+
+    /** 7 daily receipt qty values for the stock-on-hand sparkline. */
+    public function sparkStockReceived(User $user, ?int $warehouseId = null): array
+    {
+        return $this->remember('spark_stock_received', $user, $warehouseId, function () use ($user, $warehouseId) {
+            $from   = now()->subDays(6)->startOfDay();
+            $period = CarbonPeriod::create($from, '1 day', now());
+
+            $received = StockMovement::join('stock_transactions', 'stock_movements.stock_transaction_id', '=', 'stock_transactions.id')
+                ->where('stock_transactions.type', MovementType::Receipt->value)
+                ->where('stock_movements.qty', '>', 0)
+                ->where('stock_transactions.posted_at', '>=', $from)
+                ->groupBy(DB::raw('DATE(stock_transactions.posted_at)'))
+                ->select(DB::raw('DATE(stock_transactions.posted_at) as d'), DB::raw('SUM(stock_movements.qty) as total'))
+                ->pluck('total', 'd');
+
+            return collect($period)
+                ->map(fn ($d) => (float) ($received[$d->format('Y-m-d')] ?? 0))
+                ->values()
+                ->all();
+        });
+    }
+
+    /** 7 daily dispatched-order count values for the to-pick/dispatch sparkline. */
+    public function sparkOrdersDispatched(User $user, ?int $warehouseId = null): array
+    {
+        return $this->remember('spark_orders_dispatched', $user, $warehouseId, function () use ($user, $warehouseId) {
+            $from   = now()->subDays(6)->startOfDay();
+            $period = CarbonPeriod::create($from, '1 day', now());
+
+            $query = DeliveryOrder::where('status', DeliveryOrderStatus::Dispatched->value)
+                ->where('updated_at', '>=', $from);
+
+            if ($warehouseId) {
+                $query->whereHas('lines', fn ($q) => $q->where('warehouse_id', $warehouseId));
+            }
+
+            $counts = $query
+                ->groupBy(DB::raw('DATE(updated_at)'))
+                ->select(DB::raw('DATE(updated_at) as d'), DB::raw('COUNT(*) as total'))
+                ->pluck('total', 'd');
+
+            return collect($period)
+                ->map(fn ($d) => (int) ($counts[$d->format('Y-m-d')] ?? 0))
+                ->values()
+                ->all();
+        });
+    }
+
     // ── Action lists ──────────────────────────────────────────────────────────
 
     public function myApprovals(User $user): Collection
@@ -608,6 +658,7 @@ final class DashboardMetrics
             'awaiting_putaway', 'to_pick', 'in_transit', 'low_stock', 'expiring',
             'containers_in_yard', 'my_approvals', 'overdue_orders',
             'recent_variances', 'recent_activity',
+            'spark_stock_received', 'spark_orders_dispatched',
             'chart_inbound_outbound', 'chart_stock_vw', 'chart_stock_category',
             'chart_order_pipeline', 'chart_bin_util', 'chart_expiry',
             'chart_top_items', 'chart_container_dwell',

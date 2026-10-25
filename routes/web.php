@@ -207,6 +207,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->middleware('permission:quarantine.manage')->name('quarantine.index');
         Route::get('/serials', \App\Livewire\Inventory\Serials\Lookup::class)
             ->middleware('permission:serials.view')->name('serials.lookup');
+        Route::get('/sku-tracker', \App\Livewire\Inventory\SkuTracker\Index::class)->name('sku-tracker.index');
     });
 
     // Outbound

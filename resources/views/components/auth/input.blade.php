@@ -2,12 +2,15 @@
 @php
     $fieldName  = $attributes->get('wire:model') ?: $attributes->get('name', '');
     $hasError   = $fieldName && $errors->has($fieldName);
-    $inputClass = 'glass-input rounded-xl h-14 w-full text-sm'
+    $inputClass = 'rounded-xl h-14 w-full text-sm'
+        . ' bg-white/70 dark:bg-slate-700/50'
+        . ' border border-white/80 dark:border-slate-600/60'
+        . ' backdrop-blur-sm'
         . ' text-zinc-900 dark:text-white'
         . ' placeholder:text-zinc-400 dark:placeholder:text-zinc-500'
         . ' focus:outline-none focus:ring-2 focus:ring-simba-600/40 focus:border-simba-600 transition'
         . ($icon ? ' pl-12 pr-4' : ' px-4')
-        . ($hasError ? ' ring-2 ring-red-400/50 !border-red-400/50' : '');
+        . ($hasError ? ' !ring-2 !ring-red-400/50 !border-red-400/50' : '');
     $inputId    = $attributes->get('id', $fieldName ?: Str::random(8));
 @endphp
 <div class="space-y-1.5">

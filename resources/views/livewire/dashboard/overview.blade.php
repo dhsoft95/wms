@@ -45,170 +45,120 @@
     <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
 
         @if ($this->canSeeKpi('stock_on_hand'))
-        <a href="{{ route('inventory.stock.index') }}" wire:navigate
-           class="card p-4 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
-            <div class="flex items-start justify-between gap-2">
-                <p class="text-xs font-medium text-slate-500">Stock on Hand</p>
-                <div class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400 shrink-0">
-                    <x-ui.icon name="archive" class="w-4 h-4" />
-                </div>
-            </div>
-            <p class="mt-2 text-2xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">
-                {{ number_format($this->stockOnHand['qty'], 0) }}
-            </p>
-            <p class="mt-1 text-xs text-slate-500">{{ number_format($this->stockOnHand['sku_count']) }} SKUs</p>
-        </a>
+        <x-ui.kpi-card
+            label="Stock on Hand"
+            :value="number_format($this->stockOnHand['qty'], 0)"
+            :hint="number_format($this->stockOnHand['sku_count']) . ' SKUs'"
+            icon="archive"
+            tone="brand"
+            :href="route('inventory.stock.index')"
+            :spark="$this->sparkStockReceived"
+        />
         @endif
 
         @if ($this->canSeeKpi('open_orders'))
-        <div class="card p-4">
-            <div class="flex items-start justify-between gap-2">
-                <p class="text-xs font-medium text-slate-500">Open Orders</p>
-                <div class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400 shrink-0">
-                    <x-ui.icon name="clipboard-list" class="w-4 h-4" />
-                </div>
-            </div>
-            <p class="mt-2 text-2xl font-bold tabular-nums">{{ number_format($this->openOrders['total']) }}</p>
-            <p class="mt-1 text-xs text-slate-500">
-                {{ $this->openOrders['po_count'] }} PO &bull;
-                {{ $this->openOrders['grn_count'] }} GRN &bull;
-                {{ $this->openOrders['transfer_count'] }} transfer
-            </p>
-        </div>
+        @php $openOrdersHint = $this->openOrders['po_count'] . ' PO · ' . $this->openOrders['grn_count'] . ' GRN · ' . $this->openOrders['transfer_count'] . ' transfer'; @endphp
+        <x-ui.kpi-card
+            label="Open Orders"
+            :value="number_format($this->openOrders['total'])"
+            :hint="$openOrdersHint"
+            icon="clipboard-list"
+            tone="brand"
+        />
         @endif
 
         @if ($this->canSeeKpi('pending_approvals'))
-        <a href="{{ route('approvals.index') }}" wire:navigate
-           class="card p-4 hover:border-amber-300 dark:hover:border-amber-600 transition-colors group">
-            <div class="flex items-start justify-between gap-2">
-                <p class="text-xs font-medium text-slate-500">Pending Approvals</p>
-                <div class="kpi-icon !w-8 !h-8 bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 shrink-0">
-                    <x-ui.icon name="bell" class="w-4 h-4" />
-                </div>
-            </div>
-            <p class="mt-2 text-2xl font-bold tabular-nums {{ $this->pendingApprovals['total'] > 0 ? 'text-amber-600' : '' }}">
-                {{ $this->pendingApprovals['total'] }}
-            </p>
-            <p class="mt-1 text-xs text-slate-500">For you to action</p>
-        </a>
+        @php $approvalTone = $this->pendingApprovals['total'] > 0 ? 'warning' : 'neutral'; @endphp
+        <x-ui.kpi-card
+            label="Pending Approvals"
+            :value="$this->pendingApprovals['total']"
+            hint="For you to action"
+            icon="bell"
+            :tone="$approvalTone"
+            :href="route('approvals.index')"
+        />
         @endif
 
         @if ($this->canSeeKpi('to_receive'))
-        <a href="{{ route('inbound.grn.index') }}" wire:navigate
-           class="card p-4 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
-            <div class="flex items-start justify-between gap-2">
-                <p class="text-xs font-medium text-slate-500">To Receive</p>
-                <div class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400 shrink-0">
-                    <x-ui.icon name="inbox" class="w-4 h-4" />
-                </div>
-            </div>
-            <p class="mt-2 text-2xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">
-                {{ $this->toReceive['total'] }}
-            </p>
-            <p class="mt-1 text-xs text-slate-500">{{ $this->toReceive['today'] }} started today</p>
-        </a>
+        @php $toReceiveHint = $this->toReceive['today'] . ' started today'; @endphp
+        <x-ui.kpi-card
+            label="To Receive"
+            :value="$this->toReceive['total']"
+            :hint="$toReceiveHint"
+            icon="inbox"
+            tone="brand"
+            :href="route('inbound.grn.index')"
+        />
         @endif
 
         @if ($this->canSeeKpi('awaiting_putaway'))
-        <a href="{{ route('inbound.grn.index') }}" wire:navigate
-           class="card p-4 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
-            <div class="flex items-start justify-between gap-2">
-                <p class="text-xs font-medium text-slate-500">Awaiting Put-Away</p>
-                <div class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400 shrink-0">
-                    <x-ui.icon name="arrows" class="w-4 h-4" />
-                </div>
-            </div>
-            <p class="mt-2 text-2xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">
-                {{ $this->awaitingPutaway['total'] }}
-            </p>
-            <p class="mt-1 text-xs text-slate-500">Open tasks</p>
-        </a>
+        <x-ui.kpi-card
+            label="Awaiting Put-Away"
+            :value="$this->awaitingPutaway['total']"
+            hint="Open tasks"
+            icon="arrows"
+            tone="brand"
+            :href="route('inbound.putaway.index')"
+        />
         @endif
 
         @if ($this->canSeeKpi('to_pick'))
-        <a href="{{ route('outbound.orders.index') }}" wire:navigate
-           class="card p-4 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
-            <div class="flex items-start justify-between gap-2">
-                <p class="text-xs font-medium text-slate-500">To Pick / Dispatch</p>
-                <div class="kpi-icon !w-8 !h-8 bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400 shrink-0">
-                    <x-ui.icon name="truck" class="w-4 h-4" />
-                </div>
-            </div>
-            <p class="mt-2 text-2xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">
-                {{ $this->toPick['total'] }}
-            </p>
-            <p class="mt-1 text-xs text-slate-500">Orders ready to pick</p>
-        </a>
+        <x-ui.kpi-card
+            label="To Pick / Dispatch"
+            :value="$this->toPick['total']"
+            hint="Orders ready to pick"
+            icon="truck"
+            tone="success"
+            :href="route('outbound.orders.index')"
+            :spark="$this->sparkOrdersDispatched"
+        />
         @endif
 
         @if ($this->canSeeKpi('in_transit'))
-        <div class="card p-4">
-            <div class="flex items-start justify-between gap-2">
-                <p class="text-xs font-medium text-slate-500">In Transit</p>
-                <div class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400 shrink-0">
-                    <x-ui.icon name="cube" class="w-4 h-4" />
-                </div>
-            </div>
-            <p class="mt-2 text-2xl font-bold tabular-nums">{{ $this->inTransit['total'] }}</p>
-            <p class="mt-1 text-xs text-slate-500">
-                {{ $this->inTransit['containers'] }} containers &bull;
-                {{ $this->inTransit['transfers'] }} transfers
-            </p>
-        </div>
+        @php $inTransitHint = $this->inTransit['containers'] . ' containers · ' . $this->inTransit['transfers'] . ' transfers'; @endphp
+        <x-ui.kpi-card
+            label="In Transit"
+            :value="number_format($this->inTransit['total'])"
+            :hint="$inTransitHint"
+            icon="cube"
+            tone="brand"
+        />
         @endif
 
         @if ($this->canSeeKpi('low_stock'))
-        <a href="{{ route('inventory.stock.index') }}" wire:navigate
-           class="card p-4 hover:border-red-300 dark:hover:border-red-700 transition-colors group">
-            <div class="flex items-start justify-between gap-2">
-                <p class="text-xs font-medium text-slate-500">Low Stock</p>
-                <div class="kpi-icon !w-8 !h-8 {{ $this->lowStock['count'] > 0 ? 'bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400' : 'bg-slate-100 text-slate-400' }} shrink-0">
-                    <x-ui.icon name="alert" class="w-4 h-4" />
-                </div>
-            </div>
-            <p class="mt-2 text-2xl font-bold tabular-nums {{ $this->lowStock['count'] > 0 ? 'text-red-600' : '' }}">
-                {{ $this->lowStock['count'] }}
-            </p>
-            <p class="mt-1 text-xs text-slate-500">SKUs below min stock</p>
-        </a>
+        @php $lowStockTone = $this->lowStock['count'] > 0 ? 'danger' : 'neutral'; @endphp
+        <x-ui.kpi-card
+            label="Low Stock"
+            :value="$this->lowStock['count']"
+            hint="SKUs below min stock"
+            icon="alert"
+            :tone="$lowStockTone"
+            :href="route('inventory.stock.index')"
+        />
         @endif
 
         @if ($this->canSeeKpi('expiring'))
-        <a href="{{ route('inventory.stock.index') }}" wire:navigate
-           class="card p-4 hover:border-amber-300 dark:hover:border-amber-600 transition-colors group">
-            <div class="flex items-start justify-between gap-2">
-                <p class="text-xs font-medium text-slate-500">Expiring Soon</p>
-                <div class="kpi-icon !w-8 !h-8 {{ $this->expiring['count'] > 0 ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400' : 'bg-slate-100 text-slate-400' }} shrink-0">
-                    <x-ui.icon name="clock" class="w-4 h-4" />
-                </div>
-            </div>
-            <p class="mt-2 text-2xl font-bold tabular-nums {{ $this->expiring['count'] > 0 ? 'text-amber-600' : '' }}">
-                {{ $this->expiring['count'] }}
-            </p>
-            <p class="mt-1 text-xs text-slate-500">SKUs expiring in ≤ 30 days</p>
-        </a>
+        @php $expiringTone = $this->expiring['count'] > 0 ? 'warning' : 'neutral'; @endphp
+        <x-ui.kpi-card
+            label="Expiring Soon"
+            :value="$this->expiring['count']"
+            hint="SKUs expiring in ≤ 30 days"
+            icon="clock"
+            :tone="$expiringTone"
+            :href="route('inventory.stock.index')"
+        />
         @endif
 
         @if ($this->canSeeKpi('containers_in_yard'))
-        <a href="{{ route('inbound.containers.index') }}" wire:navigate
-           class="card p-4 hover:border-simba-300 dark:hover:border-simba-600 transition-colors group">
-            <div class="flex items-start justify-between gap-2">
-                <p class="text-xs font-medium text-slate-500">Containers in Yard</p>
-                <div class="kpi-icon !w-8 !h-8 bg-simba-50 text-simba-600 dark:bg-simba-500/10 dark:text-simba-400 shrink-0">
-                    <x-ui.icon name="cube" class="w-4 h-4" />
-                </div>
-            </div>
-            <p class="mt-2 text-2xl font-bold tabular-nums group-hover:text-simba-600 transition-colors">
-                {{ $this->containersInYard['total'] }}
-            </p>
-            <p class="mt-1 text-xs {{ $this->containersInYard['over_dwell'] > 0 ? 'text-red-500 font-medium' : 'text-slate-500' }}">
-                @if ($this->containersInYard['over_dwell'] > 0)
-                    {{ $this->containersInYard['over_dwell'] }} over dwell limit
-                @else
-                    All within dwell limit
-                @endif
-            </p>
-        </a>
+        @php $yardHint = $this->containersInYard['over_dwell'] > 0 ? $this->containersInYard['over_dwell'] . ' over dwell limit' : 'All within dwell limit'; @endphp
+        <x-ui.kpi-card
+            label="Containers in Yard"
+            :value="$this->containersInYard['total']"
+            :hint="$yardHint"
+            icon="cube"
+            tone="brand"
+            :href="route('inbound.containers.index')"
+        />
         @endif
 
     </div>
