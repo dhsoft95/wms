@@ -255,7 +255,7 @@
                                 @foreach($this->recentMovements as $mv)
                                     <tr>
                                         <td class="whitespace-nowrap text-xs text-slate-500">
-                                            {{ $mv->created_at?->format('d M Y H:i') ?? '—' }}
+                                            {{ $mv->created_at ? \Illuminate\Support\Carbon::parse($mv->created_at)->format('d M Y H:i') : '—' }}
                                         </td>
                                         <td>
                                             @if($mv->transaction?->type)
@@ -443,7 +443,7 @@
                                             </td>
                                             <td class="text-sm">{{ $serial->location?->code ?? '—' }}</td>
                                             <td class="font-mono text-xs text-slate-500">{{ $serial->batch?->batch_no ?? '—' }}</td>
-                                            <td class="text-xs text-slate-400">{{ $serial->updated_at?->format('d M Y H:i') ?? '—' }}</td>
+                                            <td class="text-xs text-slate-400">{{ $serial->updated_at ? \Illuminate\Support\Carbon::parse($serial->updated_at)->format('d M Y H:i') : '—' }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
