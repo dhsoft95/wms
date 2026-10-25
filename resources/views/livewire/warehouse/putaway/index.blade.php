@@ -230,41 +230,82 @@
                                  wire:key="bin-sel-{{ $i }}"
                                  x-data="{
                                      open: false,
-                                     results: [],
-                                     async fetch(q) {
-                                         this.results = await $wire.getBinSuggestions(q);
-                                         this.open = this.results.length > 0;
+                                     search: '',
+                                     allBins: [],
+                                     loading: false,
+                                     get filtered() {
+                                         if (!this.search) return this.allBins;
+                                         const s = this.search.toLowerCase();
+                                         return this.allBins.filter(r =>
+                                             r.code.toLowerCase().includes(s) ||
+                                             (r.barcode && r.barcode.toLowerCase().includes(s))
+                                         );
+                                     },
+                                     async openDropdown() {
+                                         this.open = true;
+                                         this.search = '';
+                                         if (this.allBins.length === 0) {
+                                             this.loading = true;
+                                             this.allBins = await $wire.getBinSuggestions('');
+                                             this.loading = false;
+                                         }
+                                         this.$nextTick(() => this.$refs.binSearch?.focus());
                                      }
-                                 }">
+                                 }"
+                                 @click.outside="open = false"
+                                 @keydown.escape="open = false">
                                 <label class="label text-xs">Bin / Location <span class="text-red-500">*</span></label>
 
                                 @if (empty($row['locationId']))
                                     <div class="relative">
-                                        <x-ui.icon name="map-pin" class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                        <input type="text"
-                                               placeholder="Search bin code…"
-                                               class="input w-full font-mono text-sm !pl-8"
-                                               autocomplete="off"
-                                               @focus="fetch('')"
-                                               @input.debounce.200ms="fetch($el.value)"
-                                               @keydown.escape="open = false" />
+                                        <button type="button"
+                                                @click="openDropdown()"
+                                                class="input w-full flex items-center justify-between gap-2 text-left cursor-pointer">
+                                            <div class="flex items-center gap-2 min-w-0">
+                                                <x-ui.icon name="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                <span class="text-slate-400 text-sm truncate">Select bin…</span>
+                                            </div>
+                                            <x-ui.icon name="chevron-down" class="w-4 h-4 text-slate-400 shrink-0" :class="{ 'rotate-180': open }" />
+                                        </button>
+
                                         <div x-show="open"
                                              x-cloak
-                                             @click.outside="open = false"
-                                             class="absolute z-30 w-full mt-1 overflow-hidden rounded-xl border border-slate-200 dark:border-white/[0.08] shadow-xl bg-white dark:bg-zinc-900">
-                                            <template x-for="loc in results" :key="loc.id">
-                                                <button type="button"
-                                                        @mousedown.prevent="$wire.selectSplitBin({{ $i }}, loc.id, loc.code); open = false"
-                                                        class="w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors border-t first:border-0 border-slate-100 dark:border-white/[0.06]">
-                                                    <div class="flex items-center gap-2">
-                                                        <x-ui.icon name="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                        <span x-text="loc.code" class="font-mono font-semibold text-slate-800 dark:text-slate-200"></span>
-                                                    </div>
-                                                    <span x-show="loc.barcode && loc.barcode !== loc.code"
-                                                          x-text="loc.barcode"
-                                                          class="text-xs text-slate-400 font-mono ml-2"></span>
-                                                </button>
-                                            </template>
+                                             class="absolute z-30 w-full mt-1 rounded-xl border border-slate-200 dark:border-white/[0.08] shadow-xl bg-white dark:bg-zinc-900 overflow-hidden">
+
+                                            {{-- Search box inside dropdown --}}
+                                            <div class="p-2 border-b border-slate-100 dark:border-white/[0.06]">
+                                                <div class="relative">
+                                                    <x-ui.icon name="search" class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                                    <input type="text"
+                                                           x-ref="binSearch"
+                                                           x-model="search"
+                                                           placeholder="Filter bins…"
+                                                           class="input !pl-8 !py-1.5 text-sm w-full"
+                                                           autocomplete="off" />
+                                                </div>
+                                            </div>
+
+                                            <div class="max-h-48 overflow-y-auto">
+                                                <template x-if="loading">
+                                                    <div class="px-3 py-4 text-center text-xs text-slate-400">Loading bins…</div>
+                                                </template>
+                                                <template x-if="!loading && filtered.length === 0">
+                                                    <div class="px-3 py-4 text-center text-xs text-slate-400">No bins found.</div>
+                                                </template>
+                                                <template x-for="loc in filtered" :key="loc.id">
+                                                    <button type="button"
+                                                            @mousedown.prevent="$wire.selectSplitBin({{ $i }}, loc.id, loc.code); open = false"
+                                                            class="w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors border-t first:border-0 border-slate-100 dark:border-white/[0.06]">
+                                                        <div class="flex items-center gap-2">
+                                                            <x-ui.icon name="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                            <span x-text="loc.code" class="font-mono font-semibold text-slate-800 dark:text-slate-200"></span>
+                                                        </div>
+                                                        <span x-show="loc.barcode && loc.barcode !== loc.code"
+                                                              x-text="loc.barcode"
+                                                              class="text-xs text-slate-400 font-mono ml-2"></span>
+                                                    </button>
+                                                </template>
+                                            </div>
                                         </div>
                                     </div>
                                 @else

@@ -162,7 +162,7 @@ class Index extends Component
         }
 
         return $query->orderBy('code')
-            ->limit(8)
+            ->limit(200)
             ->get(['id', 'code', 'barcode'])
             ->map(fn ($l) => ['id' => $l->id, 'code' => $l->code, 'barcode' => $l->barcode])
             ->toArray();
