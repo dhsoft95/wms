@@ -211,106 +211,175 @@
                     <div wire:key="split-row-{{ $i }}"
                          class="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
 
-                        {{-- Row header --}}
-                        <div class="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-white/[0.03] border-b border-slate-200 dark:border-slate-700">
-                            <span class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                                Destination {{ $i + 1 }}
-                            </span>
-                            @if (count($splitRows) > 1)
-                                <button wire:click="removeSplitRow({{ $i }})"
-                                        class="text-xs text-red-500 hover:text-red-700 dark:text-red-400 flex items-center gap-1">
-                                    <x-ui.icon name="trash" class="w-3 h-3" /> Remove
-                                </button>
-                            @endif
-                        </div>
+                        @php
+                            $takenLocationIds = collect($splitRows)
+                                ->filter(fn($r, $idx) => $idx !== $i && !empty($r['locationId']))
+                                ->pluck('locationId')
+                                ->map(fn($id) => (int) $id)
+                                ->values()
+                                ->all();
+                        @endphp
 
-                        <div class="p-3 grid grid-cols-5 gap-3">
-                            {{-- Bin selector --}}
-                            <div class="{{ $serialDriven ? 'col-span-5' : 'col-span-3' }}"
+                        {{-- Row body: bin (flex-1) | qty (fixed) | remove (icon) --}}
+                        <div class="p-3 flex flex-col sm:flex-row sm:items-end gap-3">
+
+                            {{-- Bin combobox --}}
+                            <div class="flex-1 min-w-0"
                                  wire:key="bin-sel-{{ $i }}"
                                  x-data="{
                                      open: false,
                                      search: '',
                                      allBins: [],
                                      loading: false,
+                                     focusedIdx: -1,
+                                     triggerEl: null,
+                                     panelStyle: 'top:0;left:0;width:300px;max-height:320px',
+                                     rowIdx: {{ $i }},
+                                     takenIds: @js($takenLocationIds),
                                      get filtered() {
-                                         if (!this.search) return this.allBins;
                                          const s = this.search.toLowerCase();
-                                         return this.allBins.filter(r =>
-                                             r.code.toLowerCase().includes(s) ||
-                                             (r.barcode && r.barcode.toLowerCase().includes(s))
-                                         );
+                                         return s
+                                             ? this.allBins.filter(r => r.code.toLowerCase().includes(s) || (r.barcode && r.barcode.toLowerCase().includes(s)))
+                                             : this.allBins;
                                      },
-                                     async openDropdown() {
-                                         this.open = true;
-                                         this.search = '';
+                                     computePosition() {
+                                         if (!this.triggerEl) return;
+                                         const r = this.triggerEl.getBoundingClientRect();
+                                         const vh = window.innerHeight, vw = window.innerWidth;
+                                         const pw = Math.max(r.width, 300);
+                                         const below = vh - r.bottom - 8, above = r.top - 8;
+                                         let top, avail;
+                                         if (below >= 200 || below >= above) {
+                                             top = r.bottom + 4; avail = Math.min(320, below);
+                                         } else {
+                                             avail = Math.min(320, above); top = r.top - avail - 4;
+                                         }
+                                         let left = r.left;
+                                         if (left + pw > vw - 8) left = vw - pw - 8;
+                                         if (left < 8) left = 8;
+                                         this.panelStyle = 'top:' + Math.round(top) + 'px;left:' + Math.round(left) + 'px;width:' + Math.round(pw) + 'px;max-height:' + Math.round(avail) + 'px';
+                                     },
+                                     async openDropdown(el) {
+                                         this.triggerEl = el; this.open = true; this.search = ''; this.focusedIdx = -1;
+                                         this.computePosition();
+                                         this._rp = () => { if (this.open) this.computePosition(); };
+                                         window.addEventListener('scroll', this._rp, true);
+                                         window.addEventListener('resize', this._rp);
                                          if (this.allBins.length === 0) {
                                              this.loading = true;
                                              this.allBins = await $wire.getBinSuggestions('');
                                              this.loading = false;
                                          }
                                          this.$nextTick(() => this.$refs.binSearch?.focus());
+                                     },
+                                     closeDropdown() {
+                                         this.open = false; this.focusedIdx = -1;
+                                         window.removeEventListener('scroll', this._rp, true);
+                                         window.removeEventListener('resize', this._rp);
+                                         this.$nextTick(() => this.triggerEl?.focus());
+                                     },
+                                     handleKey(e) {
+                                         if (!this.open) return;
+                                         const avail = this.filtered.filter(r => !this.takenIds.includes(r.id));
+                                         if (e.key === 'ArrowDown') {
+                                             e.preventDefault(); this.focusedIdx = Math.min(this.focusedIdx + 1, avail.length - 1);
+                                             this.$nextTick(() => this.$refs.binList?.querySelector('[data-focused]')?.scrollIntoView({ block: 'nearest' }));
+                                         } else if (e.key === 'ArrowUp') {
+                                             e.preventDefault(); this.focusedIdx = Math.max(this.focusedIdx - 1, 0);
+                                             this.$nextTick(() => this.$refs.binList?.querySelector('[data-focused]')?.scrollIntoView({ block: 'nearest' }));
+                                         } else if (e.key === 'Enter' && this.focusedIdx >= 0 && avail[this.focusedIdx]) {
+                                             e.preventDefault(); const loc = avail[this.focusedIdx];
+                                             $wire.selectSplitBin(this.rowIdx, loc.id, loc.code); this.closeDropdown();
+                                         } else if (e.key === 'Escape') {
+                                             e.preventDefault(); this.closeDropdown();
+                                         }
                                      }
-                                 }"
-                                 @click.outside="open = false"
-                                 @keydown.escape="open = false">
-                                <label class="label text-xs">Bin / Location <span class="text-red-500">*</span></label>
+                                 }">
+                                <label class="label text-xs">
+                                    Destination {{ $i + 1 }} <span class="text-red-500">*</span>
+                                </label>
 
                                 @if (empty($row['locationId']))
-                                    <div class="relative">
-                                        <button type="button"
-                                                @click="openDropdown()"
-                                                class="input w-full flex items-center justify-between gap-2 text-left cursor-pointer">
-                                            <div class="flex items-center gap-2 min-w-0">
-                                                <x-ui.icon name="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                <span class="text-slate-400 text-sm truncate">Select bin…</span>
-                                            </div>
-                                            <span class="transition-transform duration-200" :class="open ? 'rotate-180' : ''">
-                                                <x-ui.icon name="chevron-down" class="w-4 h-4 text-slate-400 shrink-0" />
-                                            </span>
-                                        </button>
+                                    {{-- Trigger button --}}
+                                    <button type="button"
+                                            @click="open ? closeDropdown() : openDropdown($el)"
+                                            class="input w-full flex items-center justify-between gap-2 text-left cursor-pointer">
+                                        <div class="flex items-center gap-2 min-w-0">
+                                            <x-ui.icon name="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                            <span class="text-slate-400 text-sm">Select bin…</span>
+                                        </div>
+                                        <span class="transition-transform duration-200 shrink-0" :class="open ? 'rotate-180' : ''">
+                                            <x-ui.icon name="chevron-down" class="w-4 h-4 text-slate-400" />
+                                        </span>
+                                    </button>
 
-                                        <div x-show="open"
-                                             x-cloak
-                                             class="absolute z-30 w-full mt-1 rounded-xl border border-slate-200 dark:border-white/[0.08] shadow-xl bg-white dark:bg-zinc-900 overflow-hidden">
+                                    {{-- Panel teleported to <body> to escape all overflow clipping --}}
+                                    <template x-teleport="body">
+                                        <div>
+                                            {{-- Transparent backdrop — closes on outside click --}}
+                                            <div x-show="open"
+                                                 x-cloak
+                                                 style="position:fixed;inset:0;z-index:9998"
+                                                 @click="closeDropdown()"></div>
 
-                                            {{-- Search box inside dropdown --}}
-                                            <div class="p-2 border-b border-slate-100 dark:border-white/[0.06]">
-                                                <div class="relative">
-                                                    <x-ui.icon name="search" class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                                                    <input type="text"
-                                                           x-ref="binSearch"
-                                                           x-model="search"
-                                                           placeholder="Filter bins…"
-                                                           class="input !pl-8 !py-1.5 text-sm w-full"
-                                                           autocomplete="off" />
+                                            {{-- Dropdown panel — fixed-positioned, anchored to trigger --}}
+                                            <div x-show="open"
+                                                 x-cloak
+                                                 :style="'position:fixed;z-index:9999;' + panelStyle"
+                                                 class="rounded-xl border border-slate-200 dark:border-white/[0.08] shadow-2xl bg-white dark:bg-zinc-900 flex flex-col overflow-hidden">
+
+                                                {{-- Search input (pinned to top) --}}
+                                                <div class="p-2 border-b border-slate-100 dark:border-white/[0.06] shrink-0">
+                                                    <div class="relative">
+                                                        <x-ui.icon name="search" class="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                                                        <input type="text"
+                                                               x-ref="binSearch"
+                                                               x-model="search"
+                                                               @keydown="handleKey($event)"
+                                                               placeholder="Filter bins…"
+                                                               class="input !pl-8 !py-1.5 text-sm w-full"
+                                                               autocomplete="off" />
+                                                    </div>
+                                                </div>
+
+                                                {{-- Scrollable list --}}
+                                                <div x-ref="binList" class="overflow-y-auto flex-1">
+                                                    <template x-if="loading">
+                                                        <div class="px-3 py-5 text-center text-xs text-slate-400">Loading bins…</div>
+                                                    </template>
+                                                    <template x-if="!loading && filtered.length === 0">
+                                                        <div class="px-3 py-5 text-center text-xs text-slate-400">No bins match.</div>
+                                                    </template>
+                                                    <template x-for="(loc, idx) in filtered" :key="loc.id">
+                                                        <button type="button"
+                                                                :data-focused="focusedIdx === idx ? '' : null"
+                                                                @mousedown.prevent="if (!takenIds.includes(loc.id)) { $wire.selectSplitBin(rowIdx, loc.id, loc.code); closeDropdown(); }"
+                                                                :disabled="takenIds.includes(loc.id)"
+                                                                :class="{
+                                                                    'opacity-40 cursor-not-allowed': takenIds.includes(loc.id),
+                                                                    'bg-simba-50 dark:bg-simba-900/20': !takenIds.includes(loc.id) && focusedIdx === idx,
+                                                                    'hover:bg-slate-50 dark:hover:bg-white/[0.04]': !takenIds.includes(loc.id) && focusedIdx !== idx
+                                                                }"
+                                                                class="w-full flex items-center justify-between px-3 py-2.5 text-sm transition-colors border-t first:border-0 border-slate-100 dark:border-white/[0.06]">
+                                                            <div class="flex items-center gap-2">
+                                                                <x-ui.icon name="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                                <span x-text="loc.code" class="font-mono font-semibold text-slate-800 dark:text-slate-200"></span>
+                                                            </div>
+                                                            <div class="flex items-center gap-2 shrink-0">
+                                                                <span x-show="loc.barcode && loc.barcode !== loc.code"
+                                                                      x-text="loc.barcode"
+                                                                      class="text-xs text-slate-400 font-mono"></span>
+                                                                <span x-show="takenIds.includes(loc.id)"
+                                                                      class="text-[10px] text-slate-400 italic">in use</span>
+                                                            </div>
+                                                        </button>
+                                                    </template>
                                                 </div>
                                             </div>
-
-                                            <div class="max-h-48 overflow-y-auto">
-                                                <template x-if="loading">
-                                                    <div class="px-3 py-4 text-center text-xs text-slate-400">Loading bins…</div>
-                                                </template>
-                                                <template x-if="!loading && filtered.length === 0">
-                                                    <div class="px-3 py-4 text-center text-xs text-slate-400">No bins found.</div>
-                                                </template>
-                                                <template x-for="loc in filtered" :key="loc.id">
-                                                    <button type="button"
-                                                            @mousedown.prevent="$wire.selectSplitBin({{ $i }}, loc.id, loc.code); open = false"
-                                                            class="w-full flex items-center justify-between px-3 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-white/[0.04] transition-colors border-t first:border-0 border-slate-100 dark:border-white/[0.06]">
-                                                        <div class="flex items-center gap-2">
-                                                            <x-ui.icon name="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                                            <span x-text="loc.code" class="font-mono font-semibold text-slate-800 dark:text-slate-200"></span>
-                                                        </div>
-                                                        <span x-show="loc.barcode && loc.barcode !== loc.code"
-                                                              x-text="loc.barcode"
-                                                              class="text-xs text-slate-400 font-mono ml-2"></span>
-                                                    </button>
-                                                </template>
-                                            </div>
                                         </div>
-                                    </div>
+                                    </template>
                                 @else
+                                    {{-- Selected state chip --}}
                                     <div class="flex items-center gap-2 rounded-lg border border-emerald-200 dark:border-emerald-800/50 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2">
                                         <x-ui.icon name="map-pin" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                                         <span class="font-mono text-sm font-bold text-emerald-700 dark:text-emerald-300 flex-1">{{ $row['locationCode'] }}</span>
@@ -323,7 +392,8 @@
                             </div>
 
                             @if (! $serialDriven)
-                            <div class="col-span-2">
+                            {{-- Quantity input --}}
+                            <div class="w-28 shrink-0">
                                 <label class="label text-xs">Quantity <span class="text-red-500">*</span></label>
                                 <input wire:model.live="splitRows.{{ $i }}.qty"
                                        type="number"
@@ -333,6 +403,18 @@
                                        class="input w-full tabular-nums text-sm text-right" />
                             </div>
                             @endif
+
+                            @if (count($splitRows) > 1)
+                            {{-- Remove row --}}
+                            <div class="shrink-0 self-end">
+                                <button wire:click="removeSplitRow({{ $i }})"
+                                        title="Remove destination"
+                                        class="h-9 w-9 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
+                                    <x-ui.icon name="trash" class="w-4 h-4" />
+                                </button>
+                            </div>
+                            @endif
+
                         </div>
 
                         {{-- Serials --}}
