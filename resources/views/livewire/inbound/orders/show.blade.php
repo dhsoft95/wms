@@ -544,7 +544,7 @@
                             </div>
                             @if ($purchaseOrder->po_file_path)
                                 <x-ui.pdf-viewer :url="route('inbound.orders.document.download', $purchaseOrder)"
-                                                 label="Purchase Order — {{ $purchaseOrder->number }}"
+                                                 label="Purchase Order  {{ $purchaseOrder->number }}"
                                                  btnClass="btn btn-ghost btn-sm gap-1 text-xs shrink-0">
                                     <x-ui.icon name="eye" class="w-3.5 h-3.5" /> View
                                 </x-ui.pdf-viewer>
