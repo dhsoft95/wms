@@ -264,7 +264,7 @@ return [
                     'icon'          => 'chart-bar',
                     'route'         => 'reports.index',
                     'active_routes' => ['reports.index'],
-                    'can'           => 'reports.view',
+                    // 'can'           => 'reports.view', // TODO: restore after DB seeder runs
                 ],
                 [
                     'key'           => 'print',
