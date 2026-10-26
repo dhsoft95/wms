@@ -43,7 +43,10 @@ class Index extends Component
             ->with(['virtualWarehouse', 'department', 'consigneePartner', 'requestedBy', 'warehouse'])
             ->withCount('lines');
 
-        if ($this->statusFilter !== 'all') {
+        $isRequester = auth()->user()->hasRole('department-user');
+        $blockedStatus = DeliveryOrderStatus::ReturnedForCorrection->value;
+
+        if ($this->statusFilter !== 'all' && ! ($isRequester && $this->statusFilter === $blockedStatus)) {
             $query->where('status', $this->statusFilter);
         }
 

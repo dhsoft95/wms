@@ -27,17 +27,25 @@ class Index extends Component
     {
         $user = auth()->user();
 
-        return PurchaseOrder::with(['warehouse', 'supplierPartner', 'requestedBy'])
+        $query = PurchaseOrder::with(['warehouse', 'supplierPartner', 'requestedBy'])
             ->withSum('lines as total_expected_qty', 'qty')
-            ->withSum('grnLines as total_received_qty', 'received_good_qty')
-            ->when(
-                $user->hasRole('department-user') && $user->department_id,
-                fn ($q) => $q->where('department_id', $user->department_id)
-                             ->where('status', '!=', PurchaseOrderStatus::ReturnedForCorrection->value),
-            )
+            ->withSum('grnLines as total_received_qty', 'received_good_qty');
+
+        if ($user->hasRole('department-user')) {
+            $query->where('status', '!=', PurchaseOrderStatus::ReturnedForCorrection->value);
+            if ($user->department_id) {
+                $query->where('department_id', $user->department_id);
+            }
+        }
+
+        $safeStatusFilter = ($user->hasRole('department-user') &&
+            $this->statusFilter === PurchaseOrderStatus::ReturnedForCorrection->value)
+            ? '' : $this->statusFilter;
+
+        return $query
             ->when($this->search, fn ($q) => $q->where('number', 'like', "%{$this->search}%")
                 ->orWhere('customer_po_ref', 'like', "%{$this->search}%"))
-            ->when($this->statusFilter, fn ($q) => $q->where('status', $this->statusFilter))
+            ->when($safeStatusFilter, fn ($q) => $q->where('status', $safeStatusFilter))
             ->orderByDesc('created_at')
             ->paginate(20);
     }
