@@ -198,8 +198,11 @@ class Index extends Component
             }
         }
 
-        if ($user->hasRole('department-user')) {
-            $query->where('status', '!=', DeliveryOrderStatus::ReturnedForCorrection->value);
+        if (! $user->hasAnyRole(['warehouse-manager', 'system-admin'])) {
+            $query->where(function ($q) use ($user) {
+                $q->where('status', '!=', DeliveryOrderStatus::ReturnedForCorrection->value)
+                  ->orWhereHas('department', fn ($dq) => $dq->where('head_user_id', $user->id));
+            });
         }
 
         return $query;

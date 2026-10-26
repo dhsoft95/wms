@@ -43,10 +43,12 @@ class PurchaseOrderPolicy
             return $po->department?->head_user_id === $user->id;
         }
 
+        if ($po->status === PurchaseOrderStatus::ReturnedForCorrection) {
+            return $user->hasAnyRole(['warehouse-manager', 'system-admin'])
+                || $po->department?->head_user_id === $user->id;
+        }
+
         if ($user->hasRole('department-user')) {
-            if ($po->status === PurchaseOrderStatus::ReturnedForCorrection) {
-                return false;
-            }
             return $po->requested_by === $user->id
                 || PurchaseOrderApproval::where('purchase_order_id', $po->id)
                     ->where('user_id', $user->id)

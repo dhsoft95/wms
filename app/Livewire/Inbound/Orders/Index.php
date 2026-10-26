@@ -31,14 +31,19 @@ class Index extends Component
             ->withSum('lines as total_expected_qty', 'qty')
             ->withSum('grnLines as total_received_qty', 'received_good_qty');
 
-        if ($user->hasRole('department-user')) {
-            $query->where('status', '!=', PurchaseOrderStatus::ReturnedForCorrection->value);
-            if ($user->department_id) {
-                $query->where('department_id', $user->department_id);
-            }
+        if ($user->hasRole('department-user') && $user->department_id) {
+            $query->where('department_id', $user->department_id);
         }
 
-        $safeStatusFilter = ($user->hasRole('department-user') &&
+        // Hide ReturnedForCorrection from everyone except WM/admin and the order's dept head
+        if (! $user->hasAnyRole(['warehouse-manager', 'system-admin'])) {
+            $query->where(function ($q) use ($user) {
+                $q->where('status', '!=', PurchaseOrderStatus::ReturnedForCorrection->value)
+                  ->orWhereHas('department', fn ($dq) => $dq->where('head_user_id', $user->id));
+            });
+        }
+
+        $safeStatusFilter = (! $user->hasAnyRole(['warehouse-manager', 'system-admin']) &&
             $this->statusFilter === PurchaseOrderStatus::ReturnedForCorrection->value)
             ? '' : $this->statusFilter;
 

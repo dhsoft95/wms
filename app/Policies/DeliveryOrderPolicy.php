@@ -21,8 +21,9 @@ class DeliveryOrderPolicy
             return false;
         }
 
-        if ($do->status === DeliveryOrderStatus::ReturnedForCorrection && $user->hasRole('department-user')) {
-            return false;
+        if ($do->status === DeliveryOrderStatus::ReturnedForCorrection) {
+            return $user->hasAnyRole(['warehouse-manager', 'system-admin'])
+                || $do->department?->head_user_id === $user->id;
         }
 
         if ($user->canAccessAllVirtualWarehouses()) {
