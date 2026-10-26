@@ -71,6 +71,10 @@ class PurchaseOrderPolicy
 
     public function submit(User $user, PurchaseOrder $po): bool
     {
+        if ($po->status === PurchaseOrderStatus::ReturnedForCorrection && $user->hasAnyRole(['department-head', 'department-user'])) {
+            return $user->can('po.create');
+        }
+
         return $user->can('po.create')
             && $po->status->isEditable()
             && ($po->requested_by === $user->id || $user->hasAnyRole(['system-admin', 'warehouse-manager']));

@@ -53,6 +53,11 @@
                         <x-ui.icon name="pencil" class="w-4 h-4" /> Edit
                     </a>
                 @endcan
+                @can('submit', $purchaseOrder)
+                    <button wire:click="submit" wire:loading.attr="disabled" class="btn btn-primary">
+                        <x-ui.icon name="paper-airplane" class="w-4 h-4" /> Resubmit
+                    </button>
+                @endcan
                 @if ($this->canForwardReturn)
                     <button wire:click="openForwardModal" class="btn btn-secondary">
                         <x-ui.icon name="arrow-uturn-left" class="w-4 h-4" /> Send Back to Requester

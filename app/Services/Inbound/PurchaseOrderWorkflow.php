@@ -106,14 +106,14 @@ final class PurchaseOrderWorkflow
 
     public function submit(PurchaseOrder $po, User $by): void
     {
-        $this->assertStatus($po, PurchaseOrderStatus::Draft, PurchaseOrderStatus::AwaitingRequesterCorrection);
+        $this->assertStatus($po, PurchaseOrderStatus::Draft, PurchaseOrderStatus::AwaitingRequesterCorrection, PurchaseOrderStatus::ReturnedForCorrection);
 
-        if ($by->id !== $po->requested_by && ! $by->hasAnyRole(['system-admin', 'warehouse-manager'])) {
+        if ($by->id !== $po->requested_by && ! $by->hasAnyRole(['system-admin', 'warehouse-manager', 'department-head', 'department-user'])) {
             throw new \DomainException('Only the creator may submit this purchase order.');
         }
 
         DB::transaction(function () use ($po, $by) {
-            if ($po->status === PurchaseOrderStatus::AwaitingRequesterCorrection) {
+            if (in_array($po->status, [PurchaseOrderStatus::AwaitingRequesterCorrection, PurchaseOrderStatus::ReturnedForCorrection], true)) {
                 $this->chainService->resetApprovals($po);
             }
 
