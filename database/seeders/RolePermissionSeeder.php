@@ -299,6 +299,7 @@ class RolePermissionSeeder extends Seeder
             'virtual-warehouses.view',
             'stock.view', 'stock.movements.view',
             'transfers.view', 'transfers.create',
+            'reports.view',
         ],
 
         // Read-only analytics role
