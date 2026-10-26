@@ -44,6 +44,9 @@ class PurchaseOrderPolicy
         }
 
         if ($user->hasRole('department-user')) {
+            if ($po->status === PurchaseOrderStatus::ReturnedForCorrection) {
+                return false;
+            }
             return $po->requested_by === $user->id
                 || PurchaseOrderApproval::where('purchase_order_id', $po->id)
                     ->where('user_id', $user->id)
@@ -60,8 +63,8 @@ class PurchaseOrderPolicy
 
     public function update(User $user, PurchaseOrder $po): bool
     {
-        if ($po->status === PurchaseOrderStatus::ReturnedForCorrection && $user->hasAnyRole(['department-head', 'department-user'])) {
-            return $user->can('po.view');
+        if ($po->status === PurchaseOrderStatus::ReturnedForCorrection && $user->hasRole('department-head')) {
+            return $user->can('po.view') && $po->department?->head_user_id === $user->id;
         }
 
         return $user->can('po.create')
@@ -71,8 +74,8 @@ class PurchaseOrderPolicy
 
     public function submit(User $user, PurchaseOrder $po): bool
     {
-        if ($po->status === PurchaseOrderStatus::ReturnedForCorrection && $user->hasAnyRole(['department-head', 'department-user'])) {
-            return $user->can('po.create');
+        if ($po->status === PurchaseOrderStatus::ReturnedForCorrection && $user->hasRole('department-head')) {
+            return $user->can('po.create') && $po->department?->head_user_id === $user->id;
         }
 
         return $user->can('po.create')

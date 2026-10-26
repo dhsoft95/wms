@@ -108,7 +108,11 @@ final class PurchaseOrderWorkflow
     {
         $this->assertStatus($po, PurchaseOrderStatus::Draft, PurchaseOrderStatus::AwaitingRequesterCorrection, PurchaseOrderStatus::ReturnedForCorrection);
 
-        if ($by->id !== $po->requested_by && ! $by->hasAnyRole(['system-admin', 'warehouse-manager', 'department-head', 'department-user'])) {
+        if ($po->status === PurchaseOrderStatus::ReturnedForCorrection) {
+            if (! $by->hasRole('department-head') || $po->department?->head_user_id !== $by->id) {
+                throw new \DomainException('Only the department head may resubmit an order in returned-for-correction status.');
+            }
+        } elseif ($by->id !== $po->requested_by && ! $by->hasAnyRole(['system-admin', 'warehouse-manager', 'department-head', 'department-user'])) {
             throw new \DomainException('Only the creator may submit this purchase order.');
         }
 
@@ -274,9 +278,9 @@ final class PurchaseOrderWorkflow
                 ->log('Sent back for correction by warehouse manager');
         });
 
-        $this->tryNotify($po->requestedBy, new PoStatusChangedNotification(
+        $this->tryNotify($po->department?->headUser, new PoStatusChangedNotification(
             $po, 'returned',
-            "PO {$po->number} has been sent back for correction by the warehouse.",
+            "PO {$po->number} has been sent back for correction by the warehouse. Please review and forward to the requester.",
             $reason,
         ));
     }

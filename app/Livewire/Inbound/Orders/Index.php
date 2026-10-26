@@ -32,7 +32,8 @@ class Index extends Component
             ->withSum('grnLines as total_received_qty', 'received_good_qty')
             ->when(
                 $user->hasRole('department-user') && $user->department_id,
-                fn ($q) => $q->where('department_id', $user->department_id),
+                fn ($q) => $q->where('department_id', $user->department_id)
+                             ->where('status', '!=', PurchaseOrderStatus::ReturnedForCorrection->value),
             )
             ->when($this->search, fn ($q) => $q->where('number', 'like', "%{$this->search}%")
                 ->orWhere('customer_po_ref', 'like', "%{$this->search}%"))

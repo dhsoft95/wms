@@ -242,11 +242,7 @@
                                         @if($r->batch_no)
                                             <span class="ml-2 badge badge-slate font-mono text-[10px]">{{ $r->batch_no }}</span>
                                         @endif
-                                        @if(($r->condition ?? 'good') === 'damaged')
-                                            <span class="ml-2 badge badge-red text-[10px]">Damaged</span>
-                                        @else
-                                            <span class="ml-2 badge badge-green text-[10px]">Good</span>
-                                        @endif
+                                        <span class="ml-2 badge {{ $r->condition->color() }} text-[10px]">{{ $r->condition->label() }}</span>
                                     </div>
                                     <button wire:click="removeReceipt({{ $r->id }})"
                                             wire:confirm="Remove this receipt entry?"

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Livewire\Inbound\Orders;
 
 use App\Enums\Inbound\PurchaseOrderStatus;
+use App\Livewire\Concerns\HasPutawayModal;
 use App\Models\Location;
 use App\Models\PoIssue;
 use App\Models\PurchaseOrder;
+use App\Models\PutawayTask;
 use App\Models\User;
 use App\Services\Foundation\SettingsService;
 use App\Services\Inbound\ApprovalChainService;
@@ -19,6 +21,8 @@ use Livewire\Component;
 
 class Show extends Component
 {
+    use HasPutawayModal;
+
     public PurchaseOrder $purchaseOrder;
 
     // ─── Modal flags ──────────────────────────────────────────────────────────
@@ -80,6 +84,10 @@ class Show extends Component
             'assignedSupervisor',
             'assignedClerk',
             'approvals.user',
+            'assignments.assignedUser',
+            'assignments.assignedByUser',
+            'assignments.previousUser',
+            'activities.causer',
             'grns.lines',
             'issues.raisedBy',
         ]);
@@ -194,6 +202,20 @@ class Show extends Component
             PurchaseOrderStatus::IssueResolved => PurchaseOrderStatus::AssignedPendingReceiving,
             default                            => $this->purchaseOrder->status,
         };
+    }
+
+    #[Computed]
+    public function putawayTasks(): \Illuminate\Database\Eloquent\Collection
+    {
+        return PutawayTask::whereHas('grn', fn ($q) => $q->where('purchase_order_id', $this->purchaseOrder->id))
+            ->with(['item', 'fromLocation', 'grn', 'actualLocation', 'assignedTo'])
+            ->get();
+    }
+
+    protected function afterPutawayExecuted(): void
+    {
+        unset($this->putawayTasks);
+        $this->reload();
     }
 
     // ─── Submit ───────────────────────────────────────────────────────────────

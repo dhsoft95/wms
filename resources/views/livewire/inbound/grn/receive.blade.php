@@ -188,7 +188,7 @@
                         <div class="flex gap-4">
                             @foreach ($this->conditions as $cond)
                                 <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="radio" wire:model="receiptCondition" value="{{ $cond->value }}"
+                                    <input type="radio" wire:model.live="receiptCondition" value="{{ $cond->value }}"
                                            class="text-simba-600 focus:ring-simba-600" />
                                     <span class="badge {{ $cond->color() }}">{{ $cond->label() }}</span>
                                 </label>

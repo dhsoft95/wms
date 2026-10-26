@@ -147,7 +147,18 @@
                 @endcan
             @endif
 
-            {{-- Putaway in progress / pending putaway — informational only, actions are on the putaway task list --}}
+            {{-- Putaway: show tasks with Execute button when order is in putaway status --}}
+            @if (in_array($purchaseOrder->status, [
+                \App\Enums\Inbound\PurchaseOrderStatus::PendingPutaway,
+                \App\Enums\Inbound\PurchaseOrderStatus::PutawayInProgress,
+            ], true) && $this->putawayTasks->isNotEmpty())
+                @can('execute', $this->putawayTasks->first())
+                    <button wire:click="openExecute({{ $this->putawayTasks->firstWhere(fn($t) => in_array($t->status->value, ['open','assigned','in_progress']))?->id ?? 0 }})"
+                            class="btn btn-primary">
+                        <x-ui.icon name="archive" class="w-4 h-4" /> Execute Putaway
+                    </button>
+                @endcan
+            @endif
 
             {{-- Completed — WM closes the order (or close via GRN show page) --}}
             @if (in_array($purchaseOrder->status, [
@@ -284,6 +295,10 @@
                     <div>
                         <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Consignee</p>
                         <p class="mt-0.5 font-medium text-slate-800 dark:text-slate-200">{{ $purchaseOrder->consigneePartner?->name ?? '—' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Customer PO Ref</p>
+                        <p class="mt-0.5 font-medium text-slate-800 dark:text-slate-200">{{ $purchaseOrder->customer_po_ref ?? '—' }}</p>
                     </div>
                     <div>
                         <p class="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">Currency</p>
@@ -432,6 +447,62 @@
                 </div>
             @endif
 
+            {{-- Putaway Tasks --}}
+            @if ($this->putawayTasks->isNotEmpty())
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">Putaway Tasks ({{ $this->putawayTasks->count() }})</h3>
+                    </div>
+                    <x-ui.table>
+                        <thead>
+                            <tr>
+                                <th>GRN</th>
+                                <th>Item</th>
+                                <th>Qty</th>
+                                <th>From</th>
+                                <th>Destination</th>
+                                <th>Status</th>
+                                <th class="text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($this->putawayTasks as $task)
+                                <tr wire:key="pt-{{ $task->id }}">
+                                    <td class="font-mono text-xs text-simba-600 dark:text-simba-400">{{ $task->grn?->number }}</td>
+                                    <td>
+                                        <div class="font-mono text-xs text-slate-500 dark:text-slate-400">{{ $task->item?->sku }}</div>
+                                        <div class="text-sm">{{ $task->item?->name }}</div>
+                                    </td>
+                                    <td class="tabular-nums text-sm">{{ number_format((float) $task->qty, 2) }}</td>
+                                    <td class="font-mono text-xs text-slate-500">{{ $task->fromLocation?->code ?? '—' }}</td>
+                                    <td class="font-mono text-xs">
+                                        @if ($task->actualLocation)
+                                            <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ $task->actualLocation->code }}</span>
+                                        @else
+                                            <span class="text-slate-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <span class="badge {{ $task->status->color() }}">
+                                            <span class="dot"></span>{{ $task->status->label() }}
+                                        </span>
+                                    </td>
+                                    <td class="text-right">
+                                        @if (in_array($task->status->value, ['open', 'assigned', 'in_progress']))
+                                            @can('execute', $task)
+                                                <button wire:click="openExecute({{ $task->id }})" class="btn btn-primary btn-sm">
+                                                    <x-ui.icon name="archive" class="w-3.5 h-3.5" /> Put Away
+                                                </button>
+                                            @endcan
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </x-ui.table>
+                </div>
+            @endif
+
         </div>
 
         {{-- Right: Sidebar --}}
@@ -493,71 +564,147 @@
                 </div>
             @endif
 
-            {{-- Assignment card --}}
+            {{-- Audit Trail --}}
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Assignment</h3>
+                    <h3 class="card-title">Audit Trail</h3>
                 </div>
-                <div class="divide-y divide-slate-100 dark:divide-white/[0.06]">
-                    @foreach ([
-                        ['person' => $purchaseOrder->assignedSupervisor, 'role' => 'Supervisor'],
-                        ['person' => $purchaseOrder->assignedClerk,       'role' => 'Receiving Clerk'],
-                    ] as $row)
-                        <div class="px-5 py-3 flex items-center gap-3">
-                            @if ($row['person'])
-                                <div class="shrink-0 w-8 h-8 rounded-full bg-simba-100 dark:bg-simba-900/40 flex items-center justify-center text-xs font-bold text-simba-700 dark:text-simba-300 uppercase">
-                                    {{ mb_substr($row['person']->name, 0, 1) }}
-                                </div>
-                                <div>
-                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $row['person']->name }}</p>
-                                    <p class="text-xs text-slate-400 dark:text-slate-500">{{ $row['role'] }}</p>
-                                </div>
-                            @else
-                                <div class="shrink-0 w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                                    <x-ui.icon name="user" class="w-4 h-4 text-slate-400" />
-                                </div>
-                                <div>
-                                    <p class="text-sm text-slate-400 dark:text-slate-500">Unassigned</p>
-                                    <p class="text-xs text-slate-400 dark:text-slate-500">{{ $row['role'] }}</p>
-                                </div>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-            </div>
 
-            {{-- Approval history --}}
-            @if ($purchaseOrder->approvals->isNotEmpty())
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">Approval History</h3>
-                    </div>
-                    <div class="divide-y divide-slate-100 dark:divide-white/[0.06]">
-                        @foreach ($purchaseOrder->approvals as $approval)
-                            <div class="px-5 py-3 text-sm">
-                                <div class="flex items-center justify-between gap-2">
-                                    <span class="font-medium text-slate-800 dark:text-slate-200">{{ $approval->user?->name ?? '—' }}</span>
-                                    @php
-                                        $actionColor = match($approval->action?->value ?? $approval->action) {
-                                            'approved' => 'badge-green',
-                                            'rejected' => 'badge-red',
-                                            'returned' => 'badge-amber',
-                                            default    => 'badge-slate',
+                {{-- Timeline --}}
+                @php
+                    $auditEvents = collect()
+                        ->merge(
+                            $purchaseOrder->approvals->map(fn ($ap) => [
+                                'type' => 'approval',
+                                'time' => $ap->created_at,
+                                'data' => $ap,
+                            ])
+                        )
+                        ->merge(
+                            $purchaseOrder->assignments->map(fn ($a) => [
+                                'type' => 'assignment',
+                                'time' => $a->created_at,
+                                'data' => $a,
+                            ])
+                        )
+                        ->merge(
+                            $purchaseOrder->activities
+                                ->filter(fn ($act) => ! in_array($act->description, [
+                                    'created', 'updated',
+                                    'Purchase order created',
+                                    'Approved by dept head',
+                                    'Returned for correction',
+                                    'Purchase order rejected',
+                                ], true) && ! str_starts_with($act->description, 'Supervisor assigned') && ! str_starts_with($act->description, 'Clerk assigned'))
+                                ->map(fn ($act) => [
+                                    'type' => 'activity',
+                                    'time' => $act->created_at,
+                                    'data' => $act,
+                                ])
+                        )
+                        ->push([
+                            'type' => 'created',
+                            'time' => $purchaseOrder->created_at,
+                            'data' => $purchaseOrder,
+                        ])
+                        ->sortByDesc('time')
+                        ->values();
+                @endphp
+
+                @if ($auditEvents->isEmpty())
+                    <p class="px-5 py-4 text-sm text-slate-400 dark:text-slate-500">No activity yet.</p>
+                @else
+                    <div class="px-5 py-4">
+                        <ol class="relative border-l border-slate-200 dark:border-slate-700 space-y-6 ml-1">
+                            @foreach ($auditEvents as $event)
+                                @php
+                                    $d    = $event['data'];
+                                    $time = $event['time'];
+
+                                    // Normalise to: $label, $actor, $meta, $note, $dotColor, $badgeText, $badgeClass
+                                    $label = ''; $actor = ''; $meta = ''; $note = null;
+                                    $dotColor = 'bg-slate-400'; $badgeText = ''; $badgeClass = 'badge-slate';
+
+                                    if ($event['type'] === 'approval') {
+                                        $actionValue = $d->action?->value ?? $d->action;
+                                        [$dotColor, $badgeClass] = match($actionValue) {
+                                            'approved' => ['bg-emerald-500', 'badge-emerald'],
+                                            'rejected' => ['bg-red-500',     'badge-red'],
+                                            'returned' => ['bg-orange-500',  'badge-orange'],
+                                            default    => ['bg-slate-400',   'badge-slate'],
                                         };
-                                    @endphp
-                                    <span class="badge {{ $actionColor }} capitalize">{{ $approval->action?->value ?? $approval->action }}</span>
-                                </div>
-                                <div class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                    Level {{ $approval->level }} · {{ $approval->created_at->format('d M Y H:i') }}
-                                </div>
-                                @if ($approval->comment)
-                                    <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 italic">{{ $approval->comment }}</p>
-                                @endif
-                            </div>
-                        @endforeach
+                                        $badgeText = $d->action?->label() ?? ucfirst($actionValue);
+                                        $label     = $d->action?->label() ?? ucfirst($actionValue);
+                                        $actor     = $d->user?->name ?? '—';
+                                        $meta      = 'Level ' . $d->level . ' · ' . $time->format('d M Y H:i');
+                                        $note      = $d->comment ?: null;
+
+                                    } elseif ($event['type'] === 'assignment') {
+                                        $roleLabel = match($d->type) {
+                                            'supervisor'                   => 'Supervisor',
+                                            'receiving_clerk', 'clerk'     => 'Receiving Clerk',
+                                            default                        => ucfirst(str_replace('_', ' ', $d->type ?? '')),
+                                        };
+                                        $dotColor  = 'bg-violet-500';
+                                        $badgeText = 'Assigned';
+                                        $badgeClass= 'badge-violet';
+                                        $label     = $roleLabel . ' Assigned';
+                                        $actor     = $d->previousUser
+                                            ? ($d->previousUser->name . ' → ' . ($d->assignedUser?->name ?? '—'))
+                                            : ($d->assignedUser?->name ?? '—');
+                                        $meta      = ($d->assignedByUser ? 'by ' . $d->assignedByUser->name . ' · ' : '') . $time->format('d M Y H:i');
+                                        $note      = $d->notes ?: null;
+
+                                    } elseif ($event['type'] === 'activity') {
+                                        $desc = $d->description;
+                                        [$dotColor, $badgeText, $badgeClass] = match(true) {
+                                            $desc === 'Accepted by warehouse manager'     => ['bg-teal-500',    'Accepted',    'badge-teal'],
+                                            $desc === 'Submitted for approval'            => ['bg-blue-500',    'Submitted',   'badge-blue'],
+                                            str_starts_with($desc, 'Cancelled')          => ['bg-red-600',     'Cancelled',   'badge-danger'],
+                                            str_starts_with($desc, 'Closed short')       => ['bg-amber-500',   'Closed Short','badge-amber'],
+                                            $desc === 'Order closed by warehouse manager'=> ['bg-emerald-600', 'Closed',      'badge-emerald'],
+                                            $desc === 'Verified and closed by approver'  => ['bg-green-600',   'Verified',    'badge-green'],
+                                            $desc === 'Receiving started'                => ['bg-cyan-500',    'Receiving',   'badge-cyan'],
+                                            str_starts_with($desc, 'Putaway')           => ['bg-indigo-500',  'Putaway',     'badge-neutral'],
+                                            str_starts_with($desc, 'Sent back')         => ['bg-orange-500',  'Sent Back',   'badge-orange'],
+                                            $desc === 'Supervisor validation complete'   => ['bg-green-500',   'Validated',   'badge-green'],
+                                            $desc === 'All issues resolved'              => ['bg-emerald-500', 'Resolved',    'badge-emerald'],
+                                            $desc === 'Issue raised by approver'         => ['bg-rose-500',    'Issue',       'badge-danger'],
+                                            default                                       => ['bg-slate-400',   'Activity',    'badge-slate'],
+                                        };
+                                        $label = $desc;
+                                        $actor = $d->causer?->name ?? '—';
+                                        $meta  = $time->format('d M Y H:i');
+                                        $note  = $d->properties['comment'] ?? $d->properties['reason'] ?? null;
+
+                                    } elseif ($event['type'] === 'created') {
+                                        $dotColor  = 'bg-slate-400';
+                                        $badgeText = 'Created';
+                                        $badgeClass= 'badge-slate';
+                                        $label     = 'Order Created';
+                                        $actor     = $d->requestedBy?->name ?? '—';
+                                        $meta      = $time->format('d M Y H:i');
+                                    }
+                                @endphp
+
+                                <li class="ml-5">
+                                    <span class="absolute -left-[7px] flex h-3.5 w-3.5 items-center justify-center rounded-full {{ $dotColor }} ring-2 ring-white dark:ring-slate-900"></span>
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div>
+                                            <p class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ $label }}</p>
+                                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ $actor }} · {{ $meta }}</p>
+                                            @if ($note)
+                                                <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 italic">"{{ $note }}"</p>
+                                            @endif
+                                        </div>
+                                        <span class="badge {{ $badgeClass }} shrink-0">{{ $badgeText }}</span>
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ol>
                     </div>
-                </div>
-            @endif
+                @endif
+            </div>
 
             {{-- Issues --}}
             @if ($purchaseOrder->issues->isNotEmpty())
@@ -978,4 +1125,5 @@
         </div>
     @endif
 
+    @include('livewire.partials.putaway-execute-modal')
 </div>
