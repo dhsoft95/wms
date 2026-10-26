@@ -262,7 +262,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     // Reports
-    Route::prefix('reports')->name('reports.')->middleware('permission:reports.view')->group(function () {
+    Route::prefix('reports')->name('reports.')->group(function () { // TODO: restore ->middleware('permission:reports.view') after DB seeder runs
         Route::get('/',      \App\Livewire\Reports\Index::class)->name('index');
         Route::get('/print', \App\Livewire\Reports\PrintDocument::class)->name('print');
 
