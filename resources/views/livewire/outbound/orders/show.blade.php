@@ -282,7 +282,11 @@
         </div>
     </div>
 
-    {{-- Tabs --}}
+    {{-- Main content + sidebar --}}
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    {{-- Left: Tabs --}}
+    <div class="lg:col-span-2">
     <div class="card">
         <div class="card-header">
             <div class="tabs overflow-x-auto">
@@ -290,7 +294,6 @@
                     'lines'       => 'Lines (' . $this->do->lines->count() . ')',
                     'allocations' => 'Allocations',
                     'pick_lists'  => 'Pick Lists (' . $this->do->pickLists->count() . ')',
-                    'approvals'   => 'Audit Trail',
                     'dispatch'    => 'Dispatch (' . $this->do->dispatches->count() . ')',
                     'pod'         => 'POD',
                 ] as $tab => $label)
@@ -606,110 +609,6 @@
             @endforelse
         @endif
 
-        {{-- Audit Trail Tab --}}
-        @if ($activeTab === 'approvals')
-        @php
-            $auditEvents = collect()
-                ->merge(
-                    $this->do->approvals
-                        ->filter(fn ($ap) => $ap->decision !== null)
-                        ->map(fn ($ap) => [
-                            'type' => 'approval',
-                            'time' => $ap->decided_at ?? $ap->created_at,
-                            'data' => $ap,
-                        ])
-                )
-                ->merge(
-                    $this->do->activities
-                        ->filter(fn ($act) => ! in_array($act->description, ['created', 'updated'], true))
-                        ->map(fn ($act) => [
-                            'type' => 'activity',
-                            'time' => $act->created_at,
-                            'data' => $act,
-                        ])
-                )
-                ->push([
-                    'type' => 'created',
-                    'time' => $this->do->created_at,
-                    'data' => $this->do,
-                ])
-                ->sortByDesc('time')
-                ->values();
-        @endphp
-
-        @if ($auditEvents->isEmpty())
-            <p class="px-4 py-6 text-sm text-center text-slate-400 dark:text-slate-500">No activity yet.</p>
-        @else
-            <div class="px-4 py-4 sm:px-5">
-                <ol class="relative border-l border-slate-200 dark:border-slate-700 space-y-5 ml-1">
-                    @foreach ($auditEvents as $event)
-                        @php
-                            $d    = $event['data'];
-                            $time = $event['time'];
-                            $label = ''; $actor = ''; $meta = ''; $note = null;
-                            $dotColor = 'bg-slate-400'; $badgeText = ''; $badgeClass = 'badge-slate';
-
-                            if ($event['type'] === 'approval') {
-                                [$dotColor, $badgeText, $badgeClass] = match($d->decision) {
-                                    'approved' => ['bg-emerald-500', 'Approved',  'badge-emerald'],
-                                    'rejected' => ['bg-red-500',     'Rejected',  'badge-red'],
-                                    'returned' => ['bg-orange-500',  'Returned for Correction', 'badge-orange'],
-                                    default    => ['bg-slate-400',   'Pending',   'badge-slate'],
-                                };
-                                $roleLabel = ucfirst($d->approver_role ?? '') . ' Approval';
-                                $label  = $badgeText . ' — ' . $roleLabel;
-                                $actor  = $d->decidedBy?->name ?? '—';
-                                $meta   = ($d->level ? 'Level ' . $d->level . ' · ' : '') . $time->format('d M Y H:i');
-                                $note   = $d->notes ?: null;
-
-                            } elseif ($event['type'] === 'activity') {
-                                $desc = $d->description;
-                                [$dotColor, $badgeText, $badgeClass] = match(true) {
-                                    $desc === 'Submitted for approval'               => ['bg-blue-500',    'Submitted',   'badge-blue'],
-                                    $desc === 'Resubmitted for approval'             => ['bg-blue-500',    'Resubmitted', 'badge-blue'],
-                                    $desc === 'Approved'                             => ['bg-emerald-500', 'Approved',    'badge-emerald'],
-                                    str_starts_with($desc, 'Returned for correction')=> ['bg-orange-500',  'Returned',    'badge-orange'],
-                                    str_starts_with($desc, 'Sent back by warehouse') => ['bg-orange-500',  'Sent Back',   'badge-orange'],
-                                    $desc === 'Forwarded to requester for correction'=> ['bg-amber-500',   'Forwarded',   'badge-amber'],
-                                    str_starts_with($desc, 'Cancelled')             => ['bg-red-600',     'Cancelled',   'badge-danger'],
-                                    str_starts_with($desc, 'Rejected')              => ['bg-red-500',     'Rejected',    'badge-red'],
-                                    $desc === 'Allocated'                            => ['bg-cyan-500',    'Allocated',   'badge-cyan'],
-                                    str_starts_with($desc, 'Dispatched')            => ['bg-teal-500',    'Dispatched',  'badge-teal'],
-                                    str_starts_with($desc, 'Delivered')             => ['bg-green-600',   'Delivered',   'badge-green'],
-                                    str_starts_with($desc, 'Pick')                  => ['bg-violet-500',  'Picking',     'badge-violet'],
-                                    default                                          => ['bg-slate-400',   'Activity',    'badge-slate'],
-                                };
-                                $label = $desc;
-                                $actor = $d->causer?->name ?? '—';
-                                $meta  = $time->format('d M Y H:i');
-                                $note  = $d->properties['notes'] ?? $d->properties['reason'] ?? $d->properties['comment'] ?? null;
-
-                            } elseif ($event['type'] === 'created') {
-                                $label = 'Order Created';
-                                $actor = $d->requestedBy?->name ?? '—';
-                                $meta  = $time->format('d M Y H:i');
-                            }
-                        @endphp
-
-                        <li class="ml-5">
-                            <span class="absolute -left-[7px] flex h-3.5 w-3.5 items-center justify-center rounded-full {{ $dotColor }} ring-2 ring-white dark:ring-slate-900"></span>
-                            <div class="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
-                                <div class="min-w-0 flex-1">
-                                    <p class="text-sm font-medium text-slate-800 dark:text-slate-200 break-words">{{ $label }}</p>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400 break-words">{{ $actor }} · {{ $meta }}</p>
-                                    @if ($note)
-                                        <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 italic break-words">"{{ $note }}"</p>
-                                    @endif
-                                </div>
-                                <span class="badge {{ $badgeClass }} shrink-0 mt-0.5">{{ $badgeText }}</span>
-                            </div>
-                        </li>
-                    @endforeach
-                </ol>
-            </div>
-        @endif
-        @endif
-
         {{-- Dispatch Tab --}}
         @if ($activeTab === 'dispatch')
         <div class="card-body space-y-4">
@@ -830,6 +729,118 @@
         </div>
         @endif
     </div>
+    </div>{{-- /lg:col-span-2 --}}
+
+    {{-- Right sidebar: Audit Trail --}}
+    <div class="space-y-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Audit Trail</h3>
+            </div>
+            @php
+                $doAuditEvents = collect()
+                    ->merge(
+                        $this->do->approvals
+                            ->filter(fn ($ap) => $ap->decision !== null)
+                            ->map(fn ($ap) => [
+                                'type' => 'approval',
+                                'time' => $ap->decided_at ?? $ap->created_at,
+                                'data' => $ap,
+                            ])
+                    )
+                    ->merge(
+                        $this->do->activities
+                            ->filter(fn ($act) => ! in_array($act->description, ['created', 'updated'], true))
+                            ->map(fn ($act) => [
+                                'type' => 'activity',
+                                'time' => $act->created_at,
+                                'data' => $act,
+                            ])
+                    )
+                    ->push([
+                        'type' => 'created',
+                        'time' => $this->do->created_at,
+                        'data' => $this->do,
+                    ])
+                    ->sortByDesc('time')
+                    ->values();
+            @endphp
+
+            @if ($doAuditEvents->isEmpty())
+                <p class="px-4 py-4 text-sm text-slate-400 dark:text-slate-500">No activity yet.</p>
+            @else
+                <div class="px-4 py-4 sm:px-5">
+                    <ol class="relative border-l border-slate-200 dark:border-slate-700 space-y-5 ml-1">
+                        @foreach ($doAuditEvents as $event)
+                            @php
+                                $d    = $event['data'];
+                                $time = $event['time'];
+                                $label = ''; $actor = ''; $meta = ''; $note = null;
+                                $dotColor = 'bg-slate-400'; $badgeText = ''; $badgeClass = 'badge-slate';
+
+                                if ($event['type'] === 'approval') {
+                                    [$dotColor, $badgeText, $badgeClass] = match($d->decision) {
+                                        'approved' => ['bg-emerald-500', 'Approved',  'badge-emerald'],
+                                        'rejected' => ['bg-red-500',     'Rejected',  'badge-red'],
+                                        'returned' => ['bg-orange-500',  'Returned for Correction', 'badge-orange'],
+                                        default    => ['bg-slate-400',   'Pending',   'badge-slate'],
+                                    };
+                                    $roleLabel = ucfirst($d->approver_role ?? '') . ' Approval';
+                                    $label  = $badgeText . ' — ' . $roleLabel;
+                                    $actor  = $d->decidedBy?->name ?? '—';
+                                    $meta   = ($d->level ? 'Level ' . $d->level . ' · ' : '') . $time->format('d M Y H:i');
+                                    $note   = $d->notes ?: null;
+
+                                } elseif ($event['type'] === 'activity') {
+                                    $desc = $d->description;
+                                    [$dotColor, $badgeText, $badgeClass] = match(true) {
+                                        $desc === 'Submitted for approval'                => ['bg-blue-500',    'Submitted',   'badge-blue'],
+                                        $desc === 'Resubmitted for approval'              => ['bg-blue-500',    'Resubmitted', 'badge-blue'],
+                                        $desc === 'Approved'                              => ['bg-emerald-500', 'Approved',    'badge-emerald'],
+                                        str_starts_with($desc, 'Returned for correction') => ['bg-orange-500',  'Returned',    'badge-orange'],
+                                        str_starts_with($desc, 'Sent back by warehouse')  => ['bg-orange-500',  'Sent Back',   'badge-orange'],
+                                        $desc === 'Forwarded to requester for correction' => ['bg-amber-500',   'Forwarded',   'badge-amber'],
+                                        str_starts_with($desc, 'Cancelled')              => ['bg-red-600',     'Cancelled',   'badge-danger'],
+                                        str_starts_with($desc, 'Rejected')               => ['bg-red-500',     'Rejected',    'badge-red'],
+                                        $desc === 'Allocated'                             => ['bg-cyan-500',    'Allocated',   'badge-cyan'],
+                                        str_starts_with($desc, 'Dispatched')             => ['bg-teal-500',    'Dispatched',  'badge-teal'],
+                                        str_starts_with($desc, 'Delivered')              => ['bg-green-600',   'Delivered',   'badge-green'],
+                                        str_starts_with($desc, 'Pick')                   => ['bg-violet-500',  'Picking',     'badge-violet'],
+                                        default                                           => ['bg-slate-400',   'Activity',    'badge-slate'],
+                                    };
+                                    $label = $desc;
+                                    $actor = $d->causer?->name ?? '—';
+                                    $meta  = $time->format('d M Y H:i');
+                                    $note  = $d->properties['notes'] ?? $d->properties['reason'] ?? $d->properties['comment'] ?? null;
+
+                                } elseif ($event['type'] === 'created') {
+                                    $label = 'Order Created';
+                                    $actor = $d->requestedBy?->name ?? '—';
+                                    $meta  = $time->format('d M Y H:i');
+                                }
+                            @endphp
+
+                            <li class="ml-5">
+                                <span class="absolute -left-[7px] flex h-3.5 w-3.5 items-center justify-center rounded-full {{ $dotColor }} ring-2 ring-white dark:ring-slate-900"></span>
+                                <div class="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+                                    <div class="min-w-0 flex-1">
+                                        <p class="text-sm font-medium text-slate-800 dark:text-slate-200 break-words">{{ $label }}</p>
+                                        <p class="text-xs text-slate-500 dark:text-slate-400 break-words">{{ $actor }} · {{ $meta }}</p>
+                                        @if ($note)
+                                            <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 italic break-words">"{{ $note }}"</p>
+                                        @endif
+                                    </div>
+                                    <span class="badge {{ $badgeClass }} shrink-0 mt-0.5">{{ $badgeText }}</span>
+                                </div>
+                            </li>
+                        @endforeach
+                    </ol>
+                </div>
+            @endif
+        </div>
+    </div>{{-- /sidebar --}}
+
+    </div>{{-- /grid --}}
 
     {{-- Return for Correction Modal --}}
     @if ($showReturnModal)
