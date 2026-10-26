@@ -738,6 +738,27 @@
                 <h3 class="card-title">Audit Trail</h3>
             </div>
             @php
+                // Single source of truth: event key → [dotBg, badgeClass]
+                // badge-blue in this app maps to the brand colour, so Submitted/Resubmitted
+                // use inline Tailwind utilities to get an actual blue badge.
+                $atColor = static function (string $key): array {
+                    return match ($key) {
+                        'approved'              => ['bg-emerald-500', 'badge-emerald'],
+                        'rejected'              => ['bg-red-500',     'badge-red'],
+                        'returned', 'sent_back' => ['bg-orange-500',  'badge-orange'],
+                        'submitted',
+                        'resubmitted'           => ['bg-blue-500',    'bg-blue-500/15 text-blue-700 ring-1 ring-inset ring-blue-600/30 dark:text-blue-400'],
+                        'forwarded'             => ['bg-amber-500',   'badge-amber'],
+                        'cancelled'             => ['bg-red-600',     'badge-danger'],
+                        'allocated'             => ['bg-sky-500',     'bg-sky-500/15 text-sky-700 ring-1 ring-inset ring-sky-600/30 dark:text-sky-400'],
+                        'dispatched'            => ['bg-teal-500',    'badge-success'],
+                        'delivered'             => ['bg-green-600',   'badge-success'],
+                        'picking'               => ['bg-violet-500',  'badge-neutral'],
+                        'created'               => ['bg-slate-400',   'badge-neutral'],
+                        default                 => ['bg-slate-400',   'badge-neutral'],
+                    };
+                };
+
                 $doAuditEvents = collect()
                     ->merge(
                         $this->do->approvals
@@ -770,43 +791,43 @@
                 <p class="px-4 py-4 text-sm text-slate-400 dark:text-slate-500">No activity yet.</p>
             @else
                 <div class="px-4 py-4 sm:px-5">
-                    <ol class="relative border-l border-slate-200 dark:border-slate-700 space-y-5 ml-1">
+                    <ol>
                         @foreach ($doAuditEvents as $event)
                             @php
                                 $d    = $event['data'];
                                 $time = $event['time'];
                                 $label = ''; $actor = ''; $meta = ''; $note = null;
-                                $dotColor = 'bg-slate-400'; $badgeText = ''; $badgeClass = 'badge-slate';
+                                $colorKey = 'default'; $badgeText = '';
 
                                 if ($event['type'] === 'approval') {
-                                    [$dotColor, $badgeText, $badgeClass] = match($d->decision) {
-                                        'approved' => ['bg-emerald-500', 'Approved',  'badge-emerald'],
-                                        'rejected' => ['bg-red-500',     'Rejected',  'badge-red'],
-                                        'returned' => ['bg-orange-500',  'Returned for Correction', 'badge-orange'],
-                                        default    => ['bg-slate-400',   'Pending',   'badge-slate'],
+                                    [$colorKey, $badgeText] = match ($d->decision) {
+                                        'approved' => ['approved', 'Approved'],
+                                        'rejected' => ['rejected', 'Rejected'],
+                                        'returned' => ['returned', 'Sent Back'],
+                                        default    => ['default',  'Pending'],
                                     };
                                     $roleLabel = ucfirst($d->approver_role ?? '') . ' Approval';
-                                    $label  = $badgeText . ' — ' . $roleLabel;
-                                    $actor  = $d->decidedBy?->name ?? '—';
-                                    $meta   = ($d->level ? 'Level ' . $d->level . ' · ' : '') . $time->format('d M Y H:i');
-                                    $note   = $d->notes ?: null;
+                                    $label = $badgeText . ' — ' . $roleLabel;
+                                    $actor = $d->decidedBy?->name ?? '—';
+                                    $meta  = ($d->level ? 'Level ' . $d->level . ' · ' : '') . $time->format('d M Y H:i');
+                                    $note  = $d->notes ?: null;
 
                                 } elseif ($event['type'] === 'activity') {
                                     $desc = $d->description;
-                                    [$dotColor, $badgeText, $badgeClass] = match(true) {
-                                        $desc === 'Submitted for approval'                => ['bg-blue-500',    'Submitted',   'badge-blue'],
-                                        $desc === 'Resubmitted for approval'              => ['bg-blue-500',    'Resubmitted', 'badge-blue'],
-                                        $desc === 'Approved'                              => ['bg-emerald-500', 'Approved',    'badge-emerald'],
-                                        str_starts_with($desc, 'Returned for correction') => ['bg-orange-500',  'Returned',    'badge-orange'],
-                                        str_starts_with($desc, 'Sent back by warehouse')  => ['bg-orange-500',  'Sent Back',   'badge-orange'],
-                                        $desc === 'Forwarded to requester for correction' => ['bg-amber-500',   'Forwarded',   'badge-amber'],
-                                        str_starts_with($desc, 'Cancelled')              => ['bg-red-600',     'Cancelled',   'badge-danger'],
-                                        str_starts_with($desc, 'Rejected')               => ['bg-red-500',     'Rejected',    'badge-red'],
-                                        $desc === 'Allocated'                             => ['bg-cyan-500',    'Allocated',   'badge-cyan'],
-                                        str_starts_with($desc, 'Dispatched')             => ['bg-teal-500',    'Dispatched',  'badge-teal'],
-                                        str_starts_with($desc, 'Delivered')              => ['bg-green-600',   'Delivered',   'badge-green'],
-                                        str_starts_with($desc, 'Pick')                   => ['bg-violet-500',  'Picking',     'badge-violet'],
-                                        default                                           => ['bg-slate-400',   'Activity',    'badge-slate'],
+                                    [$colorKey, $badgeText] = match (true) {
+                                        $desc === 'Submitted for approval'                => ['submitted',   'Submitted'],
+                                        $desc === 'Resubmitted for approval'              => ['resubmitted', 'Resubmitted'],
+                                        $desc === 'Approved'                              => ['approved',    'Approved'],
+                                        str_starts_with($desc, 'Returned for correction') => ['returned',    'Returned'],
+                                        str_starts_with($desc, 'Sent back by warehouse')  => ['sent_back',   'Sent Back'],
+                                        $desc === 'Forwarded to requester for correction' => ['forwarded',   'Forwarded'],
+                                        str_starts_with($desc, 'Cancelled')               => ['cancelled',   'Cancelled'],
+                                        str_starts_with($desc, 'Rejected')                => ['rejected',    'Rejected'],
+                                        $desc === 'Allocated'                             => ['allocated',   'Allocated'],
+                                        str_starts_with($desc, 'Dispatched')              => ['dispatched',  'Dispatched'],
+                                        str_starts_with($desc, 'Delivered')               => ['delivered',   'Delivered'],
+                                        str_starts_with($desc, 'Pick')                    => ['picking',     'Picking'],
+                                        default                                            => ['default',     'Activity'],
                                     };
                                     $label = $desc;
                                     $actor = $d->causer?->name ?? '—';
@@ -814,23 +835,41 @@
                                     $note  = $d->properties['notes'] ?? $d->properties['reason'] ?? $d->properties['comment'] ?? null;
 
                                 } elseif ($event['type'] === 'created') {
+                                    $colorKey  = 'created';
+                                    $badgeText = 'Created';
                                     $label = 'Order Created';
                                     $actor = $d->requestedBy?->name ?? '—';
                                     $meta  = $time->format('d M Y H:i');
                                 }
+
+                                [$dotColor, $badgeClass] = $atColor($colorKey);
                             @endphp
 
-                            <li class="ml-5">
-                                <span class="absolute -left-[7px] flex h-3.5 w-3.5 items-center justify-center rounded-full {{ $dotColor }} ring-2 ring-white dark:ring-slate-900"></span>
-                                <div class="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
-                                    <div class="min-w-0 flex-1">
-                                        <p class="text-sm font-medium text-slate-800 dark:text-slate-200 break-words">{{ $label }}</p>
-                                        <p class="text-xs text-slate-500 dark:text-slate-400 break-words">{{ $actor }} · {{ $meta }}</p>
-                                        @if ($note)
-                                            <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 italic break-words">"{{ $note }}"</p>
-                                        @endif
+                            <li class="flex gap-3">
+                                {{-- Gutter: fixed-width column holds the dot and the connector line --}}
+                                <div class="flex w-7 shrink-0 flex-col items-center">
+                                    {{-- Dot — mt-[3px] aligns its centre with the cap-height of text-sm --}}
+                                    <div class="relative z-10 mt-[3px] h-3.5 w-3.5 shrink-0 rounded-full {{ $dotColor }} ring-2 ring-white dark:ring-slate-900"></div>
+                                    {{-- Connector line — only between items, never below the last --}}
+                                    @if (! $loop->last)
+                                        <div class="mt-1.5 w-0.5 flex-1 bg-slate-200 dark:bg-slate-700"></div>
+                                    @endif
+                                </div>
+
+                                {{-- Content — pb-5 creates gap between items; last item gets no extra padding --}}
+                                <div class="min-w-0 flex-1 {{ $loop->last ? 'pb-1' : 'pb-5' }}">
+                                    <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                                        <div class="min-w-0 flex-1">
+                                            <p class="break-words text-sm font-medium text-slate-800 dark:text-slate-200">{{ $label }}</p>
+                                            <p class="break-words text-xs text-slate-500 dark:text-slate-400">{{ $actor }} · {{ $meta }}</p>
+                                            @if ($note)
+                                                <div class="mt-1.5 border-l-2 border-slate-300 pl-2.5 dark:border-slate-600">
+                                                    <p class="break-words text-xs italic text-slate-500 dark:text-slate-400">{{ trim($note) }}</p>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <span class="inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[12px] font-medium leading-[16px] {{ $badgeClass }} mt-0.5">{{ $badgeText }}</span>
                                     </div>
-                                    <span class="badge {{ $badgeClass }} shrink-0 mt-0.5">{{ $badgeText }}</span>
                                 </div>
                             </li>
                         @endforeach
