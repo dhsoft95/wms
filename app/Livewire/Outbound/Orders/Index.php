@@ -115,9 +115,13 @@ class Index extends Component
         $do = DeliveryOrder::findOrFail($id);
         $this->authorize('submit', $do);
 
-        app(DeliveryOrderWorkflow::class)->submit($do, auth()->user());
+        try {
+            app(DeliveryOrderWorkflow::class)->submit($do, auth()->user());
+            $this->dispatch('toast', message: "Order {$do->number} submitted.", type: 'success');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
 
-        $this->dispatch('toast', message: "Order {$do->number} submitted.", type: 'success');
         $this->resetPage();
     }
 
@@ -126,9 +130,17 @@ class Index extends Component
         $do = DeliveryOrder::findOrFail($id);
         $this->authorize('allocate', $do);
 
-        app(AllocationService::class)->allocate($do);
+        try {
+            $warnings = app(AllocationService::class)->allocate($do);
+            if (empty($warnings)) {
+                $this->dispatch('toast', message: "Order {$do->number} allocated.", type: 'success');
+            } else {
+                $this->dispatch('toast', message: 'Partially allocated. ' . implode(' ', $warnings), type: 'warning');
+            }
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
 
-        $this->dispatch('toast', message: "Order {$do->number} allocated.", type: 'success');
         $this->resetPage();
     }
 

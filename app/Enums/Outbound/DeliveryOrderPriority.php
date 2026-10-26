@@ -24,10 +24,10 @@ enum DeliveryOrderPriority: string
     public function badge(): string
     {
         return match($this) {
-            self::Low    => 'badge-slate',
-            self::Normal => 'badge-blue',
+            self::Low    => 'badge-neutral',
+            self::Normal => 'badge-neutral',
             self::High   => 'badge-amber',
-            self::Urgent => 'badge-red',
+            self::Urgent => 'badge-danger',
         };
     }
 }
