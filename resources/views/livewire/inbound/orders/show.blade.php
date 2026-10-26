@@ -612,10 +612,10 @@
                 @endphp
 
                 @if ($auditEvents->isEmpty())
-                    <p class="px-5 py-4 text-sm text-slate-400 dark:text-slate-500">No activity yet.</p>
+                    <p class="px-4 py-4 text-sm text-slate-400 dark:text-slate-500">No activity yet.</p>
                 @else
-                    <div class="px-5 py-4">
-                        <ol class="relative border-l border-slate-200 dark:border-slate-700 space-y-6 ml-1">
+                    <div class="px-4 py-4 sm:px-5">
+                        <ol class="relative border-l border-slate-200 dark:border-slate-700 space-y-5 ml-1">
                             @foreach ($auditEvents as $event)
                                 @php
                                     $d    = $event['data'];
@@ -689,15 +689,15 @@
 
                                 <li class="ml-5">
                                     <span class="absolute -left-[7px] flex h-3.5 w-3.5 items-center justify-center rounded-full {{ $dotColor }} ring-2 ring-white dark:ring-slate-900"></span>
-                                    <div class="flex items-start justify-between gap-2">
-                                        <div>
-                                            <p class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ $label }}</p>
-                                            <p class="text-xs text-slate-500 dark:text-slate-400">{{ $actor }} · {{ $meta }}</p>
+                                    <div class="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+                                        <div class="min-w-0 flex-1">
+                                            <p class="text-sm font-medium text-slate-800 dark:text-slate-200 break-words">{{ $label }}</p>
+                                            <p class="text-xs text-slate-500 dark:text-slate-400 break-words">{{ $actor }} · {{ $meta }}</p>
                                             @if ($note)
-                                                <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 italic">"{{ $note }}"</p>
+                                                <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 italic break-words">"{{ $note }}"</p>
                                             @endif
                                         </div>
-                                        <span class="badge {{ $badgeClass }} shrink-0">{{ $badgeText }}</span>
+                                        <span class="badge {{ $badgeClass }} shrink-0 mt-0.5">{{ $badgeText }}</span>
                                     </div>
                                 </li>
                             @endforeach

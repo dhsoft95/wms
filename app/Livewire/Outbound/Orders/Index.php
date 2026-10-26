@@ -195,6 +195,10 @@ class Index extends Component
             }
         }
 
+        if ($user->hasRole('department-user')) {
+            $query->where('status', '!=', DeliveryOrderStatus::ReturnedForCorrection->value);
+        }
+
         return $query;
     }
 

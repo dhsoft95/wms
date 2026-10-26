@@ -21,6 +21,10 @@ class DeliveryOrderPolicy
             return false;
         }
 
+        if ($do->status === DeliveryOrderStatus::ReturnedForCorrection && $user->hasRole('department-user')) {
+            return false;
+        }
+
         if ($user->canAccessAllVirtualWarehouses()) {
             return true;
         }
@@ -42,7 +46,7 @@ class DeliveryOrderPolicy
         }
 
         if ($do->status === DeliveryOrderStatus::ReturnedForCorrection && $user->hasRole('department-head')) {
-            return true;
+            return $do->department?->head_user_id === $user->id;
         }
 
         if (! $do->status->isEditable()) {
@@ -62,6 +66,10 @@ class DeliveryOrderPolicy
     {
         if (! $user->can('orders.submit')) {
             return false;
+        }
+
+        if ($do->status === DeliveryOrderStatus::ReturnedForCorrection) {
+            return $user->hasRole('department-head') && $do->department?->head_user_id === $user->id;
         }
 
         if (! $do->status->isEditable()) {

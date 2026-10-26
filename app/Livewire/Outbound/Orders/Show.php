@@ -45,6 +45,7 @@ class Show extends Component
             'consigneePartner', 'requestedBy',
             'lines.item.baseUom', 'lines.uom', 'lines.allocations.location', 'lines.allocations.batch',
             'approvals.decidedBy',
+            'activities.causer',
             'pickLists.assignedTo',
             'pickLists.tasks.location',
             'pickLists.tasks.item.baseUom',
