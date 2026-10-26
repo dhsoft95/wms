@@ -50,8 +50,13 @@
                 @endcan
             @endif
 
-            {{-- ReturnedForCorrection: HOD forwards to requester --}}
+            {{-- ReturnedForCorrection: HOD forwards to requester or edits directly --}}
             @if ($this->do->status === $S::ReturnedForCorrection)
+                @can('update', $this->do)
+                    <a href="{{ route('outbound.orders.edit', $this->do) }}" wire:navigate class="btn btn-secondary">
+                        <x-ui.icon name="pencil" class="w-4 h-4" /> Edit
+                    </a>
+                @endcan
                 @can('forwardReturn', $this->do)
                     <button wire:click="forwardToRequester" wire:loading.attr="disabled" class="btn btn-secondary">
                         <x-ui.icon name="arrow-right" class="w-4 h-4" /> Send Back to Requester

@@ -60,6 +60,10 @@ class PurchaseOrderPolicy
 
     public function update(User $user, PurchaseOrder $po): bool
     {
+        if ($po->status === PurchaseOrderStatus::ReturnedForCorrection && $user->hasRole('department-head')) {
+            return $user->can('po.view');
+        }
+
         return $user->can('po.create')
             && $po->status->isEditable()
             && ($po->requested_by === $user->id || $user->hasAnyRole(['system-admin', 'warehouse-manager']));

@@ -45,7 +45,10 @@ class Edit extends Component
 
     public function mount(PurchaseOrder $purchaseOrder): void
     {
-        if (! $purchaseOrder->status->isEditable()) {
+        $isDeptHeadOnReturned = $purchaseOrder->status === PurchaseOrderStatus::ReturnedForCorrection
+            && auth()->user()->hasRole('department-head');
+
+        if (! $purchaseOrder->status->isEditable() && ! $isDeptHeadOnReturned) {
             abort(403, 'This purchase order cannot be edited in its current status.');
         }
 

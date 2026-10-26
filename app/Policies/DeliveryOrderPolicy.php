@@ -41,6 +41,10 @@ class DeliveryOrderPolicy
             return false;
         }
 
+        if ($do->status === DeliveryOrderStatus::ReturnedForCorrection && $user->hasRole('department-head')) {
+            return true;
+        }
+
         if (! $do->status->isEditable()) {
             return false;
         }
