@@ -61,9 +61,15 @@ class Index extends Component
         // Accessible VW IDs for restricted users
         $accessibleVwIds = $isUnrestricted ? [] : $user->accessibleVirtualWarehouseIds();
 
+        // RFC orders are only visible to WM/admin or the specific department head
+        $canSeeRfc    = $user->hasAnyRole(['warehouse-manager', 'system-admin']);
+        $safeStatusFilter = (! $canSeeRfc && $this->statusFilter === 'returned_for_correction')
+            ? '' : $this->statusFilter;
+
         // ── PO query ──────────────────────────────────────────────────────────
         $poQ = DB::table('purchase_orders')
             ->leftJoin('virtual_warehouses as povw', 'purchase_orders.virtual_warehouse_id', '=', 'povw.id')
+            ->leftJoin('departments as podept', 'purchase_orders.department_id', '=', 'podept.id')
             ->select(
                 DB::raw("'po' as rec_type"),
                 'purchase_orders.id', 'purchase_orders.number',
@@ -83,7 +89,7 @@ class Index extends Component
             )
             ->when($this->tab !== 'all' && $this->tab !== 'po', fn ($q) => $q->whereRaw('1=0'))
             ->when($this->search, fn ($q) => $q->where('purchase_orders.number', 'like', "%{$this->search}%"))
-            ->when($this->statusFilter, fn ($q) => $q->where('purchase_orders.status', $this->statusFilter))
+            ->when($safeStatusFilter, fn ($q) => $q->where('purchase_orders.status', $safeStatusFilter))
             ->when($this->dateFrom, fn ($q) => $q->whereDate('purchase_orders.created_at', '>=', $this->dateFrom))
             ->when($this->dateTo, fn ($q) => $q->whereDate('purchase_orders.created_at', '<=', $this->dateTo))
             ->when(! $isUnrestricted, function ($q) use ($user) {
@@ -101,7 +107,11 @@ class Index extends Component
                 } else {
                     $q->whereRaw('1=0');
                 }
-            });
+            })
+            ->when(! $canSeeRfc, fn ($q) => $q->where(function ($sq) use ($user) {
+                $sq->where('purchase_orders.status', '!=', 'returned_for_correction')
+                   ->orWhere('podept.head_user_id', $user->id);
+            }));
 
         // ── DO / MRN query ────────────────────────────────────────────────────
         $doQ = DB::table('delivery_orders')
@@ -119,11 +129,15 @@ class Index extends Component
             )
             ->when($this->tab !== 'all' && $this->tab !== 'mrn', fn ($q) => $q->whereRaw('1=0'))
             ->when($this->search, fn ($q) => $q->where('delivery_orders.number', 'like', "%{$this->search}%"))
-            ->when($this->statusFilter, fn ($q) => $q->where('delivery_orders.status', $this->statusFilter))
+            ->when($safeStatusFilter, fn ($q) => $q->where('delivery_orders.status', $safeStatusFilter))
             ->when($this->dateFrom, fn ($q) => $q->whereDate('delivery_orders.created_at', '>=', $this->dateFrom))
             ->when($this->dateTo, fn ($q) => $q->whereDate('delivery_orders.created_at', '<=', $this->dateTo))
             ->when(! $isUnrestricted && ! empty($accessibleVwIds), fn ($q) => $q->whereIn('delivery_orders.virtual_warehouse_id', $accessibleVwIds))
-            ->when(! $isUnrestricted && empty($accessibleVwIds), fn ($q) => $q->whereRaw('1=0'));
+            ->when(! $isUnrestricted && empty($accessibleVwIds), fn ($q) => $q->whereRaw('1=0'))
+            ->when(! $canSeeRfc, fn ($q) => $q->where(function ($sq) use ($user) {
+                $sq->where('delivery_orders.status', '!=', 'returned_for_correction')
+                   ->orWhere('departments.head_user_id', $user->id);
+            }));
 
         // ── In-warehouse movement (MOV) query ────────────────────────────────
         $movQ = DB::table('internal_movements')
