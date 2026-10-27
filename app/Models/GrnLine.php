@@ -30,6 +30,7 @@ class GrnLine extends Model
         'is_unexpected',
         'serials_missing',
         'serials_missing_qty',
+        'mic_number',
     ];
 
     protected function casts(): array

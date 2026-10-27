@@ -1,0 +1,30 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('purchase_order_lines', function (Blueprint $table) {
+            $table->renameColumn('msc_number', 'mic_number');
+        });
+
+        Schema::table('grn_lines', function (Blueprint $table) {
+            $table->renameColumn('msc_number', 'mic_number');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('purchase_order_lines', function (Blueprint $table) {
+            $table->renameColumn('mic_number', 'msc_number');
+        });
+
+        Schema::table('grn_lines', function (Blueprint $table) {
+            $table->renameColumn('mic_number', 'msc_number');
+        });
+    }
+};

@@ -352,6 +352,7 @@
                             <th class="text-right">Qty</th>
                             <th class="text-right">Unit Price</th>
                             <th class="text-right">Line Total</th>
+                            <th>MIC No.</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -371,9 +372,29 @@
                                 <td class="tabular-nums text-right font-medium">
                                     {{ $line->line_total > 0 ? number_format((float) $line->line_total, 2) : '—' }}
                                 </td>
+                                <td>
+                                    @if ($line->mic_number)
+                                        @php
+                                            try {
+                                                $bobj   = (new \Com\Tecnick\Barcode\Barcode())
+                                                    ->getBarcodeObj('C128', $line->mic_number, 160, 36);
+                                                $micUri = 'data:image/png;base64,' . base64_encode($bobj->getPngData(true));
+                                            } catch (\Throwable) {
+                                                $micUri = null;
+                                            }
+                                        @endphp
+                                        @if ($micUri)
+                                            <img src="{{ $micUri }}" alt="{{ $line->mic_number }}"
+                                                 class="w-32 h-auto block mb-0.5">
+                                        @endif
+                                        <div class="font-mono text-xs text-slate-500">{{ $line->mic_number }}</div>
+                                    @else
+                                        <span class="text-slate-400">—</span>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
-                            <x-ui.empty-state colspan="7" message="No lines on this purchase order." />
+                            <x-ui.empty-state colspan="8" message="No lines on this purchase order." />
                         @endforelse
                     </tbody>
                 </x-ui.table>

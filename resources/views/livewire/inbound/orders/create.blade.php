@@ -150,11 +150,12 @@
                     {{-- Column headers --}}
                     <div class="hidden md:grid md:grid-cols-12 gap-2 px-2 section-label">
                         <span class="col-span-3">Item</span>
-                        <span class="col-span-2">Part No.</span>
+                        <span class="col-span-1">Part No.</span>
                         <span class="col-span-1">UOM</span>
                         <span class="col-span-1">Qty</span>
-                        <span class="col-span-3">Currency / Unit Price</span>
+                        <span class="col-span-2">Currency / Unit Price</span>
                         <span class="col-span-1">Total Value</span>
+                        <span class="col-span-2">MIC No.</span>
                         <span class="col-span-1"></span>
                     </div>
 
@@ -173,7 +174,7 @@
                             </div>
 
                             {{-- Part No (manual entry) --}}
-                            <div class="md:col-span-2">
+                            <div class="md:col-span-1">
                                 <input wire:model="lines.{{ $i }}.part_number"
                                        type="text"
                                        placeholder="Part no."
@@ -203,7 +204,7 @@
                             </div>
 
                             {{-- Currency + Unit Price (combined) --}}
-                            <div class="md:col-span-3 flex gap-1">
+                            <div class="md:col-span-2 flex gap-1">
                                 <select wire:model="lines.{{ $i }}.currency"
                                         class="input input-sm font-mono w-20 shrink-0">
                                     <option value="">—</option>
@@ -229,6 +230,15 @@
                                        readonly
                                        placeholder="—"
                                        class="input input-sm tabular-nums font-mono font-semibold bg-slate-100 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 cursor-default">
+                            </div>
+
+                            {{-- MSC Number --}}
+                            <div class="md:col-span-2">
+                                <input wire:model="lines.{{ $i }}.mic_number"
+                                       type="text"
+                                       maxlength="100"
+                                       placeholder="MIC no."
+                                       class="input input-sm font-mono">
                             </div>
 
                             {{-- Remove --}}

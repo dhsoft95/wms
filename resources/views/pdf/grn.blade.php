@@ -30,6 +30,18 @@
             ];
         };
 
+        // Generate MSC barcode as base64 PNG (CODE128, 200×40 px)
+        $micBarcode = null;
+        if (! empty($line->mic_number)) {
+            try {
+                $bobj      = (new \Com\Tecnick\Barcode\Barcode())
+                    ->getBarcodeObj('C128', $line->mic_number, 200, 40);
+                $micBarcode = 'data:image/png;base64,' . base64_encode($bobj->getPngData(true));
+            } catch (\Throwable) {
+                $micBarcode = null;
+            }
+        }
+
         return (object) [
             'sku'          => $line->item?->sku ?? '—',
             'name'         => $line->item?->name ?? '—',
@@ -40,6 +52,8 @@
             'variance'     => ($good + $damaged) - $expected,
             'goodTrace'    => $trace('good'),
             'damagedTrace' => $trace('damaged'),
+            'micNumber'    => $line->mic_number ?? null,
+            'micBarcode'   => $micBarcode,
         ];
     });
 
@@ -47,7 +61,8 @@
     $lineCount    = $lines->count();
     $hasDamaged   = $lines->sum('damaged') > 0;
     $singleUom    = $lines->pluck('uom')->unique()->count() === 1;
-    $colCount     = $hasDamaged ? 9 : 8;
+    $hasMic       = $lines->contains(fn ($l) => ! empty($l->micNumber));
+    $colCount     = ($hasDamaged ? 9 : 8) + ($hasMic ? 1 : 0);
     $fullLines    = $lines->filter(fn ($l) => $l->variance == 0 && $l->damaged == 0)->count();
     $damagedLines = $lines->filter(fn ($l) => $l->damaged > 0)->count();
     $hasVariance  = $lines->contains(fn ($l) => $l->variance != 0 || $l->damaged > 0);
@@ -311,6 +326,9 @@
             @endif
             <th class="text-right" style="width:50px">Variance</th>
             <th style="width:150px">Batch / Expiry / Serials</th>
+            @if ($hasMic)
+                <th style="width:100px">MIC No.</th>
+            @endif
         </tr>
     </thead>
     <tbody>
@@ -351,6 +369,16 @@
                     <span class="zero">—</span>
                 @endif
             </td>
+            @if ($hasMic)
+                <td class="text-center" style="vertical-align:middle;">
+                    @if ($l->micBarcode)
+                        <img src="{{ $l->micBarcode }}" style="width:90px;height:22px;display:block;margin:0 auto 2px;" alt="{{ $l->micNumber }}">
+                        <div class="code" style="font-size:6.5px;text-align:center;">{{ $l->micNumber }}</div>
+                    @else
+                        <span class="zero">—</span>
+                    @endif
+                </td>
+            @endif
         </tr>
     @empty
         <tr class="empty">
@@ -370,6 +398,7 @@
             @endif
             <td class="text-right {{ $tone($totalVariance) }}">{{ $signed($totalVariance) }}</td>
             <td></td>
+            @if ($hasMic)<td></td>@endif
         </tr>
     @endif
     </tbody>

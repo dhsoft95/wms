@@ -20,6 +20,7 @@ class PurchaseOrderLine extends Model
         'item_id',
         'uom_id',
         'part_number',
+        'mic_number',
         'qty',
         'qty_base',
         'unit_price',

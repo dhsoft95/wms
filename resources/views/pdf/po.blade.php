@@ -102,6 +102,9 @@
     @php
         $grandTotal = '0';
         $currency   = $po->currency ?? ($po->lines->first()?->currency ?? 'USD');
+        $hasBatch   = $po->lines->contains(fn($l) => $l->batch_no);
+        $hasMic     = $po->lines->contains(fn($l) => $l->mic_number);
+        $totalCols  = 7 + ($hasBatch ? 1 : 0) + ($hasMic ? 1 : 0);
     @endphp
     <table class="lines">
         <thead>
@@ -113,16 +116,27 @@
                 <th style="width:40px;">UoM</th>
                 <th class="text-right" style="width:70px;">Unit Price</th>
                 <th class="text-right" style="width:70px;">Line Total</th>
-                @if ($po->lines->contains(fn($l) => $l->batch_no))
+                @if ($hasBatch)
                     <th>Batch</th>
+                @endif
+                @if ($hasMic)
+                    <th style="width:100px;">MIC No.</th>
                 @endif
             </tr>
         </thead>
         <tbody>
             @foreach ($po->lines->sortBy('line_no') as $i => $line)
                 @php
-                    $lineTotal   = (float) ($line->line_total ?? ((float)$line->qty * (float)$line->unit_price));
-                    $grandTotal  = bcadd($grandTotal, (string) $lineTotal, 4);
+                    $lineTotal  = (float) ($line->line_total ?? ((float)$line->qty * (float)$line->unit_price));
+                    $grandTotal = bcadd($grandTotal, (string) $lineTotal, 4);
+                    $micBarcode = null;
+                    if ($hasMic && $line->mic_number) {
+                        try {
+                            $bobj       = (new \Com\Tecnick\Barcode\Barcode())
+                                ->getBarcodeObj('C128', $line->mic_number, 90, 22);
+                            $micBarcode = 'data:image/png;base64,' . base64_encode($bobj->getPngData(true));
+                        } catch (\Throwable) {}
+                    }
                 @endphp
                 <tr>
                     <td class="text-center">{{ $line->line_no ?? ($i + 1) }}</td>
@@ -138,29 +152,37 @@
                     <td class="text-right" style="font-family: monospace;">
                         @if ($line->unit_price > 0)
                             {{ number_format((float) $line->unit_price, 2) }}
-                        @else
-                            —
+                        @else —
                         @endif
                     </td>
                     <td class="text-right" style="font-family: monospace;">
                         @if ($lineTotal > 0)
                             {{ number_format($lineTotal, 2) }}
-                        @else
-                            —
+                        @else —
                         @endif
                     </td>
-                    @if ($po->lines->contains(fn($l) => $l->batch_no))
+                    @if ($hasBatch)
                         <td style="font-size:9px;">{{ $line->batch_no ?? '—' }}</td>
+                    @endif
+                    @if ($hasMic)
+                        <td class="text-center" style="vertical-align:middle;">
+                            @if ($micBarcode)
+                                <img src="{{ $micBarcode }}" style="width:90px;height:22px;display:block;margin:0 auto 2px;" alt="{{ $line->mic_number }}">
+                                <div style="font-family:monospace;font-size:6.5px;text-align:center;">{{ $line->mic_number }}</div>
+                            @else
+                                <span style="color:#9ca3af;">—</span>
+                            @endif
+                        </td>
                     @endif
                 </tr>
             @endforeach
             <tr class="totals-row">
-                <td colspan="{{ $po->lines->contains(fn($l) => $l->batch_no) ? 6 : 5 }}" class="text-right">Total</td>
+                <td colspan="{{ $totalCols - 2 }}" class="text-right">Total</td>
                 <td class="text-right" style="font-family: monospace;">
                     {{ $currency }} {{ number_format((float) $grandTotal, 2) }}
                 </td>
-                @if ($po->lines->contains(fn($l) => $l->batch_no))
-                    <td></td>
+                @if ($hasBatch || $hasMic)
+                    <td colspan="{{ ($hasBatch ? 1 : 0) + ($hasMic ? 1 : 0) }}"></td>
                 @endif
             </tr>
         </tbody>

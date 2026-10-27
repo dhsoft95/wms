@@ -186,6 +186,7 @@
                     <th>Damaged</th>
                     <th>Variance</th>
                     <th>Type</th>
+                    <th>MIC No.</th>
                 </tr>
             </thead>
             <tbody>
@@ -212,9 +213,29 @@
                                 {{ $line->variance_type->label() }}
                             </span>
                         </td>
+                        <td>
+                            @if ($line->mic_number)
+                                @php
+                                    try {
+                                        $bobj   = (new \Com\Tecnick\Barcode\Barcode())
+                                            ->getBarcodeObj('C128', $line->mic_number, 160, 36);
+                                        $micUri = 'data:image/png;base64,' . base64_encode($bobj->getPngData(true));
+                                    } catch (\Throwable) {
+                                        $micUri = null;
+                                    }
+                                @endphp
+                                @if ($micUri)
+                                    <img src="{{ $micUri }}" alt="{{ $line->mic_number }}"
+                                         class="w-32 h-auto block mb-0.5">
+                                @endif
+                                <div class="font-mono text-xs text-slate-500">{{ $line->mic_number }}</div>
+                            @else
+                                <span class="text-slate-400">—</span>
+                            @endif
+                        </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="!py-8 text-center text-slate-500">No lines yet.</td></tr>
+                    <tr><td colspan="9" class="!py-8 text-center text-slate-500">No lines yet.</td></tr>
                 @endforelse
             </tbody>
         </x-ui.table>

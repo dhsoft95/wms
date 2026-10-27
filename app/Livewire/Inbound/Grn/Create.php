@@ -140,6 +140,7 @@ class Create extends Component
             'virtual_warehouse_id'=> '',
             'batch_no'            => '',
             'expiry_date'         => '',
+            'mic_number'          => '',
         ];
     }
 
@@ -170,6 +171,7 @@ class Create extends Component
             'lines.*.virtual_warehouse_id' => ['required_with:lines.*.item_id', 'nullable', 'exists:virtual_warehouses,id'],
             'lines.*.batch_no'          => ['nullable', 'string', 'max:100'],
             'lines.*.expiry_date'       => ['nullable', 'date'],
+            'lines.*.mic_number'        => ['nullable', 'string', 'max:100'],
         ]);
 
         app('db')->transaction(function () {
@@ -199,6 +201,7 @@ class Create extends Component
                     'expected_qty'         => $line['expected_qty'],
                     'batch_no'             => $line['batch_no'] ?: null,
                     'expiry_date'          => $line['expiry_date'] ?: null,
+                    'mic_number'           => $line['mic_number'] ?: null,
                 ]);
             }
 

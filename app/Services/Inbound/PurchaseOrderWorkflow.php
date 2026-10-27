@@ -71,6 +71,7 @@ final class PurchaseOrderWorkflow
                     'item_id'           => $line['item_id'],
                     'uom_id'            => $line['uom_id'],
                     'part_number'       => $line['part_number'] ?? null,
+                    'mic_number'        => $line['mic_number'] ?? null,
                     'qty'               => $qty,
                     'qty_base'          => $line['qty_base'],
                     'currency'          => $line['currency'] ?? null,

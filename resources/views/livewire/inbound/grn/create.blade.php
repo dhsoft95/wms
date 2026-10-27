@@ -156,6 +156,7 @@
                             <th class="w-44">Virtual Warehouse <span class="text-red-500">*</span></th>
                             <th class="w-32">Batch No.</th>
                             <th class="w-36">Expiry Date</th>
+                            <th class="w-36">MIC No.</th>
                             <th class="w-10"></th>
                         </tr>
                     </thead>
@@ -230,6 +231,13 @@
                             <td>
                                 <input type="date" wire:model="lines.{{ $i }}.expiry_date"
                                        class="input input-sm @error("lines.{$i}.expiry_date") border-red-400 @enderror" />
+                            </td>
+
+                            {{-- MSC Number --}}
+                            <td>
+                                <input type="text" wire:model="lines.{{ $i }}.mic_number"
+                                       maxlength="100" placeholder="optional"
+                                       class="input input-sm font-mono @error("lines.{$i}.mic_number") border-red-400 @enderror" />
                             </td>
 
                             {{-- Remove --}}
