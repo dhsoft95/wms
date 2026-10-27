@@ -32,12 +32,7 @@
                 @endforeach
             </div>
 
-            <a href="{{ route('outbound.orders.index') }}" wire:navigate class="btn btn-secondary btn-sm">
-                <x-ui.icon name="cart" class="w-4 h-4" /> New Order
-            </a>
-            <a href="{{ route('inbound.grn.create') }}" wire:navigate class="btn btn-primary btn-sm">
-                <x-ui.icon name="plus" class="w-4 h-4" /> New Receiving
-            </a>
+
         </div>
     </div>
 
