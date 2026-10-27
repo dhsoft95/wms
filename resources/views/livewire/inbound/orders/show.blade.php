@@ -572,9 +572,47 @@
 
                 {{-- Timeline --}}
                 @php
+                    // ── Approval descriptions that are fully captured by purchase_order_approvals.
+                    // Any activity_log entry with one of these descriptions is a duplicate and
+                    // must be suppressed. This covers both the current code and legacy descriptions
+                    // that older versions of the workflow wrote.
+                    $suppressedActivityDescriptions = [
+                        'created', 'updated',
+                        'Purchase order created',
+                        // current + legacy approval writes
+                        'Approved by dept head',
+                        'Approved',
+                        'Level 1 approved',
+                        'Level 2 approved',
+                        'Level 3 approved',
+                        // current + legacy return/rejection writes
+                        'Returned for correction',
+                        'Purchase order rejected',
+                        // forward-to-requester (was a duplicate source before the Forwarded action was added)
+                        'Return forwarded to requester by dept head',
+                        'Forwarded to requester',
+                    ];
+
+                    // ── Deduplicate purchase_order_approvals:
+                    // Old multi-level code could write 2+ records for the same action click.
+                    // Group by (actor, action, level, 5-second timestamp bucket) and keep the
+                    // richest record — prefer the entry that has an approval_chain_id set, because
+                    // it carries the stage name for the rich label.
+                    $deduplicatedApprovals = $purchaseOrder->approvals
+                        ->groupBy(fn ($ap) => implode('|', [
+                            $ap->user_id,
+                            $ap->action?->value ?? (string) $ap->action,
+                            (int) $ap->level,
+                            (int) floor($ap->created_at->timestamp / 5),
+                        ]))
+                        ->map(fn ($group) =>
+                            $group->sortByDesc(fn ($ap) => $ap->approval_chain_id !== null ? 1 : 0)->first()
+                        )
+                        ->values();
+
                     $auditEvents = collect()
                         ->merge(
-                            $purchaseOrder->approvals->map(fn ($ap) => [
+                            $deduplicatedApprovals->map(fn ($ap) => [
                                 'type' => 'approval',
                                 'time' => $ap->created_at,
                                 'data' => $ap,
@@ -589,13 +627,12 @@
                         )
                         ->merge(
                             $purchaseOrder->activities
-                                ->filter(fn ($act) => ! in_array($act->description, [
-                                    'created', 'updated',
-                                    'Purchase order created',
-                                    'Approved by dept head',
-                                    'Returned for correction',
-                                    'Purchase order rejected',
-                                ], true) && ! str_starts_with($act->description, 'Supervisor assigned') && ! str_starts_with($act->description, 'Clerk assigned'))
+                                ->filter(fn ($act) =>
+                                    ! in_array($act->description, $suppressedActivityDescriptions, true)
+                                    && ! preg_match('/^Level \d+ approved$/i', $act->description)
+                                    && ! str_starts_with($act->description, 'Supervisor assigned')
+                                    && ! str_starts_with($act->description, 'Clerk assigned')
+                                )
                                 ->map(fn ($act) => [
                                     'type' => 'activity',
                                     'time' => $act->created_at,
@@ -632,13 +669,17 @@
                                     if ($event['type'] === 'approval') {
                                         $actionValue = $d->action?->value ?? $d->action;
                                         [$dotColor, $badgeClass] = match ($actionValue) {
-                                            'approved' => ['bg-emerald-500', 'badge-emerald'],
-                                            'rejected' => ['bg-red-500',     'badge-red'],
-                                            'returned' => ['bg-orange-500',  'badge-orange'],
-                                            default    => ['bg-slate-400',   'badge-neutral'],
+                                            'approved'  => ['bg-emerald-500', 'badge-emerald'],
+                                            'rejected'  => ['bg-red-500',     'badge-red'],
+                                            'returned'  => ['bg-orange-500',  'badge-orange'],
+                                            'forwarded' => ['bg-amber-500',   'badge-amber'],
+                                            default     => ['bg-slate-400',   'badge-neutral'],
                                         };
-                                        $badgeText = $d->action?->label() ?? ucfirst($actionValue);
-                                        $label     = $d->action?->label() ?? ucfirst($actionValue);
+                                        $actionLabel = $d->action?->label() ?? ucfirst($actionValue);
+                                        $badgeText   = $actionLabel;
+                                        // Rich label: append stage descriptor for chain-linked records.
+                                        $stageName = $d->approvalChain ? 'Department Approval' : null;
+                                        $label     = $stageName ? "{$actionLabel} — {$stageName}" : $actionLabel;
                                         $actor     = $d->user?->name ?? '—';
                                         $meta      = 'Level ' . $d->level . ' · ' . $time->format('d M Y H:i');
                                         $note      = $d->comment ?: null;

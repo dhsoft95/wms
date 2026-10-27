@@ -182,9 +182,13 @@ test('return resets approvals and restarts from level 1', function () {
     expect($po->fresh()->status)->toBe(PurchaseOrderStatus::ReturnedForCorrection);
     expect(\App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)->count())->toBe(1);
 
-    // Resubmit resets approvals (return action is deleted)
+    // Resubmit only deletes 'approved' records so the chain can restart;
+    // 'returned' records survive as immutable audit history.
     $workflow->submit($po->fresh(), $creator);
-    expect(\App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)->count())->toBe(0);
+    expect(\App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)
+        ->where('action', 'approved')->count())->toBe(0);
+    expect(\App\Models\PurchaseOrderApproval::where('purchase_order_id', $po->id)
+        ->where('action', 'returned')->count())->toBe(1);
 })->group('InboundWorkflow');
 
 test('reject ends the workflow as terminal status', function () {

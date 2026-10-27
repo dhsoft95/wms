@@ -162,7 +162,7 @@ class Show extends Component
             app(GrnWorkflow::class)->approveVariance($this->grn, auth()->user(), $this->approvalNotes);
             $this->grn->refresh();
             $this->approvalNotes = '';
-            $this->dispatch('toast', message: 'Variance approved — GRN confirmed.', type: 'success');
+            $this->dispatch('toast', message: 'Variance approved  GRN confirmed.', type: 'success');
         } catch (\Exception $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }

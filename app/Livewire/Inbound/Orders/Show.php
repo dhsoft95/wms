@@ -84,6 +84,7 @@ class Show extends Component
             'assignedSupervisor',
             'assignedClerk',
             'approvals.user',
+            'approvals.approvalChain',
             'assignments.assignedUser',
             'assignments.assignedByUser',
             'assignments.previousUser',

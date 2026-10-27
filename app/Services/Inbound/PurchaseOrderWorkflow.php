@@ -143,14 +143,27 @@ final class PurchaseOrderWorkflow
         }
 
         DB::transaction(function () use ($po, $by, $comment) {
+            // Resolve the actual chain level and chain ID (same pattern as returnForCorrection).
+            $deptLevel = $this->chainService->currentDepartmentLevel($po) ?? 1;
+            $chainId   = null;
+            if ($po->department_id) {
+                $chain   = ApprovalChain::where('department_id', $po->department_id)
+                    ->where('document_type', ApprovalChainDocumentType::Po->value)
+                    ->where('level', $deptLevel)
+                    ->first();
+                $chainId = $chain?->id;
+            }
+
             $this->chainService->record(
-                $po, $by, PurchaseOrderApprovalAction::Approved, 1, null, null, $comment,
+                $po, $by, PurchaseOrderApprovalAction::Approved,
+                $deptLevel, $chainId, null, $comment,
             );
+
             $po->status      = PurchaseOrderStatus::ApprovedPendingAcceptance;
             $po->approved_at = now();
             $po->save();
-
-            activity()->performedOn($po)->causedBy($by)->log('Approved by dept head');
+            // The purchase_order_approvals record is the single canonical audit entry.
+            // No separate activity_log write to avoid duplicate timeline rows.
         });
 
         User::role('warehouse-manager')->each(fn ($m) =>
@@ -298,14 +311,13 @@ final class PurchaseOrderWorkflow
         }
 
         DB::transaction(function () use ($po, $by, $comment) {
-            $this->chainService->record($po, $by, PurchaseOrderApprovalAction::Returned, 1, null, null, $comment);
+            // Use the distinct 'forwarded' action so this is never confused with a
+            // returnForCorrection (action='returned') in the audit timeline.
+            $this->chainService->record($po, $by, PurchaseOrderApprovalAction::Forwarded, 1, null, null, $comment);
 
             $po->status = PurchaseOrderStatus::AwaitingRequesterCorrection;
             $po->save();
-
-            activity()->performedOn($po)->causedBy($by)
-                ->withProperties(['comment' => $comment])
-                ->log('Return forwarded to requester by dept head');
+            // No activity_log write — the purchase_order_approvals record is canonical.
         });
 
         $this->tryNotify($po->requestedBy, new PoStatusChangedNotification(

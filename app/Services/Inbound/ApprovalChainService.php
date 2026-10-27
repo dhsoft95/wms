@@ -212,11 +212,14 @@ final class ApprovalChainService
     }
 
     /**
-     * Resets all approval records for this PO (used when returned for correction
-     * and resubmitted — chain restarts from level 1).
+     * Resets the chain so it can restart from level 1 on resubmission.
+     * Only 'approved' records are removed; returned/forwarded/rejected records
+     * are kept as immutable audit history so the full timeline survives across rounds.
      */
     public function resetApprovals(PurchaseOrder $po): void
     {
-        PurchaseOrderApproval::where('purchase_order_id', $po->id)->delete();
+        PurchaseOrderApproval::where('purchase_order_id', $po->id)
+            ->where('action', PurchaseOrderApprovalAction::Approved->value)
+            ->delete();
     }
 }
