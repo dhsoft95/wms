@@ -13,14 +13,14 @@
         <div class="card-header"><h3 class="card-title">Header</h3></div>
         <div class="card-body grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-                <label class="label">Virtual Warehouse <span class="text-red-500">*</span></label>
+                <label class="label">Virtual Warehouse <span class="required-mark">*</span></label>
                 <select wire:model="virtualWarehouseId" class="input @error('virtualWarehouseId') border-red-400 @enderror">
                     <option value="">Select warehouse…</option>
                     @foreach($this->virtualWarehouses as $vw)
                         <option value="{{ $vw->id }}">{{ $vw->name }}</option>
                     @endforeach
                 </select>
-                @error('virtualWarehouseId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('virtualWarehouseId') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
             <div class="md:col-span-2">
                 <label class="label">Notes</label>
@@ -66,7 +66,7 @@
                     {{-- Step 1: From Bin --}}
                     <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-4 items-start">
                         <div>
-                            <label class="label">From Bin <span class="text-red-500">*</span></label>
+                            <label class="label">From Bin <span class="required-mark">*</span></label>
                             <select wire:model.live="lines.{{ $i }}.from_location_id"
                                     class="input @error('lines.'.$i.'.from_location_id') border-red-400 @enderror">
                                 <option value="">Select source bin…</option>
@@ -74,7 +74,7 @@
                                     <option value="{{ $loc->id }}">{{ $loc->code }}</option>
                                 @endforeach
                             </select>
-                            @error('lines.'.$i.'.from_location_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('lines.'.$i.'.from_location_id') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         <div class="hidden md:flex items-center justify-center h-[38px] w-10 text-slate-400 mt-5">
@@ -82,7 +82,7 @@
                         </div>
 
                         <div>
-                            <label class="label">To Bin <span class="text-red-500">*</span></label>
+                            <label class="label">To Bin <span class="required-mark">*</span></label>
                             <select wire:model="lines.{{ $i }}.to_location_id"
                                     class="input @error('lines.'.$i.'.to_location_id') border-red-400 @enderror">
                                 <option value="">Select destination bin…</option>
@@ -90,7 +90,7 @@
                                     <option value="{{ $loc->id }}">{{ $loc->code }}</option>
                                 @endforeach
                             </select>
-                            @error('lines.'.$i.'.to_location_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('lines.'.$i.'.to_location_id') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                     </div>
 
@@ -133,7 +133,7 @@
 
                     {{-- Step 2: Item (filtered to bin stock) --}}
                     <div>
-                        <label class="label">Item <span class="text-red-500">*</span></label>
+                        <label class="label">Item <span class="required-mark">*</span></label>
                         <select wire:model.live="lines.{{ $i }}.item_id"
                                 class="input @error('lines.'.$i.'.item_id') border-red-400 @enderror"
                                 @disabled(! $hasFromBin)>
@@ -149,13 +149,13 @@
                                 @endforeach
                             @endif
                         </select>
-                        @error('lines.'.$i.'.item_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('lines.'.$i.'.item_id') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     {{-- Step 3: Qty / UoM / Batch / Expiry --}}
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div>
-                            <label class="label">Qty <span class="text-red-500">*</span></label>
+                            <label class="label">Qty <span class="required-mark">*</span></label>
                             <input wire:model="lines.{{ $i }}.qty" type="number" step="0.0001" min="0.0001"
                                    class="input mono @error('lines.'.$i.'.qty') border-red-400 @enderror"
                                    placeholder="0.0000"
@@ -168,10 +168,10 @@
                                     </span>
                                 </p>
                             @endif
-                            @error('lines.'.$i.'.qty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('lines.'.$i.'.qty') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="label">UoM <span class="text-red-500">*</span></label>
+                            <label class="label">UoM <span class="required-mark">*</span></label>
                             <select wire:model="lines.{{ $i }}.uom_id"
                                     class="input @error('lines.'.$i.'.uom_id') border-red-400 @enderror"
                                     @disabled(! $hasItem)>
@@ -180,20 +180,20 @@
                                     <option value="{{ $uom->id }}">{{ $uom->code }}</option>
                                 @endforeach
                             </select>
-                            @error('lines.'.$i.'.uom_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('lines.'.$i.'.uom_id') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="label">Batch No</label>
                             <input wire:model="lines.{{ $i }}.batch_no" type="text"
                                    class="input mono @error('lines.'.$i.'.batch_no') border-red-400 @enderror"
                                    placeholder="e.g. LOT-001">
-                            @error('lines.'.$i.'.batch_no') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('lines.'.$i.'.batch_no') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="label">Expiry Date</label>
                             <input wire:model="lines.{{ $i }}.expiry_date" type="date"
                                    class="input @error('lines.'.$i.'.expiry_date') border-red-400 @enderror">
-                            @error('lines.'.$i.'.expiry_date') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('lines.'.$i.'.expiry_date') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                     </div>
 
@@ -211,7 +211,7 @@
                             <textarea wire:model="lines.{{ $i }}.serials" rows="3"
                                       class="input w-full mono text-xs resize-y @error('lines.'.$i.'.serials') border-red-400 @enderror"
                                       placeholder="One per line or comma-separated: SN-001, SN-002"></textarea>
-                            @error('lines.'.$i.'.serials') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('lines.'.$i.'.serials') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                     @endif
 

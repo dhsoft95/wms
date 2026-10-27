@@ -404,11 +404,11 @@
 
                 <form wire:submit="reject">
                     <div class="px-6 py-5">
-                        <label class="label">Reason <span class="text-red-500">*</span></label>
+                        <label class="label">Reason <span class="required-mark">*</span></label>
                         <textarea wire:model="rejectionReason" rows="3" autofocus
                                   class="input w-full resize-none @error('rejectionReason') border-red-400 @enderror"
                                   placeholder="Explain why this transfer is being rejected…"></textarea>
-                        @error('rejectionReason') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('rejectionReason') <p class="hint hint-error">{{ $message }}</p> @enderror
                         <p class="hint mt-1 text-slate-400">Rejection is final. Use Send Back if the requester can fix it.</p>
                     </div>
 
@@ -457,11 +457,11 @@
 
                 <form wire:submit="sendBack">
                     <div class="px-6 py-5">
-                        <label class="label">What needs to be corrected? <span class="text-red-500">*</span></label>
+                        <label class="label">What needs to be corrected? <span class="required-mark">*</span></label>
                         <textarea wire:model="returnNotes" rows="3" autofocus
                                   class="input w-full resize-none @error('returnNotes') border-red-400 @enderror"
                                   placeholder="e.g. Wrong bin on line 2, quantity exceeds request…"></textarea>
-                        @error('returnNotes') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('returnNotes') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="flex justify-end gap-2 px-6 py-4 border-t rounded-b-2xl bg-slate-50/80 border-slate-100 dark:bg-white/[0.02] dark:border-white/[0.08]">

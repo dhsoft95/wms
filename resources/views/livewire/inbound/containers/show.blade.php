@@ -605,12 +605,12 @@
                 get sealMismatch() { return this.manifestSeal !== '' && this.arrivalSeal !== '' && this.manifestSeal !== this.arrivalSeal; }
             }">
                 <div>
-                    <label class="label">Arrival Date & Time <span class="text-red-500">*</span></label>
+                    <label class="label">Arrival Date & Time <span class="required-mark">*</span></label>
                     <input wire:model="arrivedAt" type="datetime-local" class="input w-full tabular-nums">
-                    @error('arrivedAt') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('arrivedAt') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="label">Arrival Seal Number <span class="text-red-500">*</span></label>
+                    <label class="label">Arrival Seal Number <span class="required-mark">*</span></label>
                     <input wire:model="arrivalSealNo" x-model="arrivalSeal" type="text" placeholder="Enter seal number at arrival" class="input w-full font-mono">
                     @if($container->seal_no)
                         <div class="mt-1.5 flex items-center gap-2 text-xs">
@@ -624,7 +624,7 @@
                             </span>
                         </div>
                     @endif
-                    @error('arrivalSealNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('arrivalSealNo') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
             </div>
 
@@ -650,14 +650,14 @@
                 </button>
             </div>
             <div>
-                <label class="label">Select Free Yard Slot <span class="text-red-500">*</span></label>
+                <label class="label">Select Free Yard Slot <span class="required-mark">*</span></label>
                 <select wire:model="parkLocationId" class="input w-full">
                     <option value="">— Select slot —</option>
                     @foreach($this->freeYardSlots as $slot)
                         <option value="{{ $slot->id }}">{{ $slot->code }}</option>
                     @endforeach
                 </select>
-                @error('parkLocationId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('parkLocationId') <p class="hint hint-error">{{ $message }}</p> @enderror
                 @if($this->freeYardSlots->isEmpty())
                     <p class="hint !text-amber-600">No free yard slots available.</p>
                 @endif
@@ -685,19 +685,19 @@
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="label">New Yard Slot <span class="text-red-500">*</span></label>
+                    <label class="label">New Yard Slot <span class="required-mark">*</span></label>
                     <select wire:model="moveLocationId" class="input w-full">
                         <option value="">— Select slot —</option>
                         @foreach($this->freeYardSlots as $slot)
                             <option value="{{ $slot->id }}">{{ $slot->code }}</option>
                         @endforeach
                     </select>
-                    @error('moveLocationId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('moveLocationId') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="label">Reason <span class="text-red-500">*</span></label>
+                    <label class="label">Reason <span class="required-mark">*</span></label>
                     <input wire:model="moveReason" type="text" placeholder="e.g. Clear path for loading" class="input w-full">
-                    @error('moveReason') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('moveReason') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
             </div>
             <div class="flex justify-end gap-2">
@@ -726,19 +726,19 @@
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="label">Release Date & Time <span class="text-red-500">*</span></label>
+                    <label class="label">Release Date & Time <span class="required-mark">*</span></label>
                     <input wire:model="releasedAt" type="datetime-local" class="input w-full tabular-nums">
-                    @error('releasedAt') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('releasedAt') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="label">Released To <span class="text-red-500">*</span></label>
+                    <label class="label">Released To <span class="required-mark">*</span></label>
                     <select wire:model="releasedToPartnerId" class="input w-full">
                         <option value="">— Select partner —</option>
                         @foreach($this->releasePartners as $p)
                             <option value="{{ $p->id }}">{{ $p->name }}</option>
                         @endforeach
                     </select>
-                    @error('releasedToPartnerId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('releasedToPartnerId') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="label">Notes</label>
@@ -771,9 +771,9 @@
                 <p class="text-sm text-red-700 dark:text-red-400">This action cannot be undone. The container will be marked as cancelled.</p>
             </div>
             <div>
-                <label class="label">Reason <span class="text-red-500">*</span></label>
+                <label class="label">Reason <span class="required-mark">*</span></label>
                 <textarea wire:model="cancelReason" rows="3" class="input w-full" placeholder="Minimum 10 characters required…"></textarea>
-                @error('cancelReason') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('cancelReason') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
             <div class="flex justify-end gap-2">
                 <button wire:click="$set('cancelModalOpen', false)" class="btn btn-ghost">Keep Container</button>
@@ -818,9 +818,9 @@
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="label">Qty <span class="text-red-500">*</span></label>
+                        <label class="label">Qty <span class="required-mark">*</span></label>
                         <input wire:model="lineQty" type="number" step="0.0001" min="0" class="input w-full tabular-nums">
-                        @error('lineQty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('lineQty') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="label">UOM</label>
@@ -848,14 +848,14 @@
                         <input wire:model="lineWeightKg" type="number" step="0.001" min="0" class="input w-full tabular-nums">
                     </div>
                     <div>
-                        <label class="label">Virtual Warehouse <span class="text-red-500">*</span></label>
+                        <label class="label">Virtual Warehouse <span class="required-mark">*</span></label>
                         <select wire:model="lineVwId" class="input w-full">
                             <option value="">— Select VW —</option>
                             @foreach($this->virtualWarehouses as $vw)
                                 <option value="{{ $vw->id }}">{{ $vw->name }}</option>
                             @endforeach
                         </select>
-                        @error('lineVwId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('lineVwId') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                 </div>
                 <div>
@@ -884,7 +884,7 @@
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="label">Document Type <span class="text-red-500">*</span></label>
+                    <label class="label">Document Type <span class="required-mark">*</span></label>
                     <select wire:model="docType" class="input w-full">
                         @foreach(\App\Enums\ContainerDocumentType::cases() as $dt)
                             <option value="{{ $dt->value }}">{{ $dt->label() }}</option>
@@ -892,7 +892,7 @@
                     </select>
                 </div>
                 <div>
-                    <label class="label">File <span class="text-red-500">*</span></label>
+                    <label class="label">File <span class="required-mark">*</span></label>
                     <div class="relative border-2 border-dashed border-slate-300 dark:border-zinc-600 rounded-xl py-6 px-4 text-center cursor-pointer hover:border-simba-400 transition-colors"
                          onclick="this.querySelector('input[type=file]').click()">
                         <x-ui.icon name="upload" class="w-8 h-8 mx-auto text-slate-400 mb-2" wire:loading.remove wire:target="docFile" />
@@ -906,7 +906,7 @@
                             <x-ui.icon name="check" class="w-3.5 h-3.5 inline" /> {{ is_object($docFile) ? $docFile->getClientOriginalName() : 'File selected' }}
                         </p>
                     @endif
-                    @error('docFile') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('docFile') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
             </div>
             <div class="flex justify-end gap-2">
@@ -930,18 +930,18 @@
             </div>
             <div class="space-y-4">
                 <div>
-                    <label class="label">Type <span class="text-red-500">*</span></label>
+                    <label class="label">Type <span class="required-mark">*</span></label>
                     <select wire:model="discType" class="input w-full">
                         @foreach(\App\Enums\ContainerDiscrepancyType::cases() as $dt)
                             <option value="{{ $dt->value }}">{{ $dt->label() }}</option>
                         @endforeach
                     </select>
-                    @error('discType') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('discType') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="label">Description <span class="text-red-500">*</span></label>
+                    <label class="label">Description <span class="required-mark">*</span></label>
                     <textarea wire:model="discDescription" rows="3" class="input w-full" placeholder="Describe the discrepancy (min 5 chars)…"></textarea>
-                    @error('discDescription') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('discDescription') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
             </div>
             <div class="flex justify-end gap-2">

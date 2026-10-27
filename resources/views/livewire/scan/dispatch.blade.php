@@ -32,14 +32,14 @@
 
             <div class="space-y-3">
                 <div>
-                    <label class="label">Vehicle No <span class="text-red-500">*</span></label>
+                    <label class="label">Vehicle No <span class="required-mark">*</span></label>
                     <input wire:model="vehicleNo" type="text" placeholder="e.g. T 123 ABC"
                            class="input font-mono uppercase" autocomplete="off" autofocus />
                     @error('vehicleNo') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label class="label">Driver Name <span class="text-red-500">*</span></label>
+                    <label class="label">Driver Name <span class="required-mark">*</span></label>
                     <input wire:model="driverName" type="text" placeholder="Full name"
                            class="input" autocomplete="off" />
                     @error('driverName') <p class="text-xs text-red-500 mt-1">{{ $message }}</p> @enderror

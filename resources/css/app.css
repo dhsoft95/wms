@@ -189,6 +189,8 @@
     .dark .input { background: rgb(24 24 27 / 0.6); border-color: rgb(255 255 255 / 0.12); }
     .input-sm { @apply px-2.5 py-1.5 text-[12px]; }
     .hint { @apply mt-1 text-[12px] leading-[16px] text-slate-500 dark:text-slate-400; }
+    .hint.hint-error { color: var(--color-danger); }
+    .required-mark { color: var(--color-danger); }
     .section-label { @apply text-[11px] leading-[16px] font-medium uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400; }
 
     /* ── Buttons ───────────────────────────────────────────────────────────── */

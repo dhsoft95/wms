@@ -426,10 +426,10 @@
                     <button wire:click="closePoReturnModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
                 </div>
                 <div>
-                    <label class="label">Comment <span class="text-red-500">*</span></label>
+                    <label class="label">Comment <span class="required-mark">*</span></label>
                     <textarea wire:model="poComment" rows="3" class="input resize-none"
                               placeholder="What needs to be corrected…"></textarea>
-                    @error('poComment') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('poComment') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="closePoReturnModal" class="btn btn-ghost">Cancel</button>
@@ -452,10 +452,10 @@
                     <button wire:click="closePoRejectModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
                 </div>
                 <div>
-                    <label class="label">Reason <span class="text-red-500">*</span></label>
+                    <label class="label">Reason <span class="required-mark">*</span></label>
                     <textarea wire:model="poRejectReason" rows="3" class="input resize-none"
                               placeholder="Explain why this PO is being rejected…"></textarea>
-                    @error('poRejectReason') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('poRejectReason') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="closePoRejectModal" class="btn btn-ghost">Cancel</button>

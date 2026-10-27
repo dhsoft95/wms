@@ -16,7 +16,7 @@
 
                 <div>
                     <label class="label" for="name">
-                        Full Name <span class="text-red-500">*</span>
+                        Full Name <span class="required-mark">*</span>
                     </label>
                     <input
                         wire:model="name"
@@ -26,13 +26,13 @@
                         class="input @error('name') border-red-400 @enderror"
                     />
                     @error('name')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
                 <div>
                     <label class="label" for="email">
-                        Email Address <span class="text-red-500">*</span>
+                        Email Address <span class="required-mark">*</span>
                     </label>
                     <input
                         wire:model="email"
@@ -49,7 +49,7 @@
                         <p class="hint text-amber-600 dark:text-amber-400">Email not verified</p>
                     @endif
                     @error('email')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
@@ -65,7 +65,7 @@
                         class="input @error('phone') border-red-400 @enderror"
                     />
                     @error('phone')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
@@ -113,7 +113,7 @@
 
                     <div>
                         <label class="label" for="role">
-                            Role <span class="text-red-500">*</span>
+                            Role <span class="required-mark">*</span>
                         </label>
                         <select
                             wire:model.live="role"
@@ -129,7 +129,7 @@
                             <option value="viewer-auditor">Viewer / Auditor</option>
                         </select>
                         @error('role')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -137,7 +137,7 @@
                     @if ($this->showDepartment)
                         <div wire:transition>
                             <label class="label" for="departmentId">
-                                Primary Department <span class="text-red-500">*</span>
+                                Primary Department <span class="required-mark">*</span>
                             </label>
                             <select
                                 wire:model="departmentId"
@@ -152,7 +152,7 @@
                                 @endforeach
                             </select>
                             @error('departmentId')
-                                <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                                <p class="hint hint-error">{{ $message }}</p>
                             @enderror
                         </div>
                     @endif
@@ -163,7 +163,7 @@
                             <label class="label">
                                 Virtual Warehouses
                                 @if ($this->role === 'department-user')
-                                    <span class="text-red-500">*</span>
+                                    <span class="required-mark">*</span>
                                 @endif
                             </label>
                             <p class="hint mb-2">Hold Ctrl / Cmd to select multiple.</p>
@@ -179,7 +179,7 @@
                                 @endforeach
                             </select>
                             @error('virtualWarehouseIds.*')
-                                <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                                <p class="hint hint-error">{{ $message }}</p>
                             @enderror
                         </div>
                     @endif
@@ -187,7 +187,7 @@
                     {{-- Account Status --}}
                     <div>
                         <label class="label" for="status">
-                            Account Status <span class="text-red-500">*</span>
+                            Account Status <span class="required-mark">*</span>
                         </label>
                         <select
                             wire:model="status"
@@ -199,7 +199,7 @@
                             <option value="suspended">Suspended</option>
                         </select>
                         @error('status')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                         <p class="hint mt-1">
                             Changing to <strong>Suspended</strong> will immediately block login access.

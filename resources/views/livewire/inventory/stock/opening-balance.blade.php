@@ -47,14 +47,14 @@
                         <thead>
                             <tr>
                                 <th class="px-4 py-3">#</th>
-                                <th class="px-4 py-3">Item <span class="text-red-500">*</span></th>
+                                <th class="px-4 py-3">Item <span class="required-mark">*</span></th>
                                 <th class="px-4 py-3">Batch No</th>
                                 <th class="px-4 py-3">Expiry Date</th>
-                                <th class="px-4 py-3">Location <span class="text-red-500">*</span></th>
-                                <th class="px-4 py-3">Virtual Warehouse <span class="text-red-500">*</span></th>
-                                <th class="px-4 py-3">Status <span class="text-red-500">*</span></th>
-                                <th class="px-4 py-3">Qty <span class="text-red-500">*</span></th>
-                                <th class="px-4 py-3">UoM <span class="text-red-500">*</span></th>
+                                <th class="px-4 py-3">Location <span class="required-mark">*</span></th>
+                                <th class="px-4 py-3">Virtual Warehouse <span class="required-mark">*</span></th>
+                                <th class="px-4 py-3">Status <span class="required-mark">*</span></th>
+                                <th class="px-4 py-3">Qty <span class="required-mark">*</span></th>
+                                <th class="px-4 py-3">UoM <span class="required-mark">*</span></th>
                                 <th class="px-4 py-3 w-12 sr-only">Remove</th>
                             </tr>
                         </thead>
@@ -82,7 +82,7 @@
                                         @endforeach
                                     </select>
                                     @error('lines.' . $i . '.item_id')
-                                        <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                                        <p class="hint hint-error mt-1">{{ $message }}</p>
                                     @enderror
                                 </td>
 
@@ -111,7 +111,7 @@
                                         @endforeach
                                     </select>
                                     @error('lines.' . $i . '.location_id')
-                                        <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                                        <p class="hint hint-error mt-1">{{ $message }}</p>
                                     @enderror
                                 </td>
 
@@ -125,7 +125,7 @@
                                         @endforeach
                                     </select>
                                     @error('lines.' . $i . '.vw_id')
-                                        <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                                        <p class="hint hint-error mt-1">{{ $message }}</p>
                                     @enderror
                                 </td>
 
@@ -147,7 +147,7 @@
                                            placeholder="0.00"
                                            class="input w-full tabular-nums @error('lines.' . $i . '.qty') border-red-400 @enderror" />
                                     @error('lines.' . $i . '.qty')
-                                        <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                                        <p class="hint hint-error mt-1">{{ $message }}</p>
                                     @enderror
                                 </td>
 
@@ -161,7 +161,7 @@
                                         @endforeach
                                     </select>
                                     @error('lines.' . $i . '.uom_id')
-                                        <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                                        <p class="hint hint-error mt-1">{{ $message }}</p>
                                     @enderror
                                 </td>
 
@@ -206,7 +206,7 @@
                                                     class="input w-full font-mono text-xs resize-y @if ($hasDupes) border-red-400 @endif"
                                                 ></textarea>
                                                 @if ($hasDupes)
-                                                    <p class="hint !text-red-600 dark:!text-red-400 mt-1">Duplicate serial number detected.</p>
+                                                    <p class="hint hint-error mt-1">Duplicate serial number detected.</p>
                                                 @endif
                                             </div>
                                             <div class="shrink-0 pt-6 text-right min-w-[120px]">

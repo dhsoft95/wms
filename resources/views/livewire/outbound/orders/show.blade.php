@@ -893,10 +893,10 @@
                     </button>
                 </div>
                 <div>
-                    <label class="label">Comment <span class="text-red-500">*</span></label>
+                    <label class="label">Comment <span class="required-mark">*</span></label>
                     <textarea wire:model="returnNotes" rows="3" class="input resize-none"
                               placeholder="What needs to be corrected…"></textarea>
-                    @error('returnNotes') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('returnNotes') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="$set('showReturnModal', false)" class="btn btn-ghost">Cancel</button>
@@ -924,10 +924,10 @@
                     The order will be returned to the department for correction. Please explain what needs to be changed.
                 </p>
                 <div>
-                    <label class="label">Reason <span class="text-red-500">*</span></label>
+                    <label class="label">Reason <span class="required-mark">*</span></label>
                     <textarea wire:model="warehouseReturnNotes" rows="3" class="input resize-none"
                               placeholder="What needs to be corrected…"></textarea>
-                    @error('warehouseReturnNotes') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('warehouseReturnNotes') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="$set('showWarehouseReturnModal', false)" class="btn btn-ghost">Cancel</button>
@@ -954,10 +954,10 @@
                     </button>
                 </div>
                 <div>
-                    <label class="label">Reason <span class="text-red-500">*</span></label>
+                    <label class="label">Reason <span class="required-mark">*</span></label>
                     <textarea wire:model="rejectNotes" rows="3" class="input resize-none"
                               placeholder="Explain why this order is being rejected…"></textarea>
-                    @error('rejectNotes') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('rejectNotes') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="$set('showRejectModal', false)" class="btn btn-ghost">Cancel</button>
@@ -1017,7 +1017,7 @@
 
                 {{-- Qty input --}}
                 <div class="px-6">
-                    <label class="label">Qty Picked <span class="text-red-500">*</span></label>
+                    <label class="label">Qty Picked <span class="required-mark">*</span></label>
                     <input
                         wire:model="pickedQty"
                         type="number"
@@ -1026,7 +1026,7 @@
                         class="input tabular-nums"
                         autofocus
                     >
-                    @error('pickedQty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('pickedQty') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Serial selection (only for serial-tracked items) --}}
@@ -1054,7 +1054,7 @@
                                 </label>
                             @endforeach
                         </div>
-                        @error('selectedSerials') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('selectedSerials') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                 @endif
 
@@ -1151,57 +1151,57 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                         <div>
-                            <label class="label">Vehicle Registration No <span class="text-rose-500">*</span></label>
+                            <label class="label">Vehicle Registration No <span class="required-mark">*</span></label>
                             <input wire:model="vehicleRegNo" type="text" placeholder="T 452 ABC"
                                    class="input w-full mono uppercase @error('vehicleRegNo') border-red-400 @enderror" />
-                            @error('vehicleRegNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('vehicleRegNo') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
-                            <label class="label">Seal No @if($isContainer)<span class="text-rose-500">*</span>@endif</label>
+                            <label class="label">Seal No @if($isContainer)<span class="required-mark">*</span>@endif</label>
                             <input wire:model="sealNo" type="text" placeholder="SL-55021"
                                    class="input w-full mono @error('sealNo') border-red-400 @enderror" />
-                            @error('sealNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('sealNo') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         @if ($isContainer)
                             <div>
-                                <label class="label">Container No <span class="text-rose-500">*</span></label>
+                                <label class="label">Container No <span class="required-mark">*</span></label>
                                 <input wire:model="containerNo" type="text" placeholder="TCKU 123456-7"
                                        class="input w-full mono uppercase @error('containerNo') border-red-400 @enderror" />
-                                @error('containerNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error('containerNo') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                             <div>
-                                <label class="label">Container Size <span class="text-rose-500">*</span></label>
+                                <label class="label">Container Size <span class="required-mark">*</span></label>
                                 <select wire:model="containerSize" class="input w-full @error('containerSize') border-red-400 @enderror">
                                     <option value="">— Select size —</option>
                                     @foreach ($this->containerSizes as $size)
                                         <option value="{{ $size->value }}">{{ $size->label() }}</option>
                                     @endforeach
                                 </select>
-                                @error('containerSize') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error('containerSize') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                         @endif
 
                         <div>
-                            <label class="label">Driver Name <span class="text-rose-500">*</span></label>
+                            <label class="label">Driver Name <span class="required-mark">*</span></label>
                             <input wire:model="driverName" type="text" placeholder="Juma Kassim"
                                    class="input w-full @error('driverName') border-red-400 @enderror" />
-                            @error('driverName') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('driverName') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
                             <label class="label">Driver Phone</label>
                             <input wire:model="driverPhone" type="tel" placeholder="+255 712 000 000"
                                    class="input w-full tabular-nums @error('driverPhone') border-red-400 @enderror" />
-                            @error('driverPhone') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('driverPhone') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
                             <label class="label">Driver ID No</label>
                             <input wire:model="driverIdNo" type="text" placeholder="DL-4410923"
                                    class="input w-full mono @error('driverIdNo') border-red-400 @enderror" />
-                            @error('driverIdNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('driverIdNo') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         <div>

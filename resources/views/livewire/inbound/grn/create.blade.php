@@ -23,7 +23,7 @@
 
                 {{-- Source --}}
                 <div>
-                    <label class="label">Source <span class="text-red-500">*</span></label>
+                    <label class="label">Source <span class="required-mark">*</span></label>
                     <div class="flex gap-4 flex-wrap">
                         @foreach ($this->sources as $src)
                             <label class="flex items-center gap-2 cursor-pointer">
@@ -35,12 +35,12 @@
                             </label>
                         @endforeach
                     </div>
-                    @error('source') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    @error('source') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Warehouse --}}
                 <div>
-                    <label class="label" for="grn-warehouse">Warehouse <span class="text-red-500">*</span></label>
+                    <label class="label" for="grn-warehouse">Warehouse <span class="required-mark">*</span></label>
                     <select wire:model.live="warehouseId" id="grn-warehouse"
                             class="input @error('warehouseId') border-red-400 @enderror">
                         <option value="">Select warehouse…</option>
@@ -48,7 +48,7 @@
                             <option value="{{ $wh->id }}">{{ $wh->name }}</option>
                         @endforeach
                     </select>
-                    @error('warehouseId') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    @error('warehouseId') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -64,7 +64,7 @@
                                 <option value="{{ $sup->id }}">{{ $sup->name }}</option>
                             @endforeach
                         </select>
-                        @error('supplierId') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                        @error('supplierId') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                     @endif
 
@@ -79,7 +79,7 @@
                                 <option value="{{ $cust->id }}">{{ $cust->name }}</option>
                             @endforeach
                         </select>
-                        @error('customerId') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                        @error('customerId') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                     @endif
 
@@ -93,7 +93,7 @@
                                 <option value="{{ $loc->id }}">{{ $loc->code }}</option>
                             @endforeach
                         </select>
-                        @error('dockId') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                        @error('dockId') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     {{-- Delivery Note Reference --}}
@@ -104,7 +104,7 @@
                         <input type="text" wire:model="deliveryNoteRef" id="grn-dn-ref"
                                maxlength="100" placeholder="e.g. DN-2026-00123"
                                class="input @error('deliveryNoteRef') border-red-400 @enderror" />
-                        @error('deliveryNoteRef') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                        @error('deliveryNoteRef') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     {{-- Expected Date --}}
@@ -114,7 +114,7 @@
                         </label>
                         <input type="date" wire:model="expectedDate" id="grn-expected-date"
                                class="input @error('expectedDate') border-red-400 @enderror" />
-                        @error('expectedDate') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                        @error('expectedDate') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                 </div>
@@ -126,7 +126,7 @@
                     </label>
                     <textarea wire:model="notes" id="grn-notes" rows="3"
                               class="input resize-none @error('notes') border-red-400 @enderror"></textarea>
-                    @error('notes') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    @error('notes') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
             </div>
@@ -150,10 +150,10 @@
                     <thead>
                         <tr>
                             <th class="w-8">#</th>
-                            <th>Item <span class="text-red-500">*</span></th>
-                            <th class="w-28">Exp. Qty <span class="text-red-500">*</span></th>
-                            <th class="w-32">UoM <span class="text-red-500">*</span></th>
-                            <th class="w-44">Virtual Warehouse <span class="text-red-500">*</span></th>
+                            <th>Item <span class="required-mark">*</span></th>
+                            <th class="w-28">Exp. Qty <span class="required-mark">*</span></th>
+                            <th class="w-32">UoM <span class="required-mark">*</span></th>
+                            <th class="w-44">Virtual Warehouse <span class="required-mark">*</span></th>
                             <th class="w-32">Batch No.</th>
                             <th class="w-36">Expiry Date</th>
                             <th class="w-36">MIC No.</th>
@@ -176,7 +176,7 @@
                                     @endforeach
                                 </select>
                                 @error("lines.{$i}.item_id")
-                                    <p class="hint !text-red-600 dark:!text-red-400 mt-0.5">{{ $message }}</p>
+                                    <p class="hint hint-error mt-0.5">{{ $message }}</p>
                                 @enderror
                             </td>
 
@@ -186,7 +186,7 @@
                                        min="0.0001" step="any"
                                        class="input input-sm @error("lines.{$i}.expected_qty") border-red-400 @enderror" />
                                 @error("lines.{$i}.expected_qty")
-                                    <p class="hint !text-red-600 dark:!text-red-400 mt-0.5">{{ $message }}</p>
+                                    <p class="hint hint-error mt-0.5">{{ $message }}</p>
                                 @enderror
                             </td>
 
@@ -202,7 +202,7 @@
                                     @endforeach
                                 </select>
                                 @error("lines.{$i}.uom_id")
-                                    <p class="hint !text-red-600 dark:!text-red-400 mt-0.5">{{ $message }}</p>
+                                    <p class="hint hint-error mt-0.5">{{ $message }}</p>
                                 @enderror
                             </td>
 
@@ -216,7 +216,7 @@
                                     @endforeach
                                 </select>
                                 @error("lines.{$i}.virtual_warehouse_id")
-                                    <p class="hint !text-red-600 dark:!text-red-400 mt-0.5">{{ $message }}</p>
+                                    <p class="hint hint-error mt-0.5">{{ $message }}</p>
                                 @enderror
                             </td>
 

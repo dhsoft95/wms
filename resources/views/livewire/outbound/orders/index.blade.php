@@ -437,7 +437,7 @@
                     </p>
                     <div>
                         <label class="label" for="reject-notes">
-                            Rejection reason <span class="text-red-500">*</span>
+                            Rejection reason <span class="required-mark">*</span>
                         </label>
                         <textarea wire:model="rejectNotes"
                                   id="reject-notes"
@@ -445,7 +445,7 @@
                                   placeholder="Explain why this order is being rejected…"
                                   class="input w-full resize-none @error('rejectNotes') border-red-400 @enderror"></textarea>
                         @error('rejectNotes')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
                 </div>

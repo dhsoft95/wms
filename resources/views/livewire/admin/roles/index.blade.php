@@ -23,14 +23,14 @@
                 </div>
 
                 <div>
-                    <label class="label">Role Name <span class="text-red-500">*</span></label>
+                    <label class="label">Role Name <span class="required-mark">*</span></label>
                     <input wire:model="newRoleName"
                            type="text"
                            placeholder="e.g. warehouse-supervisor"
                            class="input font-mono @error('newRoleName') border-red-400 @enderror"
                            autofocus>
                     <p class="hint mt-1">Lowercase letters, numbers and hyphens only. Cannot be changed later.</p>
-                    @error('newRoleName') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('newRoleName') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Permissions --}}
@@ -59,7 +59,7 @@
                             </div>
                         @endforeach
                     </div>
-                    @error('newRolePermissions') <p class="hint !text-red-600 mt-1">{{ $message }}</p> @enderror
+                    @error('newRolePermissions') <p class="hint hint-error mt-1">{{ $message }}</p> @enderror
                 </div>
 
                 <div class="flex justify-end gap-2 pt-1 border-t border-slate-100 dark:border-slate-800">

@@ -41,7 +41,7 @@
 
                     {{-- Warehouse --}}
                     <div>
-                        <label class="label" for="bg-warehouse">Warehouse <span class="text-red-500">*</span></label>
+                        <label class="label" for="bg-warehouse">Warehouse <span class="required-mark">*</span></label>
                         <select
                             wire:model.live="warehouseId"
                             id="bg-warehouse"
@@ -53,7 +53,7 @@
                             @endforeach
                         </select>
                         @error('warehouseId')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -80,7 +80,7 @@
                     {{-- Level & Type in a grid --}}
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
                         <div>
-                            <label class="label" for="bg-level">Level <span class="text-red-500">*</span></label>
+                            <label class="label" for="bg-level">Level <span class="required-mark">*</span></label>
                             <select
                                 wire:model.live="level"
                                 id="bg-level"
@@ -91,12 +91,12 @@
                                 @endforeach
                             </select>
                             @error('level')
-                                <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                                <p class="hint hint-error">{{ $message }}</p>
                             @enderror
                         </div>
 
                         <div>
-                            <label class="label" for="bg-type">Type <span class="text-red-500">*</span></label>
+                            <label class="label" for="bg-type">Type <span class="required-mark">*</span></label>
                             <select
                                 wire:model="type"
                                 id="bg-type"
@@ -107,7 +107,7 @@
                                 @endforeach
                             </select>
                             @error('type')
-                                <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                                <p class="hint hint-error">{{ $message }}</p>
                             @enderror
                         </div>
                     </div>
@@ -147,7 +147,7 @@
 
                         {{-- Start --}}
                         <div>
-                            <label class="label" for="bg-start">Start <span class="text-red-500">*</span></label>
+                            <label class="label" for="bg-start">Start <span class="required-mark">*</span></label>
                             <input
                                 wire:model="segmentStart"
                                 id="bg-start"
@@ -157,13 +157,13 @@
                                 class="input mono uppercase w-full @error('segmentStart') border-red-400 @enderror"
                             />
                             @error('segmentStart')
-                                <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                                <p class="hint hint-error">{{ $message }}</p>
                             @enderror
                         </div>
 
                         {{-- End --}}
                         <div>
-                            <label class="label" for="bg-end">End <span class="text-red-500">*</span></label>
+                            <label class="label" for="bg-end">End <span class="required-mark">*</span></label>
                             <input
                                 wire:model="segmentEnd"
                                 id="bg-end"
@@ -173,7 +173,7 @@
                                 class="input mono uppercase w-full @error('segmentEnd') border-red-400 @enderror"
                             />
                             @error('segmentEnd')
-                                <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                                <p class="hint hint-error">{{ $message }}</p>
                             @enderror
                         </div>
 
@@ -191,7 +191,7 @@
                             />
                             <p class="hint">Zero-pad numeric values to this length. Ignored for alphabetic ranges.</p>
                             @error('segmentPadding')
-                                <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                                <p class="hint hint-error">{{ $message }}</p>
                             @enderror
                         </div>
 

@@ -135,10 +135,10 @@
                 </div>
                 <div class="px-6 py-5 space-y-4">
                     <div>
-                        <label class="label">Reason <span class="text-red-500">*</span></label>
+                        <label class="label">Reason <span class="required-mark">*</span></label>
                         <textarea wire:model="rejectionReason" rows="3" class="input w-full resize-none @error('rejectionReason') border-red-400 @enderror"
                                   placeholder="Explain why this adjustment is being rejected…"></textarea>
-                        @error('rejectionReason') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('rejectionReason') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                 </div>
                 <div class="flex justify-end gap-3 px-6 py-4 bg-slate-50/80 dark:bg-white/[0.02] border-t border-slate-100 dark:border-white/[0.08] rounded-b-2xl">

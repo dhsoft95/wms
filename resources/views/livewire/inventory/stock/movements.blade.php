@@ -400,7 +400,7 @@
                 <div class="px-6 pb-6 space-y-4">
                     <div>
                         <label class="label" for="reverse-reason">
-                            Reason <span class="text-red-500">*</span>
+                            Reason <span class="required-mark">*</span>
                         </label>
                         <textarea
                             wire:model="reverseReason"
@@ -410,7 +410,7 @@
                             class="input w-full resize-none @error('reverseReason') border-red-400 @enderror"
                         ></textarea>
                         @error('reverseReason')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 

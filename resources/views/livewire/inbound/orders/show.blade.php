@@ -826,10 +826,10 @@
                     If there is no previous level, it will be returned to the requester.
                 </p>
                 <div>
-                    <label class="label">Remark <span class="text-red-500">*</span></label>
+                    <label class="label">Remark <span class="required-mark">*</span></label>
                     <textarea wire:model="returnComment" rows="3" class="input resize-none"
                               placeholder="Explain why you are sending this back…"></textarea>
-                    @error('returnComment') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('returnComment') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="closeReturnModal" class="btn btn-ghost">Cancel</button>
@@ -855,10 +855,10 @@
                     <button wire:click="closeRejectModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
                 </div>
                 <div>
-                    <label class="label">Rejection Reason <span class="text-red-500">*</span></label>
+                    <label class="label">Rejection Reason <span class="required-mark">*</span></label>
                     <textarea wire:model="rejectReason" rows="3" class="input resize-none"
                               placeholder="Explain why this PO is being rejected…"></textarea>
-                    @error('rejectReason') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('rejectReason') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="closeRejectModal" class="btn btn-ghost">Cancel</button>
@@ -881,10 +881,10 @@
                     <button wire:click="closeWmRejectModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
                 </div>
                 <div>
-                    <label class="label">Reason <span class="text-red-500">*</span></label>
+                    <label class="label">Reason <span class="required-mark">*</span></label>
                     <textarea wire:model="wmRejectReason" rows="3" class="input resize-none"
                               placeholder="Explain the issue…"></textarea>
-                    @error('wmRejectReason') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('wmRejectReason') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="closeWmRejectModal" class="btn btn-ghost">Cancel</button>
@@ -910,10 +910,10 @@
                     Notify the requester of what needs to be corrected before resubmitting.
                 </p>
                 <div>
-                    <label class="label">Your Note <span class="text-red-500">*</span></label>
+                    <label class="label">Your Note <span class="required-mark">*</span></label>
                     <textarea wire:model="forwardComment" rows="3" class="input resize-none"
                               placeholder="Explain what the requester needs to fix…"></textarea>
-                    @error('forwardComment') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('forwardComment') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="closeForwardModal" class="btn btn-ghost">Cancel</button>
@@ -941,7 +941,7 @@
                     @php $userList = $assignType === 'supervisor' ? $this->supervisors : $this->clerks; @endphp
                     <label class="label">
                         Select {{ $assignType === 'supervisor' ? 'Supervisor' : 'Clerk' }}
-                        <span class="text-red-500">*</span>
+                        <span class="required-mark">*</span>
                         <span class="text-slate-400 font-normal ml-1">({{ $userList->count() }} available)</span>
                     </label>
                     @if ($userList->isEmpty())
@@ -957,7 +957,7 @@
                             @endforeach
                         </select>
                     @endif
-                    @error('assignUserId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('assignUserId') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="closeAssignModal" class="btn btn-ghost">Cancel</button>
@@ -984,14 +984,14 @@
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
-                        <label class="label">Receiving Dock <span class="text-red-500">*</span></label>
+                        <label class="label">Receiving Dock <span class="required-mark">*</span></label>
                         <select wire:model="receiveDockId" class="input">
                             <option value="">Select dock…</option>
                             @foreach ($this->receivingDocks as $dock)
                                 <option value="{{ $dock->id }}">{{ $dock->code }}</option>
                             @endforeach
                         </select>
-                        @error('receiveDockId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('receiveDockId') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     {{-- Container Details — only when PO package type = Container --}}
@@ -1005,28 +1005,28 @@
                         </div>
 
                         <div>
-                            <label class="label">Container No. <span class="text-red-500">*</span></label>
+                            <label class="label">Container No. <span class="required-mark">*</span></label>
                             <input wire:model="receiveContainerNo" type="text"
                                    placeholder="e.g. TCKU1234567"
                                    class="input font-mono uppercase" />
-                            @error('receiveContainerNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('receiveContainerNo') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="label">Size / Type <span class="text-red-500">*</span></label>
+                            <label class="label">Size / Type <span class="required-mark">*</span></label>
                             <select wire:model="receiveContainerSizeType" class="input">
                                 <option value="">Select…</option>
                                 @foreach (\App\Enums\ContainerSizeType::cases() as $st)
                                     <option value="{{ $st->value }}">{{ $st->label() }}</option>
                                 @endforeach
                             </select>
-                            @error('receiveContainerSizeType') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('receiveContainerSizeType') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="label">Seal No. <span class="text-red-500">*</span></label>
+                            <label class="label">Seal No. <span class="required-mark">*</span></label>
                             <input wire:model="receiveContainerSealNo" type="text"
                                    placeholder="Seal number"
                                    class="input font-mono" />
-                            @error('receiveContainerSealNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('receiveContainerSealNo') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label class="label">Shipping Line</label>
@@ -1103,10 +1103,10 @@
                     <button wire:click="closeSendBackModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
                 </div>
                 <div>
-                    <label class="label">Comment <span class="text-red-500">*</span></label>
+                    <label class="label">Comment <span class="required-mark">*</span></label>
                     <textarea wire:model="sendBackComment" rows="3" class="input resize-none"
                               placeholder="What needs to be corrected…"></textarea>
-                    @error('sendBackComment') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('sendBackComment') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="closeSendBackModal" class="btn btn-ghost">Cancel</button>
@@ -1132,10 +1132,10 @@
                     <button wire:click="closeIssueModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
                 </div>
                 <div>
-                    <label class="label">Description <span class="text-red-500">*</span></label>
+                    <label class="label">Description <span class="required-mark">*</span></label>
                     <textarea wire:model="issueDescription" rows="3" class="input resize-none"
                               placeholder="Describe the issue with this delivery…"></textarea>
-                    @error('issueDescription') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('issueDescription') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="closeIssueModal" class="btn btn-ghost">Cancel</button>
@@ -1158,10 +1158,10 @@
                     <button wire:click="closeResolveModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
                 </div>
                 <div>
-                    <label class="label">Resolution Notes <span class="text-red-500">*</span></label>
+                    <label class="label">Resolution Notes <span class="required-mark">*</span></label>
                     <textarea wire:model="resolveNotes" rows="3" class="input resize-none"
                               placeholder="Explain how the issue was resolved…"></textarea>
-                    @error('resolveNotes') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('resolveNotes') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="closeResolveModal" class="btn btn-ghost">Cancel</button>
@@ -1187,10 +1187,10 @@
                     This will close the PO as a partial delivery — not all lines have been fully received. A reason is required.
                 </p>
                 <div>
-                    <label class="label">Reason <span class="text-red-500">*</span></label>
+                    <label class="label">Reason <span class="required-mark">*</span></label>
                     <textarea wire:model="closeShortReason" rows="2" class="input resize-none"
                               placeholder="e.g. Supplier confirmed no further deliveries…"></textarea>
-                    @error('closeShortReason') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('closeShortReason') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                     <button wire:click="closeCloseShortModal" class="btn btn-ghost">Cancel</button>

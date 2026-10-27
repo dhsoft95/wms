@@ -380,16 +380,16 @@
                 </p>
                 <div class="space-y-3">
                     <div>
-                        <label class="label">New Password <span class="text-red-500">*</span></label>
+                        <label class="label">New Password <span class="required-mark">*</span></label>
                         <input wire:model="newPassword" type="password" class="input"
                                placeholder="Min. 8 characters" autocomplete="new-password" />
-                        @error('newPassword') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('newPassword') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                     <div>
-                        <label class="label">Confirm Password <span class="text-red-500">*</span></label>
+                        <label class="label">Confirm Password <span class="required-mark">*</span></label>
                         <input wire:model="newPasswordConfirmation" type="password" class="input"
                                placeholder="Repeat password" autocomplete="new-password" />
-                        @error('newPasswordConfirmation') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('newPasswordConfirmation') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                 </div>
                 <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">

@@ -25,7 +25,7 @@
 
                 {{-- Name --}}
                 <div>
-                    <label class="label" for="pr-name">Name <span class="text-red-500">*</span></label>
+                    <label class="label" for="pr-name">Name <span class="required-mark">*</span></label>
                     <input
                         wire:model="name"
                         id="pr-name"
@@ -33,12 +33,12 @@
                         placeholder="e.g. Warehouse Floor Zebra"
                         class="input w-full @error('name') border-red-400 @enderror"
                     />
-                    @error('name') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    @error('name') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Kind --}}
                 <div>
-                    <label class="label" for="pr-kind">Kind <span class="text-red-500">*</span></label>
+                    <label class="label" for="pr-kind">Kind <span class="required-mark">*</span></label>
                     <select
                         wire:model.live="kind"
                         id="pr-kind"
@@ -48,14 +48,14 @@
                             <option value="{{ $case->value }}">{{ $case->label() }}</option>
                         @endforeach
                     </select>
-                    @error('kind') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    @error('kind') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Network fields (only for zpl_network) --}}
                 @if ($this->isNetworkPrinter())
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="label" for="pr-ip">IP Address <span class="text-red-500">*</span></label>
+                            <label class="label" for="pr-ip">IP Address <span class="required-mark">*</span></label>
                             <input
                                 wire:model="ip"
                                 id="pr-ip"
@@ -63,10 +63,10 @@
                                 placeholder="192.168.1.100"
                                 class="input w-full mono @error('ip') border-red-400 @enderror"
                             />
-                            @error('ip') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                            @error('ip') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="label" for="pr-port">Port <span class="text-red-500">*</span></label>
+                            <label class="label" for="pr-port">Port <span class="required-mark">*</span></label>
                             <input
                                 wire:model="port"
                                 id="pr-port"
@@ -75,14 +75,14 @@
                                 max="65535"
                                 class="input w-full @error('port') border-red-400 @enderror"
                             />
-                            @error('port') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                            @error('port') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                     </div>
                 @endif
 
                 {{-- DPI --}}
                 <div>
-                    <label class="label">Resolution (DPI) <span class="text-red-500">*</span></label>
+                    <label class="label">Resolution (DPI) <span class="required-mark">*</span></label>
                     <div class="flex gap-4 mt-1">
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input wire:model="dpi" type="radio" value="203" class="text-simba-600 focus:ring-simba-600" />
@@ -93,7 +93,7 @@
                             <span class="text-sm text-slate-700 dark:text-slate-300">300 DPI (high quality)</span>
                         </label>
                     </div>
-                    @error('dpi') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    @error('dpi') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Location Note --}}
@@ -108,7 +108,7 @@
                         placeholder="e.g. Inbound dock, Rack A3"
                         class="input w-full @error('locationNote') border-red-400 @enderror"
                     />
-                    @error('locationNote') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    @error('locationNote') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Active --}}

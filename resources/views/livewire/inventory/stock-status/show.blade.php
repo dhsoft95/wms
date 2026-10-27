@@ -356,10 +356,10 @@
                         The request will be closed and no stock status changes will be made.
                     </div>
                     <div>
-                        <label class="label">Reason <span class="text-red-500">*</span></label>
+                        <label class="label">Reason <span class="required-mark">*</span></label>
                         <textarea wire:model="rejectReason" rows="3" class="input w-full resize-none @error('rejectReason') border-red-400 @enderror"
                                   placeholder="Explain why this request is being rejected…"></textarea>
-                        @error('rejectReason') <p class="hint !text-red-600 mt-1">{{ $message }}</p> @enderror
+                        @error('rejectReason') <p class="hint hint-error mt-1">{{ $message }}</p> @enderror
                     </div>
                 </div>
 

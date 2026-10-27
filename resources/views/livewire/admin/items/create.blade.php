@@ -52,17 +52,17 @@
                 <div class="card-body space-y-5">
 
                     <div>
-                        <label class="label" for="sku">SKU <span class="text-red-500">*</span></label>
+                        <label class="label" for="sku">SKU <span class="required-mark">*</span></label>
                         <input wire:model="sku" id="sku" type="text" placeholder="e.g. ITEM-001"
                                class="input font-mono @error('sku') border-red-400 @enderror" autocomplete="off" />
-                        @error('sku') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                        @error('sku') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
-                        <label class="label" for="name">Name <span class="text-red-500">*</span></label>
+                        <label class="label" for="name">Name <span class="required-mark">*</span></label>
                         <input wire:model="name" id="name" type="text" placeholder="Product name"
                                class="input @error('name') border-red-400 @enderror" autocomplete="off" />
-                        @error('name') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                        @error('name') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
@@ -72,7 +72,7 @@
                         <textarea wire:model="description" id="description" rows="3"
                                   placeholder="Optional description…"
                                   class="input @error('description') border-red-400 @enderror"></textarea>
-                        @error('description') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                        @error('description') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
@@ -84,7 +84,7 @@
                                 <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                             @endforeach
                         </select>
-                        @error('categoryId') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                        @error('categoryId') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     <label class="flex items-center gap-3 cursor-pointer">
@@ -109,7 +109,7 @@
                     <div class="card-body space-y-5">
 
                         <div>
-                            <label class="label" for="baseUomId">Base Unit of Measure <span class="text-red-500">*</span></label>
+                            <label class="label" for="baseUomId">Base Unit of Measure <span class="required-mark">*</span></label>
                             <select wire:model="baseUomId" id="baseUomId"
                                     class="input @error('baseUomId') border-red-400 @enderror">
                                 <option value="">Select UoM…</option>
@@ -117,7 +117,7 @@
                                     <option value="{{ $uom->id }}">{{ $uom->code }} — {{ $uom->name }}</option>
                                 @endforeach
                             </select>
-                            @error('baseUomId') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                            @error('baseUomId') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         <div>
@@ -129,7 +129,7 @@
                                     <option value="{{ $vw->id }}">{{ $vw->name }}</option>
                                 @endforeach
                             </select>
-                            @error('defaultVwId') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                            @error('defaultVwId') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                     </div>
@@ -150,21 +150,21 @@
                                 <input wire:model="length" id="length" type="number" step="0.001" min="0"
                                        placeholder="0.000"
                                        class="input @error('length') border-red-400 @enderror" />
-                                @error('length') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                                @error('length') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label class="label" for="width">Width</label>
                                 <input wire:model="width" id="width" type="number" step="0.001" min="0"
                                        placeholder="0.000"
                                        class="input @error('width') border-red-400 @enderror" />
-                                @error('width') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                                @error('width') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label class="label" for="height">Height</label>
                                 <input wire:model="height" id="height" type="number" step="0.001" min="0"
                                        placeholder="0.000"
                                        class="input @error('height') border-red-400 @enderror" />
-                                @error('height') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                                @error('height') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                         </div>
 
@@ -173,7 +173,7 @@
                             <input wire:model="weight" id="weight" type="number" step="0.001" min="0"
                                    placeholder="0.000"
                                    class="input @error('weight') border-red-400 @enderror" />
-                            @error('weight') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                            @error('weight') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                     </div>
@@ -245,7 +245,7 @@
                                         @endforeach
                                     </select>
                                     @error('uoms.'.$i.'.uom_id')
-                                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                                        <p class="hint hint-error">{{ $message }}</p>
                                     @enderror
                                 </td>
                                 <td class="py-2.5 pr-4">
@@ -254,7 +254,7 @@
                                            placeholder="e.g. 12"
                                            class="input font-mono @error('uoms.'.$i.'.factor_to_base') border-red-400 @enderror" />
                                     @error('uoms.'.$i.'.factor_to_base')
-                                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                                        <p class="hint hint-error">{{ $message }}</p>
                                     @enderror
                                 </td>
                                 <td class="py-2.5 pr-4 text-center">
@@ -322,7 +322,7 @@
                                            type="text" placeholder="Scan or type…"
                                            class="input font-mono @error('barcodes.'.$i.'.barcode') border-red-400 @enderror" />
                                     @error('barcodes.'.$i.'.barcode')
-                                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                                        <p class="hint hint-error">{{ $message }}</p>
                                     @enderror
                                 </td>
                                 <td class="py-2.5 pr-4">
@@ -334,7 +334,7 @@
                                         @endforeach
                                     </select>
                                     @error('barcodes.'.$i.'.uom_id')
-                                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                                        <p class="hint hint-error">{{ $message }}</p>
                                     @enderror
                                 </td>
                                 <td class="py-2.5 pr-4">
@@ -455,7 +455,7 @@
                                class="input font-mono @error('minStock') border-red-400 @enderror" />
                         <span class="shrink-0 text-sm text-slate-500 dark:text-slate-400 font-mono">{{ $baseUomCode }}</span>
                     </div>
-                    @error('minStock') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    @error('minStock') <p class="hint hint-error">{{ $message }}</p> @enderror
                     <p class="hint mt-1">Alert is triggered when stock falls below this level.</p>
                 </div>
 
@@ -467,7 +467,7 @@
                                class="input font-mono @error('maxStock') border-red-400 @enderror" />
                         <span class="shrink-0 text-sm text-slate-500 dark:text-slate-400 font-mono">{{ $baseUomCode }}</span>
                     </div>
-                    @error('maxStock') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                    @error('maxStock') <p class="hint hint-error">{{ $message }}</p> @enderror
                     <p class="hint mt-1">Alert is triggered when stock exceeds this level.</p>
                 </div>
 
@@ -500,7 +500,7 @@
                                 <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ $ruleLabel }}</span>
                             </label>
                         @endforeach
-                        @error('allocationRules') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                        @error('allocationRules') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                 </div>
 
@@ -520,7 +520,7 @@
                                        class="input font-mono @error('varianceThresholdPct') border-red-400 @enderror" />
                                 <span class="shrink-0 text-sm text-slate-500 dark:text-slate-400">%</span>
                             </div>
-                            @error('varianceThresholdPct') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                            @error('varianceThresholdPct') <p class="hint hint-error">{{ $message }}</p> @enderror
                             <p class="hint mt-1">GRN variance above this percentage requires approval.</p>
                         </div>
                         <div>
@@ -528,7 +528,7 @@
                             <input wire:model="varianceThresholdQty" id="varianceThresholdQty"
                                    type="number" step="0.0001" min="0" placeholder="e.g. 10"
                                    class="input font-mono @error('varianceThresholdQty') border-red-400 @enderror" />
-                            @error('varianceThresholdQty') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                            @error('varianceThresholdQty') <p class="hint hint-error">{{ $message }}</p> @enderror
                             <p class="hint mt-1">GRN variance above this absolute quantity requires approval.</p>
                         </div>
                     </div>
@@ -563,7 +563,7 @@
                             <input wire:model="dispatchApprovalQty" id="dispatchApprovalQty"
                                    type="number" step="0.0001" min="0" placeholder="Leave blank to always require"
                                    class="input font-mono @error('dispatchApprovalQty') border-red-400 @enderror" />
-                            @error('dispatchApprovalQty') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                            @error('dispatchApprovalQty') <p class="hint hint-error">{{ $message }}</p> @enderror
                             <p class="hint mt-1">Only require approval when line quantity exceeds this threshold. Leave blank to always require approval.</p>
                         </div>
                         @endif
@@ -585,7 +585,7 @@
                             <option value="required">Always Require Approval</option>
                             <option value="not_required">Never Require Approval</option>
                         </select>
-                        @error('adjustmentApproval') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                        @error('adjustmentApproval') <p class="hint hint-error">{{ $message }}</p> @enderror
                         <p class="hint mt-1">Overrides the category-level adjustment approval setting for this specific item.</p>
                     </div>
                 </div>

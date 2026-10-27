@@ -25,7 +25,7 @@
 
                 {{-- Code --}}
                 <div>
-                    <label class="label" for="wh-code">Code <span class="text-red-500">*</span></label>
+                    <label class="label" for="wh-code">Code <span class="required-mark">*</span></label>
                     <input
                         wire:model="code"
                         id="wh-code"
@@ -36,13 +36,13 @@
                     />
                     <p class="hint">Short unique identifier, max 10 characters. Will be uppercased automatically.</p>
                     @error('code')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
                 {{-- Name --}}
                 <div>
-                    <label class="label" for="wh-name">Name <span class="text-red-500">*</span></label>
+                    <label class="label" for="wh-name">Name <span class="required-mark">*</span></label>
                     <input
                         wire:model="name"
                         id="wh-name"
@@ -51,7 +51,7 @@
                         class="input w-full @error('name') border-red-400 @enderror"
                     />
                     @error('name')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
@@ -68,7 +68,7 @@
                         class="input w-full resize-none @error('address') border-red-400 @enderror"
                     ></textarea>
                     @error('address')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 

@@ -16,7 +16,7 @@
     <div class="card-body !py-3 space-y-3">
         {{-- Container No --}}
         <div>
-            <label class="label !text-xs !mb-1">Container Number <span class="text-red-500">*</span></label>
+            <label class="label !text-xs !mb-1">Container Number <span class="required-mark">*</span></label>
             <div class="flex gap-2 items-start">
                 <div class="flex-1">
                     <input wire:model.live="form.container_no"
@@ -27,7 +27,7 @@
                     @if(isset($container) && !$container->containerNoEditable())
                         <p class="hint text-slate-400">Container number cannot be changed after the container has arrived.</p>
                     @endif
-                    @error('form.container_no') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('form.container_no') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
             </div>
         </div>
@@ -37,18 +37,18 @@
             <div>
                 <label class="label !text-xs !mb-1">Seal Number</label>
                 <input wire:model="form.seal_no" type="text" placeholder="TZ-998238" class="input input-sm font-mono">
-                @error('form.seal_no') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('form.seal_no') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
 
             {{-- Size Type --}}
             <div>
-                <label class="label !text-xs !mb-1">Size / Type <span class="text-red-500">*</span></label>
+                <label class="label !text-xs !mb-1">Size / Type <span class="required-mark">*</span></label>
                 <select wire:model="form.size_type" class="input input-sm">
                     @foreach(\App\Enums\ContainerSizeType::cases() as $st)
                         <option value="{{ $st->value }}">{{ $st->label() }}</option>
                     @endforeach
                 </select>
-                @error('form.size_type') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('form.size_type') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
         </div>
     </div>
@@ -72,17 +72,17 @@
             <div>
                 <label class="label !text-xs !mb-1">Bill of Lading No.</label>
                 <input wire:model="form.bl_no" type="text" placeholder="BL-DAR-2026-001" class="input input-sm font-mono">
-                @error('form.bl_no') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('form.bl_no') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label class="label !text-xs !mb-1">Vessel Name</label>
                 <input wire:model="form.vessel" type="text" placeholder="MSC Diana" class="input input-sm">
-                @error('form.vessel') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('form.vessel') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label class="label !text-xs !mb-1">Voyage Number</label>
                 <input wire:model="form.voyage" type="text" placeholder="V.12" class="input input-sm font-mono">
-                @error('form.voyage') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('form.voyage') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
         </div>
     </div>
@@ -111,7 +111,7 @@
                         <option value="{{ $p->id }}">{{ $p->name }}</option>
                     @endforeach
                 </select>
-                @error('form.shipping_line_partner_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('form.shipping_line_partner_id') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label class="label !text-xs !mb-1">Shipper</label>
@@ -121,7 +121,7 @@
                         <option value="{{ $p->id }}">{{ $p->name }}</option>
                     @endforeach
                 </select>
-                @error('form.shipper_partner_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('form.shipper_partner_id') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label class="label !text-xs !mb-1">Consignee</label>
@@ -131,7 +131,7 @@
                         <option value="{{ $p->id }}">{{ $p->name }}</option>
                     @endforeach
                 </select>
-                @error('form.consignee_partner_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('form.consignee_partner_id') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
         </div>
     </div>
@@ -155,13 +155,13 @@
             <div>
                 <label class="label !text-xs !mb-1">ETA</label>
                 <input wire:model="form.eta" type="date" class="input input-sm tabular-nums">
-                @error('form.eta') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('form.eta') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label class="label !text-xs !mb-1">Free Days</label>
                 <input wire:model="form.free_days" type="number" min="0" max="365" placeholder="7" class="input input-sm tabular-nums">
                 <p class="hint text-[11px]">Override default free days before demurrage applies.</p>
-                @error('form.free_days') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('form.free_days') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
         </div>
     </div>
@@ -185,7 +185,7 @@
             <div>
                 <label class="label !text-xs !mb-1">PO Number</label>
                 <input wire:model="form.po_number" type="text" placeholder="PO-2026-001" class="input input-sm font-mono">
-                @error('form.po_number') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('form.po_number') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
             <div>
                 <label class="label !text-xs !mb-1">PO Document <span class="text-slate-400 font-normal">(PDF / JPG / PNG, max 10 MB)</span></label>
@@ -197,7 +197,7 @@
                         &mdash; upload a new file to replace it.
                     </p>
                 @endif
-                @error('form.po_file') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('form.po_file') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
         </div>
     </div>
@@ -210,6 +210,6 @@
     </div>
     <div class="card-body !py-3">
         <textarea wire:model="form.notes" rows="2" placeholder="Handling instructions, special requirements, remarks…" class="input input-sm w-full"></textarea>
-        @error('form.notes') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+        @error('form.notes') <p class="hint hint-error">{{ $message }}</p> @enderror
     </div>
 </div>

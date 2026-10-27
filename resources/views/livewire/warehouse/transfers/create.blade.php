@@ -39,14 +39,14 @@
                 <div class="card-body space-y-4">
                     <div class="grid grid-cols-1 gap-4 md:grid-cols-[1fr_auto_1fr] md:items-start">
                         <div>
-                            <label class="label">From <span class="text-red-500">*</span></label>
+                            <label class="label">From <span class="required-mark">*</span></label>
                             <select wire:model.live="fromVwId" class="input @error('fromVwId') border-red-400 @enderror">
                                 <option value="">Select source warehouse…</option>
                                 @foreach($warehouses as $vw)
                                     <option value="{{ $vw->id }}">{{ $vw->name }}</option>
                                 @endforeach
                             </select>
-                            @error('fromVwId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('fromVwId') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         <div class="hidden md:flex items-center justify-center w-10 h-10 mt-6 rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">
@@ -54,14 +54,14 @@
                         </div>
 
                         <div>
-                            <label class="label">To <span class="text-red-500">*</span></label>
+                            <label class="label">To <span class="required-mark">*</span></label>
                             <select wire:model.live="toVwId" class="input @error('toVwId') border-red-400 @enderror">
                                 <option value="">Select destination warehouse…</option>
                                 @foreach($warehouses as $vw)
                                     <option value="{{ $vw->id }}" @disabled($vw->id == $fromVwId)>{{ $vw->name }}</option>
                                 @endforeach
                             </select>
-                            @error('toVwId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('toVwId') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                     </div>
 
@@ -146,7 +146,7 @@
                                     <div class="{{ $isPhysical ? 'md:col-span-2' : '' }}">
                                         <div class="grid grid-cols-1 gap-4 {{ $isPhysical ? 'md:grid-cols-[1fr_auto_1fr]' : '' }} md:items-start">
                                             <div>
-                                                <label class="label">Source Bin <span class="text-red-500">*</span></label>
+                                                <label class="label">Source Bin <span class="required-mark">*</span></label>
                                                 <select wire:model.live="lines.{{ $i }}.location_id"
                                                         class="input font-mono @error('lines.'.$i.'.location_id') border-red-400 @enderror"
                                                     @disabled(! $hasFromVw)>
@@ -157,7 +157,7 @@
                                                         @endforeach
                                                     @endif
                                                 </select>
-                                                @error('lines.'.$i.'.location_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                                @error('lines.'.$i.'.location_id') <p class="hint hint-error">{{ $message }}</p> @enderror
                                             </div>
 
                                             @if($isPhysical)
@@ -165,7 +165,7 @@
                                                     <x-ui.icon name="arrow-right" class="w-4 h-4 shrink-0" />
                                                 </div>
                                                 <div>
-                                                    <label class="label">Destination Bin <span class="text-red-500">*</span></label>
+                                                    <label class="label">Destination Bin <span class="required-mark">*</span></label>
                                                     <select wire:model="lines.{{ $i }}.to_location_id"
                                                             class="input font-mono @error('lines.'.$i.'.to_location_id') border-red-400 @enderror"
                                                         @disabled(! $hasBin)>
@@ -178,14 +178,14 @@
                                                             @endforeach
                                                         @endif
                                                     </select>
-                                                    @error('lines.'.$i.'.to_location_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                                    @error('lines.'.$i.'.to_location_id') <p class="hint hint-error">{{ $message }}</p> @enderror
                                                 </div>
                                             @endif
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label class="label">Item <span class="text-red-500">*</span></label>
+                                        <label class="label">Item <span class="required-mark">*</span></label>
                                         <select wire:model.live="lines.{{ $i }}.item_id"
                                                 class="input @error('lines.'.$i.'.item_id') border-red-400 @enderror"
                                             @disabled(! $hasBin || ! $hasFromVw || count($stockAtBin) === 0)>
@@ -204,7 +204,7 @@
                                                 @endforeach
                                             @endif
                                         </select>
-                                        @error('lines.'.$i.'.item_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                        @error('lines.'.$i.'.item_id') <p class="hint hint-error">{{ $message }}</p> @enderror
                                     </div>
                                 </div>{{-- end bin+item grid --}}
 
@@ -246,7 +246,7 @@
                                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                                     <div>
                                         <div class="flex items-baseline justify-between">
-                                            <label class="label">Qty <span class="text-red-500">*</span></label>
+                                            <label class="label">Qty <span class="required-mark">*</span></label>
                                             @if($hasItem && $available !== null)
                                                 <span class="text-xs text-slate-400">
                                                     of
@@ -261,11 +261,11 @@
                                                class="input mono tabular-nums @error('lines.'.$i.'.qty') border-red-400 @enderror"
                                                placeholder="0"
                                             @disabled(! $hasItem)>
-                                        @error('lines.'.$i.'.qty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                        @error('lines.'.$i.'.qty') <p class="hint hint-error">{{ $message }}</p> @enderror
                                     </div>
 
                                     <div>
-                                        <label class="label">UoM <span class="text-red-500">*</span></label>
+                                        <label class="label">UoM <span class="required-mark">*</span></label>
                                         <select wire:model="lines.{{ $i }}.uom_id"
                                                 class="input font-mono @error('lines.'.$i.'.uom_id') border-red-400 @enderror"
                                             @disabled(! $hasItem)>
@@ -274,7 +274,7 @@
                                                 <option value="{{ $uom->id }}">{{ $uom->code }}</option>
                                             @endforeach
                                         </select>
-                                        @error('lines.'.$i.'.uom_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                        @error('lines.'.$i.'.uom_id') <p class="hint hint-error">{{ $message }}</p> @enderror
                                     </div>
 
                                     <div>
@@ -283,7 +283,7 @@
                                                class="input mono @error('lines.'.$i.'.batch_no') border-red-400 @enderror"
                                                placeholder="e.g. BAT-001"
                                             @disabled(! $hasItem)>
-                                        @error('lines.'.$i.'.batch_no') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                        @error('lines.'.$i.'.batch_no') <p class="hint hint-error">{{ $message }}</p> @enderror
                                     </div>
                                 </div>
 

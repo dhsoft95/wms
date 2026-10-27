@@ -35,7 +35,7 @@
 
                 {{-- Warehouse --}}
                 <div>
-                    <label class="label" for="loc-warehouse">Warehouse <span class="text-red-500">*</span></label>
+                    <label class="label" for="loc-warehouse">Warehouse <span class="required-mark">*</span></label>
                     <select
                         wire:model.live="warehouseId"
                         id="loc-warehouse"
@@ -47,13 +47,13 @@
                         @endforeach
                     </select>
                     @error('warehouseId')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
                 {{-- Level --}}
                 <div>
-                    <label class="label" for="loc-level">Level <span class="text-red-500">*</span></label>
+                    <label class="label" for="loc-level">Level <span class="required-mark">*</span></label>
                     <select
                         wire:model.live="level"
                         id="loc-level"
@@ -65,7 +65,7 @@
                         @endforeach
                     </select>
                     @error('level')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
@@ -91,14 +91,14 @@
                             <p class="hint text-amber-600 dark:text-amber-400">No eligible parent locations found for this warehouse and level.</p>
                         @endif
                         @error('parentId')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
                 @endif
 
                 {{-- Segment Code --}}
                 <div>
-                    <label class="label" for="loc-segment">Segment Code <span class="text-red-500">*</span></label>
+                    <label class="label" for="loc-segment">Segment Code <span class="required-mark">*</span></label>
                     <input
                         wire:model="segmentCode"
                         id="loc-segment"
@@ -109,14 +109,14 @@
                     />
                     <p class="hint">Alphanumeric only, no spaces or dashes. This segment will be appended to the parent code.</p>
                     @error('segmentCode')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
                 {{-- Type — only meaningful for bin-level locations --}}
                 @if ($level === 'bin')
                 <div>
-                    <label class="label" for="loc-type">Type <span class="text-red-500">*</span></label>
+                    <label class="label" for="loc-type">Type <span class="required-mark">*</span></label>
                     <select
                         wire:model.live="type"
                         id="loc-type"
@@ -127,7 +127,7 @@
                         @endforeach
                     </select>
                     @error('type')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                     @if ($type)
                         <p class="hint">
@@ -175,7 +175,7 @@
                     />
                     <p class="hint">Lower numbers are picked first. Leave blank to use natural code order.</p>
                     @error('pickSequence')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
@@ -193,7 +193,7 @@
                             class="input w-full @error('maxPallets') border-red-400 @enderror"
                         />
                         @error('maxPallets')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -210,7 +210,7 @@
                             class="input w-full @error('maxWeightKg') border-red-400 @enderror"
                         />
                         @error('maxWeightKg')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -227,7 +227,7 @@
                         />
                         <p class="hint">Leave blank to use the generated code as barcode.</p>
                         @error('barcode')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 

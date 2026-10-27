@@ -21,31 +21,31 @@
 
                 {{-- From Warehouse --}}
                 <div>
-                    <label class="label">From Warehouse <span class="text-red-500">*</span></label>
+                    <label class="label">From Warehouse <span class="required-mark">*</span></label>
                     <select wire:model.live="fromWarehouseId" class="input @error('fromWarehouseId') border-red-400 @enderror">
                         <option value="0">— Select —</option>
                         @foreach($this->warehouses as $wh)
                             <option value="{{ $wh->id }}">{{ $wh->name }}</option>
                         @endforeach
                     </select>
-                    @error('fromWarehouseId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('fromWarehouseId') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- To Warehouse --}}
                 <div>
-                    <label class="label">To Warehouse <span class="text-red-500">*</span></label>
+                    <label class="label">To Warehouse <span class="required-mark">*</span></label>
                     <select wire:model.live="toWarehouseId" class="input @error('toWarehouseId') border-red-400 @enderror">
                         <option value="0">— Select —</option>
                         @foreach($this->warehouses as $wh)
                             <option value="{{ $wh->id }}">{{ $wh->name }}</option>
                         @endforeach
                     </select>
-                    @error('toWarehouseId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('toWarehouseId') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- From Department (VW) --}}
                 <div>
-                    <label class="label">From Department (VW) <span class="text-red-500">*</span></label>
+                    <label class="label">From Department (VW) <span class="required-mark">*</span></label>
                     <select wire:model.live="fromVwId" class="input @error('fromVwId') border-red-400 @enderror"
                             @disabled(! $fromWarehouseId)>
                         <option value="0">{{ $fromWarehouseId ? '— Select —' : '— Select warehouse first —' }}</option>
@@ -53,7 +53,7 @@
                             <option value="{{ $vw->id }}">{{ $vw->name }}</option>
                         @endforeach
                     </select>
-                    @error('fromVwId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('fromVwId') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- To Department (VW) --}}
@@ -105,7 +105,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {{-- Source Bin --}}
                             <div>
-                                <label class="label">Source Bin <span class="text-red-500">*</span></label>
+                                <label class="label">Source Bin <span class="required-mark">*</span></label>
                                 <select wire:model.live="lines.{{ $i }}.source_location_id"
                                         class="input @error("lines.{$i}.source_location_id") border-red-400 @enderror"
                                         @disabled(! $fromWarehouseId || ! $fromVwId)>
@@ -116,13 +116,13 @@
                                         <option value="{{ $bin->id }}">{{ $bin->code }}</option>
                                     @endforeach
                                 </select>
-                                @error("lines.{$i}.source_location_id") <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error("lines.{$i}.source_location_id") <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
 
                             {{-- Item --}}
                             <div>
                                 <label class="label flex items-center justify-between">
-                                    <span>Item <span class="text-red-500">*</span></span>
+                                    <span>Item <span class="required-mark">*</span></span>
                                     @if($available !== null)
                                         @php
                                             $avNum = (float) $available;
@@ -171,22 +171,22 @@
                                         @endforeach
                                     @endif
                                 </select>
-                                @error("lines.{$i}.item_id") <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error("lines.{$i}.item_id") <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                         </div>
 
                         {{-- Row 2: Qty + UoM + Batch + Remove --}}
                         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 items-end">
                             <div>
-                                <label class="label">Qty <span class="text-red-500">*</span></label>
+                                <label class="label">Qty <span class="required-mark">*</span></label>
                                 <input wire:model="lines.{{ $i }}.qty" type="number" step="0.0001" min="0.0001"
                                        class="input @error("lines.{$i}.qty") border-red-400 @enderror"
                                        placeholder="0.0000" />
-                                @error("lines.{$i}.qty") <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error("lines.{$i}.qty") <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
 
                             <div>
-                                <label class="label">UoM <span class="text-red-500">*</span></label>
+                                <label class="label">UoM <span class="required-mark">*</span></label>
                                 <select wire:model="lines.{{ $i }}.uom_id"
                                         class="input @error("lines.{$i}.uom_id") border-red-400 @enderror">
                                     <option value="">— Select —</option>
@@ -194,7 +194,7 @@
                                         <option value="{{ $uom->id }}">{{ $uom->code }}</option>
                                     @endforeach
                                 </select>
-                                @error("lines.{$i}.uom_id") <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error("lines.{$i}.uom_id") <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
 
                             <div>

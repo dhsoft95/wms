@@ -40,26 +40,26 @@
 
                     {{-- Virtual Warehouse --}}
                     <div>
-                        <label class="label">Virtual Warehouse <span class="text-red-500">*</span></label>
+                        <label class="label">Virtual Warehouse <span class="required-mark">*</span></label>
                         <select wire:model="virtualWarehouseId" class="input" @disabled(! $this->isDraft)>
                             <option value="">Select virtual warehouse</option>
                             @foreach ($this->virtualWarehouses as $vw)
                                 <option value="{{ $vw->id }}">{{ $vw->name }}</option>
                             @endforeach
                         </select>
-                        @error('virtualWarehouseId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('virtualWarehouseId') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     {{-- Warehouse --}}
                     <div>
-                        <label class="label">Source Warehouse <span class="text-red-500">*</span></label>
+                        <label class="label">Source Warehouse <span class="required-mark">*</span></label>
                         <select wire:model="warehouseId" class="input" @disabled(! $this->isDraft)>
                             <option value="">Select warehouse</option>
                             @foreach ($this->warehouses as $wh)
                                 <option value="{{ $wh->id }}">{{ $wh->name }}</option>
                             @endforeach
                         </select>
-                        @error('warehouseId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('warehouseId') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     {{-- Department (optional) --}}
@@ -92,9 +92,9 @@
 
                     {{-- Required Date --}}
                     <div>
-                        <label class="label">Required Date <span class="text-red-500">*</span></label>
+                        <label class="label">Required Date <span class="required-mark">*</span></label>
                         <input wire:model="requiredDate" type="date" class="input tabular-nums" @disabled(! $this->isDraft)>
-                        @error('requiredDate') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('requiredDate') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                 </div>
@@ -115,7 +115,7 @@
                                 <option value="{{ $pt->value }}">{{ $pt->label() }}</option>
                             @endforeach
                         </select>
-                        @error('packageType') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('packageType') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="md:col-span-2">
@@ -136,7 +136,7 @@
                     <div>
                         <label class="label">Sales Order Number</label>
                         <input wire:model="mrnNumber" type="text" placeholder="e.g. SO-2026-00123" class="input" @disabled(! $this->isDraft)>
-                        @error('mrnNumber') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('mrnNumber') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     <div>
@@ -153,7 +153,7 @@
                         @endif
                         @if ($this->isDraft)
                             <input wire:model="mrnFile" type="file" accept=".pdf,.jpg,.jpeg,.png" class="input text-sm file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-slate-100 dark:file:bg-slate-700">
-                            @error('mrnFile') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('mrnFile') <p class="hint hint-error">{{ $message }}</p> @enderror
                         @endif
                     </div>
 
@@ -172,7 +172,7 @@
                 </div>
                 <div class="card-body space-y-3">
 
-                    @error('lines') <p class="hint !text-red-600 mb-2">{{ $message }}</p> @enderror
+                    @error('lines') <p class="hint hint-error mb-2">{{ $message }}</p> @enderror
 
                     {{-- Column headers (desktop only) --}}
                     <div class="hidden md:grid md:grid-cols-12 gap-2 px-3 section-label">
@@ -202,7 +202,7 @@
                                 @elseif ($line['available_qty'] !== null)
                                     <p class="hint text-slate-500">Avail: {{ number_format($line['available_qty'], 2) }} {{ $line['uom_code'] }}</p>
                                 @endif
-                                @error('lines.' . $i . '.item_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error('lines.' . $i . '.item_id') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
 
                             {{-- UOM --}}
@@ -213,7 +213,7 @@
                                         <option value="{{ $uom->id }}">{{ $uom->code }}</option>
                                     @endforeach
                                 </select>
-                                @error('lines.' . $i . '.uom_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error('lines.' . $i . '.uom_id') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
 
                             {{-- Qty --}}
@@ -227,7 +227,7 @@
                                     class="input input-sm tabular-nums"
                                     @disabled(! $this->isDraft)
                                 />
-                                @error('lines.' . $i . '.qty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error('lines.' . $i . '.qty') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
 
                             {{-- Notes --}}
@@ -294,7 +294,7 @@
                             <option value="{{ $p->value }}">{{ $p->label() }}</option>
                         @endforeach
                     </select>
-                    @error('priority') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('priority') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
             </div>

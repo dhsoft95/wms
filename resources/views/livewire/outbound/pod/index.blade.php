@@ -192,7 +192,7 @@
                 {{-- Received By --}}
                 <div class="sm:col-span-2">
                     <label class="label" for="pod-received-by">
-                        Received By <span class="text-rose-500">*</span>
+                        Received By <span class="required-mark">*</span>
                     </label>
                     <input wire:model="receivedBy"
                            id="pod-received-by"
@@ -200,28 +200,28 @@
                            placeholder="Rashid Ally"
                            class="input w-full @error('receivedBy') border-red-400 @enderror" />
                     @error('receivedBy')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
                 {{-- Received At --}}
                 <div>
                     <label class="label" for="pod-received-at">
-                        Received At <span class="text-rose-500">*</span>
+                        Received At <span class="required-mark">*</span>
                     </label>
                     <input wire:model="receivedAt"
                            id="pod-received-at"
                            type="datetime-local"
                            class="input w-full tabular-nums @error('receivedAt') border-red-400 @enderror" />
                     @error('receivedAt')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
                 {{-- Condition --}}
                 <div>
                     <label class="label" for="pod-condition">
-                        Condition <span class="text-rose-500">*</span>
+                        Condition <span class="required-mark">*</span>
                     </label>
                     <select wire:model="condition"
                             id="pod-condition"
@@ -231,7 +231,7 @@
                         <option value="rejected">Rejected — delivery refused</option>
                     </select>
                     @error('condition')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
@@ -264,7 +264,7 @@
                               cursor-pointer" />
                 <p class="hint">PDF, JPG or PNG — max 10 MB</p>
                 @error('podFile')
-                    <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                    <p class="hint hint-error">{{ $message }}</p>
                 @enderror
 
                 {{-- Upload progress --}}

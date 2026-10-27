@@ -25,7 +25,7 @@
 
                 {{-- Name --}}
                 <div>
-                    <label class="label" for="tpl-name">Name <span class="text-red-500">*</span></label>
+                    <label class="label" for="tpl-name">Name <span class="required-mark">*</span></label>
                     <input
                         wire:model="name"
                         id="tpl-name"
@@ -34,13 +34,13 @@
                         class="input w-full @error('name') border-red-400 @enderror"
                     />
                     @error('name')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
                 {{-- Type --}}
                 <div>
-                    <label class="label" for="tpl-type">Type <span class="text-red-500">*</span></label>
+                    <label class="label" for="tpl-type">Type <span class="required-mark">*</span></label>
                     <select
                         wire:model="type"
                         id="tpl-type"
@@ -51,14 +51,14 @@
                         @endforeach
                     </select>
                     @error('type')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
                 {{-- Dimensions --}}
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="label" for="tpl-width">Width (mm) <span class="text-red-500">*</span></label>
+                        <label class="label" for="tpl-width">Width (mm) <span class="required-mark">*</span></label>
                         <input
                             wire:model="widthMm"
                             id="tpl-width"
@@ -69,12 +69,12 @@
                             class="input w-full @error('widthMm') border-red-400 @enderror"
                         />
                         @error('widthMm')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <div>
-                        <label class="label" for="tpl-height">Height (mm) <span class="text-red-500">*</span></label>
+                        <label class="label" for="tpl-height">Height (mm) <span class="required-mark">*</span></label>
                         <input
                             wire:model="heightMm"
                             id="tpl-height"
@@ -85,14 +85,14 @@
                             class="input w-full @error('heightMm') border-red-400 @enderror"
                         />
                         @error('heightMm')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
                 </div>
 
                 {{-- DPI --}}
                 <div>
-                    <label class="label">Resolution (DPI) <span class="text-red-500">*</span></label>
+                    <label class="label">Resolution (DPI) <span class="required-mark">*</span></label>
                     <div class="flex gap-4 mt-1">
                         <label class="flex items-center gap-2 cursor-pointer">
                             <input wire:model="dpi" type="radio" value="203" class="text-simba-600 focus:ring-simba-600" />
@@ -104,7 +104,7 @@
                         </label>
                     </div>
                     @error('dpi')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 

@@ -184,7 +184,7 @@
                                  }
                              }">
                             <label class="label text-xs">
-                                Destination {{ $i + 1 }} <span class="text-red-500">*</span>
+                                Destination {{ $i + 1 }} <span class="required-mark">*</span>
                             </label>
 
                             @if (empty($row['locationId']))
@@ -266,7 +266,7 @@
 
                         @if (! $serialDriven)
                         <div class="w-28 shrink-0">
-                            <label class="label text-xs">Quantity <span class="text-red-500">*</span></label>
+                            <label class="label text-xs">Quantity <span class="required-mark">*</span></label>
                             <input wire:model.live="splitRows.{{ $i }}.qty"
                                    type="number" min="0.0001" step="any" placeholder="0.00"
                                    class="input w-full tabular-nums text-sm text-right" />

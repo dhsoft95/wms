@@ -21,7 +21,7 @@
                             <option value="{{ $vw->id }}">{{ $vw->name }}</option>
                         @endforeach
                     </select>
-                    @error('virtualWarehouseId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('virtualWarehouseId') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="label">Notes</label>
@@ -62,7 +62,7 @@
                                         <option value="{{ $item->id }}">{{ $item->sku }} — {{ $item->name }}</option>
                                     @endforeach
                                 </select>
-                                @error("lines.{$i}.item_id") <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error("lines.{$i}.item_id") <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label class="label">Location *</label>
@@ -72,12 +72,12 @@
                                         <option value="{{ $loc->id }}">{{ $loc->code }}</option>
                                     @endforeach
                                 </select>
-                                @error("lines.{$i}.location_id") <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error("lines.{$i}.location_id") <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label class="label">Batch No. <span class="text-slate-400 font-normal">(optional)</span></label>
                                 <input wire:model="lines.{{ $i }}.batch_no" type="text" class="input mono @error('lines.'.$i.'.batch_no') border-red-400 @enderror" placeholder="e.g. BAT-001">
-                                @error("lines.{$i}.batch_no") <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error("lines.{$i}.batch_no") <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label class="label">Reason Code *</label>
@@ -87,12 +87,12 @@
                                         <option value="{{ $rc->id }}">{{ $rc->name }}</option>
                                     @endforeach
                                 </select>
-                                @error("lines.{$i}.reason_code_id") <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error("lines.{$i}.reason_code_id") <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label class="label">Qty (+/-) *</label>
                                 <input wire:model="lines.{{ $i }}.qty" type="number" step="0.0001" class="input mono @error('lines.'.$i.'.qty') border-red-400 @enderror" placeholder="e.g. -5 or 10">
-                                @error("lines.{$i}.qty") <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error("lines.{$i}.qty") <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                             <div>
                                 <label class="label">Unit of Measure *</label>
@@ -102,7 +102,7 @@
                                         <option value="{{ $uom->id }}">{{ $uom->code }}</option>
                                     @endforeach
                                 </select>
-                                @error("lines.{$i}.uom_id") <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error("lines.{$i}.uom_id") <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                         </div>
                         <div>

@@ -53,7 +53,7 @@
 
                 {{-- Company Name --}}
                 <div>
-                    <label for="companyName" class="label">Company Name <span class="text-red-500">*</span></label>
+                    <label for="companyName" class="label">Company Name <span class="required-mark">*</span></label>
                     <input
                         id="companyName"
                         wire:model="companyName"
@@ -61,7 +61,7 @@
                         class="input w-full"
                         placeholder="Acme Logistics Ltd."
                     />
-                    @error('companyName') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('companyName') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Email & Phone --}}
@@ -75,7 +75,7 @@
                             class="input w-full"
                             placeholder="info@company.com"
                         />
-                        @error('companyEmail') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('companyEmail') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label for="companyPhone" class="label">Phone Number</label>
@@ -86,7 +86,7 @@
                             class="input w-full"
                             placeholder="+255 700 000 000"
                         />
-                        @error('companyPhone') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('companyPhone') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                 </div>
 
@@ -100,7 +100,7 @@
                         class="input w-full sm:max-w-xs"
                         placeholder="000-000-000"
                     />
-                    @error('companyTin') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('companyTin') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Address --}}
@@ -113,7 +113,7 @@
                         class="input w-full"
                         placeholder="P.O. Box 1234, Dar es Salaam, Tanzania"
                     ></textarea>
-                    @error('companyAddress') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('companyAddress') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Logo Upload --}}
@@ -161,7 +161,7 @@
                                transition"
                     />
                     <p class="hint">PNG or SVG recommended. Max 2 MB.</p>
-                    @error('logo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('logo') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Save --}}
@@ -197,7 +197,7 @@
                         <option value="lifo">LIFO — Last In, First Out</option>
                     </select>
                     <p class="hint">Used for items that have no explicit allocation rules set. Per-item rules take priority.</p>
-                    @error('allocationRule') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('allocationRule') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 <p class="hint">Variance and adjustment approval thresholds are now configured per item on the Items master data page.</p>
@@ -443,7 +443,7 @@
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         {{-- Code --}}
                         <div>
-                            <label for="rcCode" class="label">Code <span class="text-red-500">*</span></label>
+                            <label for="rcCode" class="label">Code <span class="required-mark">*</span></label>
                             <input
                                 id="rcCode"
                                 wire:model="rcCode"
@@ -452,12 +452,12 @@
                                 placeholder="e.g. VAR-DMGD"
                                 maxlength="20"
                             />
-                            @error('rcCode') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('rcCode') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- Name --}}
                         <div>
-                            <label for="rcName" class="label">Name <span class="text-red-500">*</span></label>
+                            <label for="rcName" class="label">Name <span class="required-mark">*</span></label>
                             <input
                                 id="rcName"
                                 wire:model="rcName"
@@ -466,14 +466,14 @@
                                 placeholder="e.g. Damaged goods variance"
                                 maxlength="255"
                             />
-                            @error('rcName') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('rcName') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                     </div>
 
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         {{-- Applies To --}}
                         <div>
-                            <label for="rcAppliesTo" class="label">Applies To <span class="text-red-500">*</span></label>
+                            <label for="rcAppliesTo" class="label">Applies To <span class="required-mark">*</span></label>
                             <select id="rcAppliesTo" wire:model="rcAppliesTo" class="input w-full">
                                 <option value="">Select…</option>
                                 <option value="variance">Variance</option>
@@ -483,7 +483,7 @@
                                 <option value="hold">Hold</option>
                                 <option value="seal_mismatch">Seal Mismatch</option>
                             </select>
-                            @error('rcAppliesTo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('rcAppliesTo') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- Is Active --}}
@@ -496,7 +496,7 @@
                                        text-simba-600 focus:ring-simba-500"
                             />
                             <label for="rcIsActive" class="label !mb-0 cursor-pointer">Active</label>
-                            @error('rcIsActive') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('rcIsActive') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                     </div>
 
@@ -616,7 +616,7 @@
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         {{-- Code --}}
                         <div>
-                            <label for="uomCode" class="label">Code <span class="text-red-500">*</span></label>
+                            <label for="uomCode" class="label">Code <span class="required-mark">*</span></label>
                             <input
                                 id="uomCode"
                                 wire:model="uomCode"
@@ -625,12 +625,12 @@
                                 placeholder="e.g. KG"
                                 maxlength="20"
                             />
-                            @error('uomCode') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('uomCode') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- Name --}}
                         <div>
-                            <label for="uomName" class="label">Name <span class="text-red-500">*</span></label>
+                            <label for="uomName" class="label">Name <span class="required-mark">*</span></label>
                             <input
                                 id="uomName"
                                 wire:model="uomName"
@@ -639,12 +639,12 @@
                                 placeholder="e.g. Kilogram"
                                 maxlength="100"
                             />
-                            @error('uomName') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('uomName') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- Type --}}
                         <div>
-                            <label for="uomType" class="label">Type <span class="text-red-500">*</span></label>
+                            <label for="uomType" class="label">Type <span class="required-mark">*</span></label>
                             <select id="uomType" wire:model="uomType" class="input w-full">
                                 <option value="">Select…</option>
                                 <option value="count">Count</option>
@@ -652,7 +652,7 @@
                                 <option value="volume">Volume</option>
                                 <option value="length">Length</option>
                             </select>
-                            @error('uomType') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('uomType') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                     </div>
 
@@ -696,7 +696,7 @@
                         placeholder="Truck,Van,Pickup,Trailer,Other"
                     ></textarea>
                     <p class="hint">Enter vehicle types as a comma-separated list. These are used when assigning dispatch vehicles to delivery orders.</p>
-                    @error('vehicleTypes') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('vehicleTypes') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Preview --}}
@@ -781,7 +781,7 @@
                         placeholder="0"
                     />
                     <p class="hint">Stock expiring within this many days will not be allocated. Set to 0 to disable.</p>
-                    @error('outboundMinShelfLifeDays') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('outboundMinShelfLifeDays') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Short Pick Behaviour --}}
@@ -792,7 +792,7 @@
                         <option value="reallocate">Reallocate — try other bins automatically for the missing qty</option>
                     </select>
                     <p class="hint">What happens when a picker cannot find the full quantity at the assigned bin.</p>
-                    @error('outboundShortPickBehaviour') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('outboundShortPickBehaviour') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Save --}}

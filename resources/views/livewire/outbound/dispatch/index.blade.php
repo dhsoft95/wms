@@ -295,7 +295,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
                         <div class="space-y-1.5">
                             <label class="label" for="dispatch-vehicle">
-                                Registration No <span class="text-rose-500">*</span>
+                                Registration No <span class="required-mark">*</span>
                             </label>
                             <input wire:model="vehicleRegNo"
                                    id="dispatch-vehicle"
@@ -311,7 +311,7 @@
                             <label class="label" for="dispatch-seal">
                                 Seal No
                                 @if ($isContainer)
-                                    <span class="text-rose-500">*</span>
+                                    <span class="required-mark">*</span>
                                 @else
                                     <span class="text-xs font-normal text-slate-400">(optional)</span>
                                 @endif
@@ -348,7 +348,7 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
                             <div class="space-y-1.5">
                                 <label class="label" for="dispatch-container-no">
-                                    Container No <span class="text-rose-500">*</span>
+                                    Container No <span class="required-mark">*</span>
                                 </label>
                                 <input wire:model="containerNo"
                                        id="dispatch-container-no"
@@ -362,7 +362,7 @@
 
                             <div class="space-y-1.5">
                                 <label class="label" for="dispatch-container-size">
-                                    Container Size <span class="text-rose-500">*</span>
+                                    Container Size <span class="required-mark">*</span>
                                 </label>
                                 <select wire:model="containerSize"
                                         id="dispatch-container-size"
@@ -387,7 +387,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-4">
                         <div class="space-y-1.5 sm:col-span-2">
                             <label class="label" for="dispatch-driver">
-                                Full Name <span class="text-rose-500">*</span>
+                                Full Name <span class="required-mark">*</span>
                             </label>
                             <input wire:model="driverName"
                                    id="dispatch-driver"

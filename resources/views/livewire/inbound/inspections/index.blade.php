@@ -17,7 +17,7 @@
                             <option value="GRN-2026-089">GRN-2026-089</option>
                             <option value="GRN-2026-090">GRN-2026-090</option>
                         </select>
-                        @error('form.grnId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('form.grnId') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="label">Container</label>
@@ -31,17 +31,17 @@
                             <option>Wrong item supplied</option>
                             <option>Excess quantity</option>
                         </select>
-                        @error('form.issueType') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('form.issueType') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="label">Affected SKU *</label>
                         <input wire:model="form.affectedSku" type="text" required placeholder="SKU-AZ-001" class="input font-mono">
-                        @error('form.affectedSku') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('form.affectedSku') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                     <div>
                         <label class="label">Affected quantity *</label>
                         <input wire:model="form.affectedQuantity" type="number" required min="1" placeholder="12" class="input tabular-nums">
-                        @error('form.affectedQuantity') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('form.affectedQuantity') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
                 </div>
 
@@ -58,7 +58,7 @@
                             </label>
                         @endforeach
                     </div>
-                    @error('form.severity') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('form.severity') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 <div>

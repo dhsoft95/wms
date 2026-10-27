@@ -124,7 +124,7 @@
 
                 {{-- Qty input --}}
                 <div class="space-y-1">
-                    <label class="label">Picked Quantity <span class="text-red-500">*</span></label>
+                    <label class="label">Picked Quantity <span class="required-mark">*</span></label>
                     <input wire:model="pickedQty" type="number" min="0.001" step="any"
                            placeholder="{{ number_format((float)$activeTask->required_qty, 2) }}"
                            class="input text-2xl h-16 text-center font-bold tabular-nums" autocomplete="off" autofocus />

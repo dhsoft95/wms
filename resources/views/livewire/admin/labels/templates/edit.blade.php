@@ -31,33 +31,33 @@
 
                         {{-- Name --}}
                         <div>
-                            <label class="label" for="et-name">Name <span class="text-red-500">*</span></label>
+                            <label class="label" for="et-name">Name <span class="required-mark">*</span></label>
                             <input wire:model="name" id="et-name" type="text" class="input w-full @error('name') border-red-400 @enderror" />
-                            @error('name') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                            @error('name') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- Type --}}
                         <div>
-                            <label class="label" for="et-type">Type <span class="text-red-500">*</span></label>
+                            <label class="label" for="et-type">Type <span class="required-mark">*</span></label>
                             <select wire:model.live="type" id="et-type" class="input w-full @error('type') border-red-400 @enderror">
                                 @foreach ($templateTypes as $case)
                                     <option value="{{ $case->value }}">{{ $case->label() }}</option>
                                 @endforeach
                             </select>
-                            @error('type') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                            @error('type') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- Dimensions --}}
                         <div class="grid grid-cols-2 gap-4">
                             <div>
-                                <label class="label" for="et-width">Width (mm) <span class="text-red-500">*</span></label>
+                                <label class="label" for="et-width">Width (mm) <span class="required-mark">*</span></label>
                                 <input wire:model.live="widthMm" id="et-width" type="number" min="10" max="500" class="input w-full @error('widthMm') border-red-400 @enderror" />
-                                @error('widthMm') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                                @error('widthMm') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                             <div>
-                                <label class="label" for="et-height">Height (mm) <span class="text-red-500">*</span></label>
+                                <label class="label" for="et-height">Height (mm) <span class="required-mark">*</span></label>
                                 <input wire:model.live="heightMm" id="et-height" type="number" min="10" max="500" class="input w-full @error('heightMm') border-red-400 @enderror" />
-                                @error('heightMm') <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p> @enderror
+                                @error('heightMm') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                         </div>
 

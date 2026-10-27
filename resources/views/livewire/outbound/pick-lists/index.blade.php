@@ -296,7 +296,7 @@
                     </p>
                     <div>
                         <label class="label" for="assign-user">
-                            Picker <span class="text-red-500">*</span>
+                            Picker <span class="required-mark">*</span>
                         </label>
                         <select wire:model="assignUserId"
                                 id="assign-user"
@@ -307,7 +307,7 @@
                             @endforeach
                         </select>
                         @error('assignUserId')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
                 </div>
@@ -403,7 +403,7 @@
                         {{-- Picked Qty --}}
                         <div>
                             <label class="label" for="picked-qty">
-                                Qty Picked <span class="text-red-500">*</span>
+                                Qty Picked <span class="required-mark">*</span>
                             </label>
                             <input wire:model="pickedQty"
                                    id="picked-qty"
@@ -414,7 +414,7 @@
                                    autofocus />
                             <p class="hint">Required: {{ number_format((float) $task->qty_to_pick, 2) }}</p>
                             @error('pickedQty')
-                                <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                                <p class="hint hint-error">{{ $message }}</p>
                             @enderror
                         </div>
 
@@ -439,7 +439,7 @@
                                 <label class="label mb-0">
                                     Serial Numbers
                                     @if ($trackSerial)
-                                        <span class="text-red-500">*</span>
+                                        <span class="required-mark">*</span>
                                     @else
                                         <span class="text-slate-400 font-normal ml-1">(optional)</span>
                                     @endif
@@ -492,7 +492,7 @@
                             @endif
 
                             @error('selectedSerials')
-                                <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                                <p class="hint hint-error mt-1">{{ $message }}</p>
                             @enderror
                         </div>
                         @endif

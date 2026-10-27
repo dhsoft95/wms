@@ -19,7 +19,7 @@
                     <button wire:click="search" class="btn btn-primary">Search</button>
                 </div>
                 @if ($scanError)
-                    <p class="hint !text-red-600 mt-1">{{ $scanError }}</p>
+                    <p class="hint hint-error mt-1">{{ $scanError }}</p>
                 @endif
             </div>
         </div>

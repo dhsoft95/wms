@@ -90,26 +90,26 @@
                 @endif
                 <div class="px-6 py-5 space-y-4">
                     <div>
-                        <label class="label">Destination Bin <span class="text-red-500">*</span></label>
+                        <label class="label">Destination Bin <span class="required-mark">*</span></label>
                         <select wire:model="releaseBinId" class="input @error('releaseBinId') border-red-400 @enderror">
                             <option value="">Select bin…</option>
                             @foreach($binLocations as $loc)
                                 <option value="{{ $loc->id }}">{{ $loc->code }}</option>
                             @endforeach
                         </select>
-                        @error('releaseBinId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('releaseBinId') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     @if($isSerialTracked)
                         {{-- Serial number selection --}}
                         <div>
                             <div class="flex items-center justify-between mb-1.5">
-                                <label class="label mb-0">Serial Numbers <span class="text-red-500">*</span></label>
+                                <label class="label mb-0">Serial Numbers <span class="required-mark">*</span></label>
                                 <span class="text-xs text-slate-500 dark:text-slate-400">
                                     {{ count($selectedSerials) }} of {{ count($availableSerials) }} selected
                                 </span>
                             </div>
-                            @error('selectedSerials') <p class="hint !text-red-600 mb-1">{{ $message }}</p> @enderror
+                            @error('selectedSerials') <p class="hint hint-error mb-1">{{ $message }}</p> @enderror
 
                             @if(count($availableSerials) > 0)
                                 <div class="flex items-center gap-2 mb-2">
@@ -150,11 +150,11 @@
                         @endif
                     @else
                         <div>
-                            <label class="label">Quantity to Release <span class="text-red-500">*</span></label>
+                            <label class="label">Quantity to Release <span class="required-mark">*</span></label>
                             <input wire:model="releaseQty" type="number" step="0.0001" min="0.0001"
                                    class="input mono @error('releaseQty') border-red-400 @enderror"
                                    placeholder="0.0000">
-                            @error('releaseQty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('releaseQty') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                     @endif
                 </div>

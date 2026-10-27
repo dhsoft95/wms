@@ -29,7 +29,7 @@
 
                     <div>
                         <label class="label" for="code">
-                            Code <span class="text-red-500">*</span>
+                            Code <span class="required-mark">*</span>
                         </label>
                         <input
                             wire:model="code"
@@ -41,13 +41,13 @@
                         />
                         <p class="hint">Unique identifier. Cannot be changed once used in transactions.</p>
                         @error('code')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 
                     <div>
                         <label class="label" for="name">
-                            Name <span class="text-red-500">*</span>
+                            Name <span class="required-mark">*</span>
                         </label>
                         <input
                             wire:model="name"
@@ -58,7 +58,7 @@
                             autocomplete="off"
                         />
                         @error('name')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -74,7 +74,7 @@
                             class="input mono @error('tin') border-red-400 @enderror"
                         />
                         @error('tin')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -90,7 +90,7 @@
                             class="input mono @error('vrn') border-red-400 @enderror"
                         />
                         @error('vrn')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -121,7 +121,7 @@
                             class="input @error('contact_person') border-red-400 @enderror"
                         />
                         @error('contact_person')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -137,7 +137,7 @@
                             class="input @error('phone') border-red-400 @enderror"
                         />
                         @error('phone')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -153,7 +153,7 @@
                             class="input mono @error('email') border-red-400 @enderror"
                         />
                         @error('email')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -185,7 +185,7 @@
                         class="input @error('address') border-red-400 @enderror"
                     ></textarea>
                     @error('address')
-                        <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                        <p class="hint hint-error">{{ $message }}</p>
                     @enderror
                 </div>
 
@@ -202,7 +202,7 @@
                             class="input @error('city') border-red-400 @enderror"
                         />
                         @error('city')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -218,7 +218,7 @@
                             class="input @error('country') border-red-400 @enderror"
                         />
                         @error('country')
-                            <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                            <p class="hint hint-error">{{ $message }}</p>
                         @enderror
                     </div>
                 </div>
@@ -232,7 +232,7 @@
             <div class="card-header">
                 <h3 class="card-title">
                     <x-ui.icon name="shield" class="w-4 h-4" />
-                    Partner Types <span class="text-red-500">*</span>
+                    Partner Types <span class="required-mark">*</span>
                 </h3>
             </div>
 
@@ -256,7 +256,7 @@
                 </div>
 
                 @error('types')
-                    <p class="hint !text-red-600 dark:!text-red-400 mt-3">{{ $message }}</p>
+                    <p class="hint hint-error mt-3">{{ $message }}</p>
                 @enderror
             </div>
         </div>

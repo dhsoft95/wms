@@ -122,17 +122,17 @@
 
                         {{-- Qty --}}
                         <div>
-                            <label class="label">Qty <span class="text-red-500">*</span></label>
+                            <label class="label">Qty <span class="required-mark">*</span></label>
                             <input wire:model="receiptQty" type="number" step="0.0001" min="0.0001"
                                    class="input @error('receiptQty') border-red-400 @enderror"
                                    placeholder="0.0000" autofocus />
-                            @error('receiptQty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('receiptQty') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- UoM --}}
                         @php $uomLocked = $receiptUomId !== '' && $this->uomOptions->count() === 1; @endphp
                         <div>
-                            <label class="label">Unit of Measure <span class="text-red-500">*</span></label>
+                            <label class="label">Unit of Measure <span class="required-mark">*</span></label>
                             <select wire:model="receiptUomId"
                                     @disabled($uomLocked)
                                     class="input @error('receiptUomId') border-red-400 @enderror {{ $uomLocked ? 'bg-slate-100 dark:bg-slate-800 cursor-not-allowed' : '' }}">
@@ -141,46 +141,46 @@
                                     <option value="{{ $uom->id }}">{{ $uom->code }}</option>
                                 @endforeach
                             </select>
-                            @error('receiptUomId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('receiptUomId') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         {{-- Batch No --}}
                         @if($this->activeTallyLine->item?->track_batch)
                             <div>
-                                <label class="label">Batch No <span class="text-red-500">*</span></label>
+                                <label class="label">Batch No <span class="required-mark">*</span></label>
                                 <input wire:model="receiptBatchNo" type="text"
                                        class="input font-mono @error('receiptBatchNo') border-red-400 @enderror"
                                        placeholder="BATCH-001" />
-                                @error('receiptBatchNo') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error('receiptBatchNo') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                         @endif
 
                         {{-- Expiry --}}
                         @if($this->itemRequiresExpiry)
                             <div>
-                                <label class="label">Expiry Date <span class="text-red-500">*</span></label>
+                                <label class="label">Expiry Date <span class="required-mark">*</span></label>
                                 <input wire:model="receiptExpiry" type="date"
                                        class="input @error('receiptExpiry') border-red-400 @enderror" />
-                                @error('receiptExpiry') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error('receiptExpiry') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                         @endif
 
                         {{-- Serial Numbers --}}
                         @if($this->activeTallyLine->item?->track_serial)
                             <div>
-                                <label class="label">Serial Numbers <span class="text-red-500">*</span>
+                                <label class="label">Serial Numbers <span class="required-mark">*</span>
                                     <span class="font-normal text-xs text-slate-400 ml-1">one per line, must match qty</span>
                                 </label>
                                 <textarea wire:model="receiptSerials" rows="4"
                                           class="input font-mono text-xs @error('receiptSerials') border-red-400 @enderror"
                                           placeholder="SN-000001&#10;SN-000002"></textarea>
-                                @error('receiptSerials') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error('receiptSerials') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                         @endif
 
                         {{-- Condition --}}
                         <div>
-                            <label class="label">Condition <span class="text-red-500">*</span></label>
+                            <label class="label">Condition <span class="required-mark">*</span></label>
                             <div class="flex gap-4">
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="radio" wire:model.live="receiptCondition" value="good"
@@ -193,16 +193,16 @@
                                     <span class="badge badge-red">Damaged</span>
                                 </label>
                             </div>
-                            @error('receiptCondition') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('receiptCondition') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
 
                         @if($receiptCondition === 'damaged')
                             <div>
-                                <label class="label">Damage Remark <span class="text-red-500">*</span></label>
+                                <label class="label">Damage Remark <span class="required-mark">*</span></label>
                                 <textarea wire:model="receiptDamageRemark" rows="2"
                                           class="input resize-none @error('receiptDamageRemark') border-red-400 @enderror"
                                           placeholder="Describe the damage…"></textarea>
-                                @error('receiptDamageRemark') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error('receiptDamageRemark') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
                         @endif
 

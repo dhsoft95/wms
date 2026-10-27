@@ -26,14 +26,14 @@
 
                     {{-- Warehouse --}}
                     <div>
-                        <label class="label">Warehouse <span class="text-red-500">*</span></label>
+                        <label class="label">Warehouse <span class="required-mark">*</span></label>
                         <select wire:model="warehouseId" class="input">
                             <option value="">Select warehouse</option>
                             @foreach ($this->warehouses as $wh)
                                 <option value="{{ $wh->id }}">{{ $wh->name }}</option>
                             @endforeach
                         </select>
-                        @error('warehouseId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('warehouseId') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     {{-- Virtual Warehouse --}}
@@ -49,13 +49,13 @@
 
                     {{-- Package Type --}}
                     <div>
-                        <label class="label">Package Type <span class="text-red-500">*</span></label>
+                        <label class="label">Package Type <span class="required-mark">*</span></label>
                         <select wire:model.live="packageType" x-model="packageType" class="input">
                             @foreach ($this->packageTypes as $pt)
                                 <option value="{{ $pt->value }}">{{ $pt->label() }}</option>
                             @endforeach
                         </select>
-                        @error('packageType') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('packageType') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     {{-- Supplier --}}
@@ -110,10 +110,10 @@
                     </label>
                     @if ($isSpecialTreatment)
                         <div>
-                            <label class="label">Reason <span class="text-red-500">*</span></label>
+                            <label class="label">Reason <span class="required-mark">*</span></label>
                             <textarea wire:model="specialTreatmentReason" rows="3" class="input resize-none"
                                       placeholder="Explain why special treatment is required (min. 10 characters)…"></textarea>
-                            @error('specialTreatmentReason') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('specialTreatmentReason') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                     @endif
                 </div>
@@ -129,7 +129,7 @@
                 </div>
                 <div class="card-body space-y-3">
 
-                    @error('lines') <p class="hint !text-red-600 mb-2">{{ $message }}</p> @enderror
+                    @error('lines') <p class="hint hint-error mb-2">{{ $message }}</p> @enderror
 
                     {{-- Column headers --}}
                     <div class="hidden md:grid md:grid-cols-12 gap-2 px-2 section-label">
@@ -154,7 +154,7 @@
                                         <option value="{{ $item->id }}">{{ $item->sku }} — {{ $item->name }}</option>
                                     @endforeach
                                 </select>
-                                @error('lines.' . $i . '.item_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error('lines.' . $i . '.item_id') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
 
                             {{-- Part No (manual entry) --}}
@@ -173,7 +173,7 @@
                                         <option value="{{ $uom->id }}">{{ $uom->code }}</option>
                                     @endforeach
                                 </select>
-                                @error('lines.' . $i . '.uom_id') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error('lines.' . $i . '.uom_id') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
 
                             {{-- Qty --}}
@@ -184,7 +184,7 @@
                                        step="any"
                                        placeholder="0"
                                        class="input input-sm tabular-nums">
-                                @error('lines.' . $i . '.qty') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                @error('lines.' . $i . '.qty') <p class="hint hint-error">{{ $message }}</p> @enderror
                             </div>
 
                             {{-- Currency + Unit Price (combined) --}}
@@ -203,7 +203,7 @@
                                            step="0.0001"
                                            placeholder="0.0000"
                                            class="input input-sm tabular-nums font-mono w-full">
-                                    @error('lines.' . $i . '.unit_price') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                                    @error('lines.' . $i . '.unit_price') <p class="hint hint-error">{{ $message }}</p> @enderror
                                 </div>
                             </div>
 
@@ -310,7 +310,7 @@
                                 <button type="button" wire:click="$set('poFile', null)" class="text-xs text-red-500 hover:underline">Remove file</button>
                             @endif
                         @endif
-                        @error('poFile') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                        @error('poFile') <p class="hint hint-error">{{ $message }}</p> @enderror
                     </div>
 
                     <div class="pt-3 border-t border-slate-100 dark:border-slate-800">

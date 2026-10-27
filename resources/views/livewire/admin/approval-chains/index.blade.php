@@ -178,23 +178,23 @@
                         @endforeach
                     </select>
                     <p class="hint">Leave blank to apply this level to all departments globally.</p>
-                    @error('chainDeptId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('chainDeptId') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Document Type --}}
                 <div>
-                    <label for="chainDocType" class="label">Document Type <span class="text-red-500">*</span></label>
+                    <label for="chainDocType" class="label">Document Type <span class="required-mark">*</span></label>
                     <select id="chainDocType" wire:model="chainDocType" class="input w-full">
                         <option value="po">Purchase Order (PO)</option>
                         <option value="mrn">Material Receipt Note (MRN)</option>
                         <option value="transfer">Stock Transfer</option>
                     </select>
-                    @error('chainDocType') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('chainDocType') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Level --}}
                 <div>
-                    <label for="chainLevel" class="label">Approval Level <span class="text-red-500">*</span></label>
+                    <label for="chainLevel" class="label">Approval Level <span class="required-mark">*</span></label>
                     <input
                         id="chainLevel"
                         wire:model="chainLevel"
@@ -205,7 +205,7 @@
                         placeholder="1"
                     />
                     <p class="hint">Level 1 is the first approver, level 2 is next, and so on. Max 10.</p>
-                    @error('chainLevel') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('chainLevel') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Footer --}}
@@ -322,7 +322,7 @@
                             <span wire:loading wire:target="addUser">Adding…</span>
                         </button>
                     </div>
-                    @error('addUserId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('addUserId') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
 
                 {{-- Footer --}}

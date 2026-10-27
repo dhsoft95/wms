@@ -614,37 +614,37 @@
         {{-- QC body --}}
         <div class="px-5 py-5 space-y-3.5">
             <div>
-                <label class="label text-xs mb-1">SKU <span class="text-red-500">*</span></label>
+                <label class="label text-xs mb-1">SKU <span class="required-mark">*</span></label>
                 <input wire:model="plQcSku" type="text" class="input w-full font-mono text-xs"
                        placeholder="SKU-001">
-                @error('plQcSku') <p class="hint !text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+                @error('plQcSku') <p class="hint hint-error text-xs mt-1">{{ $message }}</p> @enderror
             </div>
             <div>
-                <label class="label text-xs mb-1">Name <span class="text-red-500">*</span></label>
+                <label class="label text-xs mb-1">Name <span class="required-mark">*</span></label>
                 <input wire:model="plQcName" type="text" class="input w-full text-xs"
                        placeholder="Product name">
-                @error('plQcName') <p class="hint !text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+                @error('plQcName') <p class="hint hint-error text-xs mt-1">{{ $message }}</p> @enderror
             </div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
-                    <label class="label text-xs mb-1">Category <span class="text-red-500">*</span></label>
+                    <label class="label text-xs mb-1">Category <span class="required-mark">*</span></label>
                     <select wire:model="plQcCategoryId" class="input w-full text-xs">
                         <option value="">— Select —</option>
                         @foreach($this->plCategories as $cat)
                             <option value="{{ $cat->id }}">{{ $cat->name }}</option>
                         @endforeach
                     </select>
-                    @error('plQcCategoryId') <p class="hint !text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+                    @error('plQcCategoryId') <p class="hint hint-error text-xs mt-1">{{ $message }}</p> @enderror
                 </div>
                 <div>
-                    <label class="label text-xs mb-1">Base UoM <span class="text-red-500">*</span></label>
+                    <label class="label text-xs mb-1">Base UoM <span class="required-mark">*</span></label>
                     <select wire:model="plQcBaseUomId" class="input w-full text-xs">
                         <option value="">— Select —</option>
                         @foreach($this->plBaseUoms as $uom)
                             <option value="{{ $uom->id }}">{{ $uom->code }}</option>
                         @endforeach
                     </select>
-                    @error('plQcBaseUomId') <p class="hint !text-red-600 text-xs mt-1">{{ $message }}</p> @enderror
+                    @error('plQcBaseUomId') <p class="hint hint-error text-xs mt-1">{{ $message }}</p> @enderror
                 </div>
             </div>
             <div class="flex items-center gap-1 p-3 rounded-xl

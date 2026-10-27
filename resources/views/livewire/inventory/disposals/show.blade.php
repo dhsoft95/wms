@@ -212,7 +212,7 @@
         <div class="modal">
             <h3 class="modal-title text-red-600">Reject Disposal Request</h3>
             <div class="mt-4">
-                <label class="label">Reason for rejection <span class="text-red-500">*</span></label>
+                <label class="label">Reason for rejection <span class="required-mark">*</span></label>
                 <textarea wire:model="rejectReason" class="input w-full" rows="3" placeholder="Enter rejection reason…"></textarea>
                 @error('rejectReason') <p class="text-error text-xs mt-1">{{ $message }}</p> @enderror
             </div>
@@ -231,7 +231,7 @@
             <h3 class="modal-title">Move to Disposal Area</h3>
             <p class="text-sm text-slate-500 mt-1">Select a disposal bin to move the stock into.</p>
             <div class="mt-4">
-                <label class="label">Disposal Location <span class="text-red-500">*</span></label>
+                <label class="label">Disposal Location <span class="required-mark">*</span></label>
                 <select wire:model="disposalLocationId" class="input w-full">
                     <option value="0">-- Select disposal bin --</option>
                     @foreach($this->disposalLocations as $loc)
@@ -256,23 +256,23 @@
             <div class="mt-4 space-y-3">
                 @if($this->disposalRequest->method === \App\Enums\Inventory\DisposalMethod::Auction)
                     <div>
-                        <label class="label">Buyer Name <span class="text-red-500">*</span></label>
+                        <label class="label">Buyer Name <span class="required-mark">*</span></label>
                         <input wire:model="completionData.buyer_name" type="text" class="input w-full">
                         @error('completionData.buyer_name') <p class="text-error text-xs mt-1">{{ $message }}</p> @enderror
                     </div>
                     <div>
-                        <label class="label">Sale Price <span class="text-red-500">*</span></label>
+                        <label class="label">Sale Price <span class="required-mark">*</span></label>
                         <input wire:model="completionData.sale_price" type="number" min="0" step="any" class="input w-full">
                         @error('completionData.sale_price') <p class="text-error text-xs mt-1">{{ $message }}</p> @enderror
                     </div>
                     <div>
-                        <label class="label">Sale Date <span class="text-red-500">*</span></label>
+                        <label class="label">Sale Date <span class="required-mark">*</span></label>
                         <input wire:model="completionData.sale_date" type="date" class="input w-full">
                         @error('completionData.sale_date') <p class="text-error text-xs mt-1">{{ $message }}</p> @enderror
                     </div>
                 @else
                     <div>
-                        <label class="label">Destroy Method <span class="text-red-500">*</span></label>
+                        <label class="label">Destroy Method <span class="required-mark">*</span></label>
                         <select wire:model="completionData.destroy_method" class="input w-full">
                             <option value="">-- Select --</option>
                             @foreach(\App\Enums\Inventory\DestroyMethod::cases() as $dm)
@@ -282,12 +282,12 @@
                         @error('completionData.destroy_method') <p class="text-error text-xs mt-1">{{ $message }}</p> @enderror
                     </div>
                     <div>
-                        <label class="label">Destroy Date <span class="text-red-500">*</span></label>
+                        <label class="label">Destroy Date <span class="required-mark">*</span></label>
                         <input wire:model="completionData.destroy_date" type="date" class="input w-full">
                         @error('completionData.destroy_date') <p class="text-error text-xs mt-1">{{ $message }}</p> @enderror
                     </div>
                     <div>
-                        <label class="label">Witness Name <span class="text-red-500">*</span></label>
+                        <label class="label">Witness Name <span class="required-mark">*</span></label>
                         <input wire:model="completionData.witness_name" type="text" class="input w-full">
                         @error('completionData.witness_name') <p class="text-error text-xs mt-1">{{ $message }}</p> @enderror
                     </div>

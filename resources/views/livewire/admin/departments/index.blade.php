@@ -240,21 +240,21 @@
             maxWidth="lg"
         >
             <div>
-                <label class="label">Name <span class="text-rose-500">*</span></label>
+                <label class="label">Name <span class="required-mark">*</span></label>
                 <input wire:model="deptForm.name" type="text"
                        placeholder="e.g. Warehouse Operations" class="input w-full">
                 @error('deptForm.name')
-                    <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                    <p class="hint hint-error mt-1">{{ $message }}</p>
                 @enderror
             </div>
 
             <div>
-                <label class="label">Code <span class="text-rose-500">*</span></label>
+                <label class="label">Code <span class="required-mark">*</span></label>
                 <input wire:model="deptForm.code" type="text"
                        placeholder="e.g. WH-OPS" class="input w-full mono uppercase">
                 <p class="hint">Short unique identifier. Uppercased automatically.</p>
                 @error('deptForm.code')
-                    <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                    <p class="hint hint-error">{{ $message }}</p>
                 @enderror
             </div>
 
@@ -267,7 +267,7 @@
                     @endforeach
                 </select>
                 @error('deptForm.headUserId')
-                    <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                    <p class="hint hint-error mt-1">{{ $message }}</p>
                 @enderror
             </div>
 
@@ -276,7 +276,7 @@
                 <input wire:model="deptForm.reportEmail" type="email"
                        placeholder="reports@example.com" class="input w-full">
                 @error('deptForm.reportEmail')
-                    <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                    <p class="hint hint-error mt-1">{{ $message }}</p>
                 @enderror
             </div>
 
@@ -306,21 +306,21 @@
             maxWidth="lg"
         >
             <div>
-                <label class="label">Name <span class="text-rose-500">*</span></label>
+                <label class="label">Name <span class="required-mark">*</span></label>
                 <input wire:model="vwForm.name" type="text"
                        placeholder="e.g. General Store" class="input w-full">
                 @error('vwForm.name')
-                    <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                    <p class="hint hint-error mt-1">{{ $message }}</p>
                 @enderror
             </div>
 
             <div>
-                <label class="label">Code <span class="text-rose-500">*</span></label>
+                <label class="label">Code <span class="required-mark">*</span></label>
                 <input wire:model="vwForm.code" type="text"
                        placeholder="e.g. GS" class="input w-full mono uppercase">
                 <p class="hint">Short unique identifier. Uppercased automatically.</p>
                 @error('vwForm.code')
-                    <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                    <p class="hint hint-error">{{ $message }}</p>
                 @enderror
             </div>
 

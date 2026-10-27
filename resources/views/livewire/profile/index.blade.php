@@ -33,7 +33,7 @@
                 <div>
                     <label class="label">Full name *</label>
                     <input wire:model="name" type="text" required placeholder="Your full name" class="input">
-                    @error('name') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('name') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="label">Email address *</label>
@@ -42,12 +42,12 @@
                         <p class="hint text-amber-600">Your email address is not verified.</p>
                     @endif
                     <p class="hint">Changing your email will require re-verification.</p>
-                    @error('email') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('email') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="label">Phone</label>
                     <input wire:model="phone" type="tel" placeholder="+255 7xx xxx xxx" class="input mono">
-                    @error('phone') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('phone') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
             </div>
             <div class="card-footer">
@@ -68,18 +68,18 @@
                 <div>
                     <label class="label">Current password *</label>
                     <input wire:model="currentPassword" type="password" required autocomplete="current-password" class="input">
-                    @error('currentPassword') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('currentPassword') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="label">New password *</label>
                     <input wire:model="newPassword" type="password" required autocomplete="new-password" class="input">
                     <p class="hint">Minimum 8 characters. Use a mix of letters, numbers, and symbols.</p>
-                    @error('newPassword') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('newPassword') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
                 <div>
                     <label class="label">Confirm new password *</label>
                     <input wire:model="confirmPassword" type="password" required autocomplete="new-password" class="input">
-                    @error('confirmPassword') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                    @error('confirmPassword') <p class="hint hint-error">{{ $message }}</p> @enderror
                 </div>
             </div>
             <div class="card-footer">
@@ -187,7 +187,7 @@
                             <input wire:model="confirmCode" type="text" inputmode="numeric" pattern="[0-9]*"
                                 maxlength="6" placeholder="000000" required autocomplete="one-time-code"
                                 class="input mono tracking-widest w-40">
-                            @error('confirmCode') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('confirmCode') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                         <div class="flex gap-3">
                             <button type="submit" wire:loading.attr="disabled" wire:target="confirmApp" class="btn btn-primary">
@@ -224,7 +224,7 @@
                             <input wire:model="confirmCode" type="text" inputmode="numeric" pattern="[0-9]*"
                                 maxlength="6" placeholder="000000" required autocomplete="one-time-code"
                                 class="input mono tracking-widest w-40">
-                            @error('confirmCode') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('confirmCode') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                     </div>
                     <div class="card-footer gap-3">
@@ -327,7 +327,7 @@
                         <div class="flex-1">
                             <input wire:model="sessionPassword" type="password" placeholder="Your password"
                                 autocomplete="current-password" class="input">
-                            @error('sessionPassword') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                            @error('sessionPassword') <p class="hint hint-error">{{ $message }}</p> @enderror
                         </div>
                         <button type="button" wire:click="logoutOtherSessions" class="btn btn-danger btn-sm shrink-0">
                             <x-ui.icon name="x" class="w-4 h-4" /> Confirm Logout

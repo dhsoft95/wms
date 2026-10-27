@@ -118,7 +118,7 @@
         >
             {{-- Name --}}
             <div>
-                <label class="label" for="cat-name">Name <span class="text-red-500">*</span></label>
+                <label class="label" for="cat-name">Name <span class="required-mark">*</span></label>
                 <input
                     wire:model="name"
                     id="cat-name"
@@ -128,7 +128,7 @@
                     autofocus
                 />
                 @error('name')
-                    <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                    <p class="hint hint-error mt-1">{{ $message }}</p>
                 @enderror
             </div>
 
@@ -143,7 +143,7 @@
                     @endforeach
                 </select>
                 @error('parentId')
-                    <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                    <p class="hint hint-error mt-1">{{ $message }}</p>
                 @enderror
             </div>
 
@@ -157,7 +157,7 @@
                 <span class="text-sm font-medium text-slate-700 dark:text-slate-200">Active</span>
             </label>
             @error('isActive')
-                <p class="hint !text-red-600 dark:!text-red-400">{{ $message }}</p>
+                <p class="hint hint-error">{{ $message }}</p>
             @enderror
 
             <x-slot:footer>
@@ -238,7 +238,7 @@
                             @endforeach
                         </select>
                         @error('addUserId')
-                            <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                            <p class="hint hint-error mt-1">{{ $message }}</p>
                         @enderror
                     </div>
 
@@ -252,7 +252,7 @@
                             @endforeach
                         </select>
                         @error('addWarehouseId')
-                            <p class="hint !text-red-600 dark:!text-red-400 mt-1">{{ $message }}</p>
+                            <p class="hint hint-error mt-1">{{ $message }}</p>
                         @enderror
                     </div>
                 </div>

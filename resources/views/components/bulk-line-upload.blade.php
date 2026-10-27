@@ -67,7 +67,7 @@
                      x-on:livewire-upload-progress="progress = $event.detail.progress">
 
                     <label class="label">
-                        Upload File <span class="text-red-500">*</span>
+                        Upload File <span class="required-mark">*</span>
                     </label>
 
                     <div class="relative rounded-xl border-2 border-dashed px-6 py-8 text-center transition-colors"
@@ -122,7 +122,7 @@
                     </div>
 
                     @error('blkFile')
-                    <p class="hint !text-red-600 mt-1.5 flex items-center gap-1">
+                    <p class="hint hint-error mt-1.5 flex items-center gap-1">
                         <x-ui.icon name="x-circle" class="w-3.5 h-3.5" /> {{ $message }}
                     </p>
                     @enderror

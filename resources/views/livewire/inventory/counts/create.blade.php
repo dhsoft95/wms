@@ -20,7 +20,7 @@
                         <option value="{{ $vw->id }}">{{ $vw->name }}</option>
                     @endforeach
                 </select>
-                @error('virtualWarehouseId') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('virtualWarehouseId') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
 
             <div>
@@ -30,7 +30,7 @@
                         <option value="{{ $bin->id }}">{{ $bin->code }}</option>
                     @endforeach
                 </select>
-                @error('locationIds') <p class="hint !text-red-600">{{ $message }}</p> @enderror
+                @error('locationIds') <p class="hint hint-error">{{ $message }}</p> @enderror
             </div>
 
             <div>
