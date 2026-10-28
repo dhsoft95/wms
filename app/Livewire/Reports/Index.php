@@ -212,9 +212,10 @@ class Index extends Component
 
         GenerateReportJob::dispatch($req)->onQueue('default');
 
-        $this->dispatch('toast', message: 'Export queued  you\'ll be notified when it\'s ready.', type: 'info');
+        $this->dispatch('toast', message: 'Export queued — you\'ll be notified when it\'s ready.', type: 'info');
 
         unset($this->recentRequests);
+        $this->trackedPendingIds = $this->pendingExportIds();
     }
 
     public function loadAiSummary(): void
