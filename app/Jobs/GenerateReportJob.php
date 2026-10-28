@@ -118,23 +118,41 @@ class GenerateReportJob implements ShouldQueue
             }
 
         } elseif ($format === 'pdf' && $definition->pdfEnabled()) {
-            $rows        = $definition->query($filters, $user)->get();
-            $colCount    = count($definition->columns());
-            $isLandscape = $colCount > 7;
-            $paper       = $isLandscape ? [0, 0, 841.89, 595.28] : [0, 0, 595.28, 841.89];
-            $orient      = $isLandscape ? 'landscape' : 'portrait';
-            $pdf = Pdf::loadView('reports.layouts.pdf', [
-                'definition'  => $definition,
-                'rows'        => $rows,
-                'filters'     => $filters,
-                'brand'       => PdfBrand::make(),
-                'summary'     => $definition->summary($rows),
-                'totals'      => $definition->totals($rows),
-                'generatedAt' => now()->format('d M Y H:i'),
-            ])->setOptions(['isPhpEnabled' => true])->setPaper($paper, $orient);
+            if (method_exists($definition, 'pdfView') && $definition->pdfView()) {
+                $viewName = $definition->pdfView();
+                $data     = method_exists($definition, 'pdfData')
+                    ? $definition->pdfData($filters, $user)
+                    : [];
 
-            $storagePath = 'reports/' . $this->request->id . '_' . $definition->key() . '_' . now()->format('Ymd-Hi') . '.pdf';
-            $disk->put($storagePath, $pdf->output());
+                $filename = method_exists($definition, 'pdfFilename')
+                    ? $definition->pdfFilename($filters)
+                    : $definition->key() . '_' . now()->format('Ymd-Hi');
+
+                $pdf = Pdf::loadView($viewName, $data)
+                    ->setOptions(['isPhpEnabled' => true])
+                    ->setPaper([0, 0, 841.89, 595.28], 'landscape');
+
+                $storagePath = 'reports/' . $this->request->id . '_' . $filename . '.pdf';
+                $disk->put($storagePath, $pdf->output());
+            } else {
+                $rows        = $definition->query($filters, $user)->get();
+                $colCount    = count($definition->columns());
+                $isLandscape = $colCount > 7;
+                $paper       = $isLandscape ? [0, 0, 841.89, 595.28] : [0, 0, 595.28, 841.89];
+                $orient      = $isLandscape ? 'landscape' : 'portrait';
+                $pdf = Pdf::loadView('reports.layouts.pdf', [
+                    'definition'  => $definition,
+                    'rows'        => $rows,
+                    'filters'     => $filters,
+                    'brand'       => PdfBrand::make(),
+                    'summary'     => $definition->summary($rows),
+                    'totals'      => $definition->totals($rows),
+                    'generatedAt' => now()->format('d M Y H:i'),
+                ])->setOptions(['isPhpEnabled' => true])->setPaper($paper, $orient);
+
+                $storagePath = 'reports/' . $this->request->id . '_' . $definition->key() . '_' . now()->format('Ymd-Hi') . '.pdf';
+                $disk->put($storagePath, $pdf->output());
+            }
 
         } else {
             throw new \InvalidArgumentException("Unsupported format '{$format}' for report '{$this->request->type}'.");
