@@ -14,6 +14,17 @@
         </div>
     </div>
 
+    {{-- Scan bar --}}
+    <div class="card">
+        <div class="card-body py-3">
+            <x-scan-input
+                wire:model="scanInput"
+                :method="'processScan'"
+                placeholder="Scan LPN or item barcode to open its putaway task…"
+            />
+        </div>
+    </div>
+
     <div class="card">
         {{-- Status Tabs --}}
         <div class="card-header flex-col sm:flex-row gap-3">

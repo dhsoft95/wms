@@ -3,9 +3,11 @@
 namespace App\Livewire\Warehouse\Putaway;
 
 use App\Enums\PutawayTaskStatus;
+use App\Enums\ScanResultType;
 use App\Livewire\Concerns\HasPutawayModal;
 use App\Models\PutawayTask;
 use App\Models\User;
+use App\Services\Scanning\BarcodeResolver;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -19,11 +21,48 @@ class Index extends Component
     public string $statusFilter = 'all';
     public bool   $myTasksOnly  = false;
     public string $search       = '';
+    public string $scanInput    = '';
 
     // Bulk assign modal
     public bool   $showBulkAssignModal = false;
     public array  $selectedTaskIds     = [];
     public string $assignToUserId      = '';
+
+    // ─── Scan ─────────────────────────────────────────────────────────────────
+
+    public function processScan(): void
+    {
+        $input          = trim($this->scanInput);
+        $this->scanInput = '';
+        if ($input === '') {
+            return;
+        }
+
+        $result = app(BarcodeResolver::class)->resolve($input);
+
+        if ($result->type !== ScanResultType::Item) {
+            $this->dispatch('scan-error');
+            $this->dispatch('toast', message: $result->error ?? 'Not an item barcode.', type: 'error');
+            return;
+        }
+
+        $task = PutawayTask::where('item_id', $result->record->id)
+            ->whereIn('status', [
+                PutawayTaskStatus::Open->value,
+                PutawayTaskStatus::Assigned->value,
+                PutawayTaskStatus::InProgress->value,
+            ])
+            ->first();
+
+        if (! $task) {
+            $this->dispatch('scan-error');
+            $this->dispatch('toast', message: 'No open putaway task found for this barcode.', type: 'error');
+            return;
+        }
+
+        $this->openExecute($task->id);
+        $this->dispatch('scan-success');
+    }
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
 

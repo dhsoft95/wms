@@ -94,6 +94,16 @@
             </div>
         </div>
 
+        {{-- Bin scan input --}}
+        <div class="px-6 py-3 border-b border-slate-200 dark:border-slate-700 shrink-0">
+            <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Scan Destination Bin</p>
+            <x-scan-input
+                wire:model="scanBinInput"
+                :method="'processBinScan'"
+                placeholder="Scan bin barcode or code…"
+            />
+        </div>
+
         {{-- Bin rows --}}
         <div class="overflow-y-auto flex-1 px-6 py-4 space-y-3">
             @foreach ($splitRows as $i => $row)

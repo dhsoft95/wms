@@ -57,6 +57,13 @@ final class BarcodeResolver
                 : new ScanResult(ScanResultType::Unknown, error: "GRN not found: {$raw}");
         }
 
+        if (str_starts_with($raw, 'PO-')) {
+            $po = \App\Models\PurchaseOrder::where('number', $raw)->first();
+            return $po
+                ? new ScanResult(ScanResultType::PurchaseOrder, record: $po)
+                : new ScanResult(ScanResultType::Unknown, error: "Purchase Order not found: {$raw}");
+        }
+
         if (str_starts_with($raw, 'DO-')) {
             return new ScanResult(ScanResultType::Unknown, error: 'Dispatch Orders not available in this module');
         }
@@ -87,7 +94,7 @@ final class BarcodeResolver
         }
 
         $forms   = $this->normalizeGtin($gs1['gtin']);
-        $barcode = ItemBarcode::whereIn('barcode', $forms)->with('item')->first();
+        $barcode = ItemBarcode::whereIn('barcode', $forms)->with(['item' => fn ($q) => $q->withoutGlobalScopes()])->first();
 
         if (! $barcode || ! $barcode->item) {
             return new ScanResult(ScanResultType::Unknown, error: "GTIN not found: {$gs1['gtin']}");
@@ -200,14 +207,14 @@ final class BarcodeResolver
             $candidates[] = new ScanResult(ScanResultType::Location, record: $loc);
         }
 
-        // Item by item_barcodes
-        $itemBarcode = ItemBarcode::where('barcode', $raw)->with('item')->first();
+        // Item by item_barcodes — bypass VW scope (scanners see all items)
+        $itemBarcode = ItemBarcode::where('barcode', $raw)->with(['item' => fn ($q) => $q->withoutGlobalScopes()])->first();
         if ($itemBarcode?->item) {
             $candidates[] = new ScanResult(ScanResultType::Item, record: $itemBarcode->item);
         }
 
-        // Item by SKU (avoid duplicate if same item already found)
-        $item = Item::where('sku', $raw)->first();
+        // Item by SKU — bypass VW scope (scanners see all items)
+        $item = Item::withoutGlobalScopes()->where('sku', $raw)->first();
         if ($item) {
             $alreadyFound = collect($candidates)->contains(
                 fn($r) => $r->type === ScanResultType::Item && $r->record?->id === $item->id
