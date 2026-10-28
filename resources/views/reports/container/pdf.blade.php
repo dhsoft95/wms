@@ -1,20 +1,7 @@
 @php
-/**
- * Variables injected by ContainerReportService::build()
- * @var array  $brand          ['name','address','logoDataUri']
- * @var \App\Models\Container  $container
- * @var \Illuminate\Support\Collection $lines
- * @var array  $varianceSummary
- * @var \Illuminate\Support\Collection $grnSummary
- * @var float  $totalExpected
- * @var float  $totalGood
- * @var float  $totalDamaged
- * @var float  $totalVariance
- * @var string $generatedAt
- */
-
 $c   = $container;
 $po  = $c->purchaseOrder;
+$brandFooterName = addslashes($brand['name']);
 $fmt = function ($val, string $type = 'text', int $dec = 2): string {
     if ($val === null || $val === '') return '—';
     return match ($type) {
@@ -39,181 +26,130 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
     body {
         font-family: DejaVu Sans, Arial, sans-serif;
         font-size: 8.5px;
-        color: #1a1a1a;
+        color: #111;
         margin: 0;
     }
 
-    /* ── DomPDF footer ─────────────────────────────────────── */
     script[type="text/php"] { display: none; }
 
-    /* ── Brand ─────────────────────────────────────────────── */
+    /* ── Brand ── */
     .brand      { text-align: center; margin-bottom: 6px; }
-    .brand-logo { max-height: 44px; max-width: 140px; display: inline-block; }
-    .brand-name { font-size: 11px; font-weight: bold; color: #111; }
-    .brand-addr { font-size: 7px; color: #6b7280; margin-top: 2px; }
+    .brand-logo { max-height: 70px; max-width: 200px; display: inline-block; }
+    .brand-name { font-size: 11px; font-weight: bold; }
+    .brand-addr { font-size: 7px; color: #555; margin-top: 2px; }
 
-    /* ── Page header row ────────────────────────────────────── */
-    .pg-header    { width: 100%; border-collapse: collapse; border-bottom: 2.5px solid #a22631; padding-bottom: 6px; margin-bottom: 10px; }
-    .pg-header td { vertical-align: bottom; border: 0; padding: 0 4px 4px 0; }
-    .pg-title     { font-size: 14px; font-weight: bold; color: #111; letter-spacing: 0.02em; }
-    .pg-subtitle  { font-size: 9px; color: #555; margin-top: 1px; }
-    .pg-meta      { font-size: 7.5px; color: #555; text-align: right; line-height: 1.8; }
-    .pg-meta strong { color: #222; font-size: 8px; }
+    /* ── Page header ── */
+    .pg-header    { width: 100%; border-collapse: collapse; border-bottom: 2px solid #111; margin-bottom: 10px; }
+    .pg-header td { vertical-align: bottom; border: 0; padding: 0 4px 5px 0; }
+    .pg-title     { font-size: 14px; font-weight: bold; }
+    .pg-subtitle  { font-size: 9px; color: #444; margin-top: 2px; }
+    .pg-meta      { font-size: 7.5px; color: #444; text-align: right; line-height: 1.9; }
+    .pg-meta strong { font-size: 8px; }
 
-    /* ── Info grid (detail cards) ───────────────────────────── */
-    .info-grid  { width: 100%; border-collapse: separate; border-spacing: 6px 0; margin-bottom: 10px; table-layout: fixed; }
-    .info-card  { border: 1px solid #e5e7eb; border-radius: 4px; padding: 6px 8px; vertical-align: top; }
-    .info-label { font-size: 7px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; margin-bottom: 4px; }
-    .info-row   { display: table; width: 100%; margin-bottom: 2px; }
-    .info-key   { display: table-cell; font-size: 7.5px; color: #6b7280; width: 42%; }
-    .info-val   { display: table-cell; font-size: 8px; font-weight: 600; color: #111; }
-    .info-val.mono { font-family: 'DejaVu Sans Mono', monospace; }
-
-    /* ── Status badge ───────────────────────────────────────── */
-    .status-badge {
-        display: inline-block;
-        padding: 1px 7px;
-        border-radius: 99px;
-        font-size: 7.5px;
-        font-weight: bold;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-    }
-    .status-expected  { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
-    .status-arrived   { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
-    .status-parked    { background: #fefce8; color: #a16207; border: 1px solid #fef08a; }
-    .status-unloading { background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa; }
-    .status-unloaded  { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
-    .status-released  { background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; }
-    .status-cancelled { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
-
-    /* ── KPI summary row ────────────────────────────────────── */
-    .kpi-row   { width: 100%; border-collapse: separate; border-spacing: 5px 0; margin-bottom: 10px; table-layout: fixed; }
-    .kpi-cell  { border: 1px solid #e5e7eb; border-radius: 4px; padding: 5px 8px; text-align: center; }
-    .kpi-label { font-size: 7px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.06em; color: #9ca3af; }
-    .kpi-value { font-size: 13px; font-weight: bold; color: #111; margin-top: 2px; }
-    .kpi-value.green { color: #15803d; }
-    .kpi-value.red   { color: #b91c1c; }
-    .kpi-value.amber { color: #b45309; }
-
-    /* ── Section heading ────────────────────────────────────── */
+    /* ── Section heading ── */
     .section-head {
         font-size: 8px;
         font-weight: bold;
         text-transform: uppercase;
         letter-spacing: 0.07em;
-        color: #a22631;
-        border-bottom: 1px solid #f3f4f6;
+        border-bottom: 1px solid #bbb;
         padding-bottom: 3px;
         margin-bottom: 6px;
         margin-top: 10px;
     }
 
-    /* ── Tables ─────────────────────────────────────────────── */
+    /* ── Summary table (replaces KPI cards) ── */
+    table.summary { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 8px; }
+    table.summary td {
+        border: 1px solid #ccc;
+        padding: 4px 8px;
+        vertical-align: top;
+    }
+    table.summary td.lbl { color: #555; font-size: 7.5px; width: 50%; }
+    table.summary td.val { font-weight: bold; }
+
+    /* ── Info grid ── */
+    .info-grid  { width: 100%; border-collapse: separate; border-spacing: 5px 0; margin-bottom: 10px; table-layout: fixed; }
+    .info-card  { border: 1px solid #ccc; padding: 6px 8px; vertical-align: top; }
+    .info-label { font-size: 7px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.06em; color: #777; margin-bottom: 4px; }
+    .info-row   { display: table; width: 100%; margin-bottom: 2px; }
+    .info-key   { display: table-cell; font-size: 7.5px; color: #555; width: 44%; }
+    .info-val   { display: table-cell; font-size: 8px; font-weight: 600; }
+    .info-val.mono { font-family: 'DejaVu Sans Mono', monospace; }
+
+    /* ── Tables ── */
     table.data { width: 100%; border-collapse: collapse; font-size: 7.5px; }
     table.data thead th {
-        background: #f9fafb;
-        border: 1px solid #e5e7eb;
+        background: #f0f0f0;
+        border: 1px solid #ccc;
         padding: 4px 5px;
         text-align: left;
         font-weight: bold;
         font-size: 7px;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: #6b7280;
+        color: #333;
         white-space: nowrap;
     }
     table.data thead th.r { text-align: right; }
     table.data tbody td {
-        border: 1px solid #f3f4f6;
+        border: 1px solid #ddd;
         padding: 3.5px 5px;
         vertical-align: top;
-        color: #374151;
     }
-    table.data tbody td.r { text-align: right; }
+    table.data tbody td.r    { text-align: right; }
     table.data tbody td.mono { font-family: 'DejaVu Sans Mono', monospace; font-size: 7px; }
     table.data tbody tr:nth-child(even) td { background: #fafafa; }
     table.data tfoot td {
-        border-top: 2px solid #d1d5db;
-        border-bottom: 1px solid #d1d5db;
+        border-top: 2px solid #999;
+        border-bottom: 1px solid #ccc;
         padding: 4px 5px;
         font-weight: bold;
-        font-size: 7.5px;
-        background: #f3f4f6;
+        background: #efefef;
     }
     table.data tfoot td.r { text-align: right; }
 
-    .var-short   { color: #b45309; }
-    .var-excess  { color: #a22631; }
-    .var-damaged { color: #b91c1c; }
-    .var-mixed   { color: #b45309; }
-    .var-none    { color: #9ca3af; }
-    .unexpected  { background: #fff7ed !important; }
+    /* ── Sign-off ── */
+    .signoff { width: 100%; border-collapse: separate; border-spacing: 14px 0; margin-top: 14px; table-layout: fixed; }
+    .signoff td { border-top: 1px solid #444; padding-top: 5px; vertical-align: top; font-size: 7.5px; }
+    .signoff .role  { font-weight: bold; font-size: 8px; }
+    .signoff .lines { margin-top: 14px; font-size: 7px; color: #777; }
 
-    /* ── GRN mini table ─────────────────────────────────────── */
-    table.grn-table { width: 100%; border-collapse: collapse; font-size: 7.5px; }
-    table.grn-table td, table.grn-table th {
-        border: 1px solid #e5e7eb;
-        padding: 3px 6px;
-    }
-    table.grn-table th {
-        background: #f9fafb;
-        font-weight: bold;
-        font-size: 7px;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #6b7280;
-    }
-    table.grn-table td.r { text-align: right; }
-
-    /* ── Sign-off block ─────────────────────────────────────── */
-    .signoff { width: 100%; border-collapse: separate; border-spacing: 12px 0; margin-top: 14px; table-layout: fixed; }
-    .signoff td {
-        border-top: 1px solid #374151;
-        padding-top: 5px;
-        vertical-align: top;
-        font-size: 7.5px;
-        color: #374151;
-    }
-    .signoff .role  { font-weight: bold; font-size: 8px; color: #111; }
-    .signoff .lines { margin-top: 14px; font-size: 7px; color: #9ca3af; }
-
-    /* ── Footer note ─────────────────────────────────────────── */
+    /* ── Footer note ── */
     .footer-note {
         margin-top: 10px;
         font-size: 7px;
-        color: #9ca3af;
+        color: #777;
         text-align: center;
-        border-top: 1px solid #f3f4f6;
+        border-top: 1px solid #ddd;
         padding-top: 4px;
     }
 </style>
 </head>
 <body>
 
-{{-- DomPDF page footer --}}
 <script type="text/php">
     if (isset($pdf)) {
         $pdf->page_script('
             $font = $fontMetrics->get_font("DejaVu Sans", "normal");
             $size = 7;
-            $color = [0.6, 0.6, 0.6];
-            $left  = "' . addslashes($brand['name']) . '  |  Container Receipt Report";
+            $color = [0.5, 0.5, 0.5];
+            $left  = "{!! $brandFooterName !!}  |  Container Receipt Report";
             $center = "System generated — do not alter";
             $right = "Page " . $PAGE_NUM . " of " . $PAGE_COUNT;
-            $w = $PAGE_WIDTH;
-            $h = $PAGE_HEIGHT;
+            $w = $pdf->get_width();
+            $h = $pdf->get_height();
             $m = 34;
             $pdf->text($m, $h - 14, $left, $font, $size, $color);
-            $cw = $fontMetrics->get_text_width($center, $font, $size, $color);
+            $cw = $fontMetrics->get_text_width($center, $font, $size);
             $pdf->text(($w - $cw) / 2, $h - 14, $center, $font, $size, $color);
-            $rw = $fontMetrics->get_text_width($right, $font, $size, $color);
+            $rw = $fontMetrics->get_text_width($right, $font, $size);
             $pdf->text($w - $m - $rw, $h - 14, $right, $font, $size, $color);
         ');
     }
 </script>
 
-{{-- ── Brand ────────────────────────────────────────────────── --}}
+{{-- ── Brand ── --}}
 <div class="brand">
     @if ($brand['logoDataUri'])
         <img src="{{ $brand['logoDataUri'] }}" class="brand-logo" alt="{{ $brand['name'] }}" />
@@ -225,10 +161,10 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
     @endif
 </div>
 
-{{-- ── Page header ─────────────────────────────────────────── --}}
+{{-- ── Page header ── --}}
 <table class="pg-header">
     <tr>
-        <td width="55%">
+        <td width="60%">
             <div class="pg-title">Container Receipt Report</div>
             <div class="pg-subtitle">
                 {{ $c->container_no }}
@@ -238,8 +174,7 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
                 @if ($c->size_type)
                     &nbsp;&middot;&nbsp;{{ $c->size_type->label() }}
                 @endif
-                &nbsp;&nbsp;
-                <span class="status-badge status-{{ $c->status?->value ?? 'expected' }}">{{ $c->status?->label() ?? '—' }}</span>
+                &nbsp;&middot;&nbsp;{{ $c->status?->label() ?? '—' }}
             </div>
         </td>
         <td class="pg-meta">
@@ -254,50 +189,11 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
     </tr>
 </table>
 
-{{-- ── KPI row ──────────────────────────────────────────────── --}}
-<table class="kpi-row">
-    <tr>
-        <td class="kpi-cell">
-            <div class="kpi-label">Total Lines</div>
-            <div class="kpi-value">{{ $varianceSummary['total_lines'] }}</div>
-        </td>
-        <td class="kpi-cell">
-            <div class="kpi-label">Qty Expected</div>
-            <div class="kpi-value">{{ number_format($totalExpected, 2) }}</div>
-        </td>
-        <td class="kpi-cell">
-            <div class="kpi-label">Qty Received (Good)</div>
-            <div class="kpi-value green">{{ number_format($totalGood, 2) }}</div>
-        </td>
-        <td class="kpi-cell">
-            <div class="kpi-label">Qty Damaged</div>
-            <div class="kpi-value {{ $totalDamaged > 0 ? 'red' : '' }}">{{ number_format($totalDamaged, 2) }}</div>
-        </td>
-        <td class="kpi-cell">
-            <div class="kpi-label">Net Variance</div>
-            <div class="kpi-value {{ $totalVariance < 0 ? 'red' : ($totalVariance > 0 ? 'amber' : '') }}">
-                {{ ($totalVariance > 0 ? '+' : '') . number_format($totalVariance, 2) }}
-            </div>
-        </td>
-        <td class="kpi-cell">
-            <div class="kpi-label">Lines with Variance</div>
-            <div class="kpi-value {{ $varianceSummary['with_variance'] > 0 ? 'amber' : 'green' }}">
-                {{ $varianceSummary['with_variance'] }}
-            </div>
-        </td>
-        <td class="kpi-cell">
-            <div class="kpi-label">GRN Count</div>
-            <div class="kpi-value">{{ $grnSummary->count() }}</div>
-        </td>
-    </tr>
-</table>
-
-{{-- ── Container & Voyage details ──────────────────────────── --}}
+{{-- ── Container & Voyage details ── --}}
 <table class="info-grid">
     <tr>
-        {{-- Container Details --}}
         <td class="info-card">
-            <div class="info-label">Container Details</div>
+            <div class="info-label">Container</div>
             <div class="info-row">
                 <span class="info-key">Container No</span>
                 <span class="info-val mono">{{ $c->container_no ?? '—' }}</span>
@@ -306,12 +202,6 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
             <div class="info-row">
                 <span class="info-key">Internal No</span>
                 <span class="info-val mono">{{ $c->internal_number }}</span>
-            </div>
-            @endif
-            @if ($c->iso_number)
-            <div class="info-row">
-                <span class="info-key">ISO No</span>
-                <span class="info-val mono">{{ $c->iso_number }}</span>
             </div>
             @endif
             <div class="info-row">
@@ -326,15 +216,14 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
             @endif
         </td>
 
-        {{-- Voyage Details --}}
         <td class="info-card">
-            <div class="info-label">Voyage Details</div>
+            <div class="info-label">Voyage</div>
             <div class="info-row">
                 <span class="info-key">Vessel</span>
                 <span class="info-val">{{ $c->vessel ?? '—' }}</span>
             </div>
             <div class="info-row">
-                <span class="info-key">Voyage</span>
+                <span class="info-key">Voyage No</span>
                 <span class="info-val mono">{{ $c->voyage ?? '—' }}</span>
             </div>
             <div class="info-row">
@@ -355,15 +244,8 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
                 <span class="info-val">{{ $fmt($c->unloaded_at, 'dt') }}</span>
             </div>
             @endif
-            @if ($c->released_at)
-            <div class="info-row">
-                <span class="info-key">Released</span>
-                <span class="info-val">{{ $fmt($c->released_at, 'dt') }}</span>
-            </div>
-            @endif
         </td>
 
-        {{-- Partners --}}
         <td class="info-card">
             <div class="info-label">Partners</div>
             <div class="info-row">
@@ -386,9 +268,8 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
             @endif
         </td>
 
-        {{-- PO & Seal --}}
         <td class="info-card">
-            <div class="info-label">PO & Seal Verification</div>
+            <div class="info-label">PO &amp; Seal</div>
             @if ($po)
             <div class="info-row">
                 <span class="info-key">PO Number</span>
@@ -396,7 +277,7 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
             </div>
             @if ($po->customer_po_ref)
             <div class="info-row">
-                <span class="info-key">Customer PO Ref</span>
+                <span class="info-key">Cust. PO Ref</span>
                 <span class="info-val mono">{{ $po->customer_po_ref }}</span>
             </div>
             @endif
@@ -417,38 +298,60 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
             <div class="info-row">
                 <span class="info-key">Seal Verified</span>
                 <span class="info-val">
-                    @if ($c->seal_verified === true)
-                        <span style="color:#15803d;font-weight:bold;">YES</span>
-                    @elseif ($c->seal_verified === false)
-                        <span style="color:#b91c1c;font-weight:bold;">NO</span>
-                    @else
-                        —
+                    @if ($c->seal_verified === true) YES
+                    @elseif ($c->seal_verified === false) NO
+                    @else —
                     @endif
                 </span>
             </div>
             @if ($c->seal_mismatch_reason)
             <div class="info-row">
                 <span class="info-key">Mismatch Reason</span>
-                <span class="info-val" style="color:#b91c1c;">{{ $c->seal_mismatch_reason }}</span>
+                <span class="info-val">{{ $c->seal_mismatch_reason }}</span>
             </div>
             @endif
         </td>
     </tr>
 </table>
 
-{{-- ── GRN Summary ──────────────────────────────────────────── --}}
+{{-- ── Receipt Summary ── --}}
+<div class="section-head">Receipt Summary</div>
+<table class="summary">
+    <tr>
+        <td class="lbl">Total Lines</td>
+        <td class="val">{{ $varianceSummary['total_lines'] }}</td>
+        <td class="lbl">Lines with Variance</td>
+        <td class="val">{{ $varianceSummary['with_variance'] }}</td>
+        <td class="lbl">Short Lines</td>
+        <td class="val">{{ $varianceSummary['short_lines'] }}</td>
+        <td class="lbl">Excess Lines</td>
+        <td class="val">{{ $varianceSummary['excess_lines'] }}</td>
+    </tr>
+    <tr>
+        <td class="lbl">Qty Expected</td>
+        <td class="val">{{ number_format($totalExpected, 2) }}</td>
+        <td class="lbl">Qty Received (Good)</td>
+        <td class="val">{{ number_format($totalGood, 2) }}</td>
+        <td class="lbl">Qty Damaged</td>
+        <td class="val">{{ number_format($totalDamaged, 2) }}</td>
+        <td class="lbl">Net Variance</td>
+        <td class="val">{{ ($totalVariance > 0 ? '+' : '') . number_format($totalVariance, 2) }}</td>
+    </tr>
+</table>
+
+{{-- ── GRN Summary ── --}}
 @if ($grnSummary->isNotEmpty())
 <div class="section-head">GRN Summary ({{ $grnSummary->count() }} {{ $grnSummary->count() === 1 ? 'Receipt' : 'Receipts' }})</div>
-<table class="grn-table" style="margin-bottom:10px;">
+<table class="data" style="margin-bottom:10px;">
     <thead>
         <tr>
             <th>GRN Number</th>
             <th>Status</th>
             <th>Confirmed Date</th>
             <th>Confirmed By</th>
-            <th style="text-align:right;">Lines</th>
-            <th style="text-align:right;">Qty Good</th>
-            <th style="text-align:right;">Qty Damaged</th>
+            <th class="r">Lines</th>
+            <th class="r">Qty Good</th>
+            <th class="r">Qty Damaged</th>
         </tr>
     </thead>
     <tbody>
@@ -459,15 +362,15 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
             <td>{{ $g['confirmed_at'] }}</td>
             <td>{{ $g['confirmed_by'] }}</td>
             <td class="r">{{ $g['line_count'] }}</td>
-            <td class="r" style="color:#15803d;font-weight:600;">{{ number_format($g['total_good'], 2) }}</td>
-            <td class="r" style="{{ $g['total_damaged'] > 0 ? 'color:#b91c1c;font-weight:600;' : 'color:#9ca3af;' }}">{{ number_format($g['total_damaged'], 2) }}</td>
+            <td class="r">{{ number_format($g['total_good'], 2) }}</td>
+            <td class="r">{{ $g['total_damaged'] > 0 ? number_format($g['total_damaged'], 2) : '—' }}</td>
         </tr>
         @endforeach
     </tbody>
 </table>
 @endif
 
-{{-- ── Received Lines detail ────────────────────────────────── --}}
+{{-- ── Received Lines ── --}}
 @if ($lines->isNotEmpty())
 <div class="section-head">Received Lines — Item Detail ({{ $lines->count() }} lines)</div>
 <table class="data">
@@ -479,7 +382,7 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
             <th>MIC No</th>
             <th>UOM</th>
             <th class="r">Expected</th>
-            <th class="r">Good Rcvd</th>
+            <th class="r">Rcvd Good</th>
             <th class="r">Damaged</th>
             <th class="r">Variance</th>
             <th>Variance Type</th>
@@ -488,43 +391,32 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
     </thead>
     <tbody>
         @foreach ($lines as $row)
-        @php
-            $varClass = match($row['variance_type_raw']) {
-                'short'   => 'var-short',
-                'excess'  => 'var-excess',
-                'damaged' => 'var-damaged',
-                'mixed'   => 'var-mixed',
-                default   => 'var-none',
-            };
-        @endphp
-        <tr class="{{ $row['is_unexpected'] ? 'unexpected' : '' }}">
+        <tr>
             <td class="mono" style="white-space:nowrap;">{{ $row['grn_number'] }}</td>
             <td class="mono" style="font-weight:600;white-space:nowrap;">{{ $row['item_sku'] }}</td>
             <td>{{ $row['item_name'] }}</td>
             <td class="mono" style="font-size:7px;">{{ $row['mic_number'] ?: '—' }}</td>
             <td>{{ $row['uom'] }}</td>
             <td class="r">{{ number_format($row['expected_qty'], 2) }}</td>
-            <td class="r" style="color:#15803d;font-weight:600;">{{ number_format($row['received_good_qty'], 2) }}</td>
-            <td class="r" style="{{ $row['received_damaged_qty'] > 0 ? 'color:#b91c1c;font-weight:600;' : 'color:#9ca3af;' }}">
-                {{ number_format($row['received_damaged_qty'], 2) }}
-            </td>
-            <td class="r {{ $varClass }}" style="font-weight:{{ $row['variance_qty'] != 0 ? 'bold' : 'normal' }};">
+            <td class="r">{{ number_format($row['received_good_qty'], 2) }}</td>
+            <td class="r">{{ $row['received_damaged_qty'] > 0 ? number_format($row['received_damaged_qty'], 2) : '—' }}</td>
+            <td class="r" style="{{ $row['variance_qty'] != 0 ? 'font-weight:bold;' : '' }}">
                 {{ $row['variance_qty'] != 0 ? (($row['variance_qty'] > 0 ? '+' : '') . number_format($row['variance_qty'], 2)) : '—' }}
             </td>
-            <td class="{{ $varClass }}" style="font-size:7px;">
+            <td style="font-size:7px;">
                 {{ $row['variance_type'] ?: ($row['is_unexpected'] ? 'Unexpected' : '—') }}
             </td>
-            <td style="font-size:7px;color:#6b7280;">{{ $row['remarks'] ?: '—' }}</td>
+            <td style="font-size:7px;">{{ $row['remarks'] ?: '—' }}</td>
         </tr>
         @endforeach
     </tbody>
     <tfoot>
         <tr>
-            <td colspan="5" style="font-weight:bold;">TOTALS</td>
+            <td colspan="5">TOTALS</td>
             <td class="r">{{ number_format($totalExpected, 2) }}</td>
-            <td class="r" style="color:#15803d;">{{ number_format($totalGood, 2) }}</td>
-            <td class="r" style="{{ $totalDamaged > 0 ? 'color:#b91c1c;' : 'color:#9ca3af;' }}">{{ number_format($totalDamaged, 2) }}</td>
-            <td class="r {{ $totalVariance < 0 ? 'var-short' : ($totalVariance > 0 ? 'var-excess' : 'var-none') }}">
+            <td class="r">{{ number_format($totalGood, 2) }}</td>
+            <td class="r">{{ $totalDamaged > 0 ? number_format($totalDamaged, 2) : '—' }}</td>
+            <td class="r" style="{{ $totalVariance != 0 ? 'font-weight:bold;' : '' }}">
                 {{ $totalVariance != 0 ? (($totalVariance > 0 ? '+' : '') . number_format($totalVariance, 2)) : '—' }}
             </td>
             <td colspan="2">
@@ -538,23 +430,23 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
 </table>
 @else
 <div class="section-head">Received Lines</div>
-<p style="font-size:8px;color:#6b7280;margin:8px 0;">No receiving lines recorded yet for this container.</p>
+<p style="font-size:8px;color:#555;margin:8px 0;">No receiving lines recorded yet for this container.</p>
 @endif
 
-{{-- ── Notes ────────────────────────────────────────────────── --}}
-@if ($c->notes || $c->release_notes || ($varianceSummary['with_variance'] > 0 && $c->discrepancies?->isNotEmpty()))
+{{-- ── Notes ── --}}
+@if ($c->notes || $c->release_notes)
 <div class="section-head">Notes &amp; Remarks</div>
-<table style="width:100%;border-collapse:separate;border-spacing:6px 0;">
+<table style="width:100%;border-collapse:separate;border-spacing:5px 0;">
     <tr>
         @if ($c->notes)
-        <td style="vertical-align:top;border:1px solid #e5e7eb;border-radius:4px;padding:5px 8px;font-size:7.5px;color:#374151;">
-            <strong style="display:block;font-size:7px;text-transform:uppercase;color:#9ca3af;letter-spacing:0.06em;margin-bottom:3px;">Container Notes</strong>
+        <td style="vertical-align:top;border:1px solid #ccc;padding:5px 8px;font-size:7.5px;">
+            <strong style="display:block;font-size:7px;text-transform:uppercase;color:#777;letter-spacing:0.06em;margin-bottom:3px;">Container Notes</strong>
             {{ $c->notes }}
         </td>
         @endif
         @if ($c->release_notes)
-        <td style="vertical-align:top;border:1px solid #e5e7eb;border-radius:4px;padding:5px 8px;font-size:7.5px;color:#374151;">
-            <strong style="display:block;font-size:7px;text-transform:uppercase;color:#9ca3af;letter-spacing:0.06em;margin-bottom:3px;">Release Notes</strong>
+        <td style="vertical-align:top;border:1px solid #ccc;padding:5px 8px;font-size:7.5px;">
+            <strong style="display:block;font-size:7px;text-transform:uppercase;color:#777;letter-spacing:0.06em;margin-bottom:3px;">Release Notes</strong>
             {{ $c->release_notes }}
         </td>
         @endif
@@ -562,7 +454,7 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
 </table>
 @endif
 
-{{-- ── Sign-off ─────────────────────────────────────────────── --}}
+{{-- ── Sign-off ── --}}
 <table class="signoff">
     <tr>
         <td>

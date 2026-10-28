@@ -274,6 +274,37 @@
         </div>
     @endif
 
+    {{-- ── DOCUMENT REPORTS ────────────────────────────────────────────────────── --}}
+    <div class="card overflow-hidden">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Document Reports</h3>
+                <p class="text-xs text-slate-400 mt-0.5">Per-record PDF documents — generated directly from the relevant record page.</p>
+            </div>
+        </div>
+        <div class="divide-y divide-slate-100 dark:divide-white/[0.05]">
+
+            {{-- Container Receipt Report --}}
+            <div class="flex items-center justify-between gap-4 px-6 py-4">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-simba-50 dark:bg-simba-500/10">
+                        <x-ui.icon name="document-text" class="w-4 h-4 text-simba-600 dark:text-simba-400" />
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-800 dark:text-slate-100">Container Receipt Report</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Full dossier: container details, voyage, partners, GRN summary, received lines with variance analysis.</p>
+                    </div>
+                </div>
+                <a href="{{ route('inbound.containers.index') }}"
+                   class="btn btn-secondary btn-sm shrink-0">
+                    <x-ui.icon name="arrow-right" class="w-3.5 h-3.5" />
+                    Go to Containers
+                </a>
+            </div>
+
+        </div>
+    </div>
+
     {{-- ── QUEUED EXPORTS ───────────────────────────────────────────────────────── --}}
     @if ($this->recentRequests->isNotEmpty())
         <div class="card overflow-hidden"
