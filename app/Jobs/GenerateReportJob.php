@@ -131,7 +131,7 @@ class GenerateReportJob implements ShouldQueue
                 'summary'     => $definition->summary($rows),
                 'totals'      => $definition->totals($rows),
                 'generatedAt' => now()->format('d M Y H:i'),
-            ])->setPaper($paper, $orient);
+            ])->setOptions(['isPhpEnabled' => true])->setPaper($paper, $orient);
 
             $storagePath = 'reports/' . $this->request->id . '_' . $definition->key() . '_' . now()->format('Ymd-Hi') . '.pdf';
             $disk->put($storagePath, $pdf->output());

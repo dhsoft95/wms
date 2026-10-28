@@ -24,7 +24,7 @@ final class StockMovementReport implements ReportDefinition
         return [
             ['key' => 'transaction.posted_at',   'label' => 'Date',      'align' => 'left',   'format' => 'datetime'],
             ['key' => 'transaction.number',       'label' => 'Tx No',     'align' => 'left',   'format' => 'text'],
-            ['key' => 'transaction.type',         'label' => 'Type',      'align' => 'left',   'format' => 'enum'],
+            ['key' => 'display_type',             'label' => 'Type',      'align' => 'left',   'format' => 'text'],
             ['key' => 'transaction.reference_no', 'label' => 'Reference', 'align' => 'left',   'format' => 'text'],
             ['key' => 'item.sku',                 'label' => 'SKU',       'align' => 'left',   'format' => 'text'],
             ['key' => 'item.name',                'label' => 'Item',      'align' => 'left',   'format' => 'text'],
@@ -45,12 +45,29 @@ final class StockMovementReport implements ReportDefinition
             MovementType::SerialCapture->value,
         ];
 
+        $typeLabel = "CASE st.type
+            WHEN 'receipt'            THEN 'Receipt'
+            WHEN 'putaway'            THEN 'Putaway'
+            WHEN 'relocation'         THEN CASE WHEN st.reference_type = 'putaway_task' THEN 'Putaway' ELSE 'Internal Transfer' END
+            WHEN 'pick'               THEN 'Pick'
+            WHEN 'dispatch'           THEN 'Dispatch'
+            WHEN 'ownership_transfer' THEN 'W2W Transfer'
+            WHEN 'adjustment'         THEN 'Adjustment'
+            WHEN 'count_adjustment'   THEN 'Count Adjustment'
+            WHEN 'hold'               THEN 'Hold'
+            WHEN 'release'            THEN 'Release'
+            WHEN 'opening_balance'    THEN 'Opening Balance'
+            WHEN 'obsolete'           THEN 'Mark Obsolete'
+            WHEN 'disposal'           THEN 'Disposal'
+            ELSE st.type
+        END";
+
         $query = StockMovement::withoutGlobalScopes()
             ->join('stock_transactions as st', 'st.id', '=', 'stock_movements.stock_transaction_id')
             ->whereNotIn('st.type', $excluded)
             ->where('st.posted_at', '>=', $dateFrom . ' 00:00:00')
             ->where('st.posted_at', '<=', $dateTo . ' 23:59:59')
-            ->select('stock_movements.*')
+            ->selectRaw("stock_movements.*, ({$typeLabel}) as display_type")
             ->with(['transaction', 'item', 'location', 'virtualWarehouse', 'enteredUom'])
             ->orderBy('st.posted_at', 'desc')
             ->orderBy('st.id', 'desc');
@@ -73,14 +90,26 @@ final class StockMovementReport implements ReportDefinition
 
     public function summary(Collection $rows): array
     {
-        $totalIn  = $rows->where('qty', '>', 0)->sum('qty');
-        $totalOut = $rows->where('qty', '<', 0)->sum('qty');
+        $received  = $rows->filter(fn ($r) => $r->transaction?->type === MovementType::Receipt)->sum('qty');
+        $dispatched = $rows->filter(fn ($r) => $r->transaction?->type === MovementType::Dispatch)->sum('qty');
+
+        $internalTypes = [
+            MovementType::Putaway,
+            MovementType::Relocation,
+            MovementType::OwnershipTransfer,
+            MovementType::Pick,
+        ];
+        $internalMoves = $rows
+            ->filter(fn ($r) => in_array($r->transaction?->type, $internalTypes, true) && (float) $r->qty > 0)
+            ->sum('qty');
+
+        $net = $rows->sum('qty');
 
         return [
-            'Transactions' => number_format($rows->pluck('stock_transaction_id')->unique()->count()),
-            'Lines'        => number_format($rows->count()),
-            'Total In'     => number_format((float) $totalIn, 2),
-            'Total Out'    => number_format(abs((float) $totalOut), 2),
+            'Received'        => number_format((float) $received, 2),
+            'Dispatched'      => number_format(abs((float) $dispatched), 2),
+            'Internal Moves'  => number_format((float) $internalMoves, 2),
+            'Net Change'      => number_format((float) $net, 2),
         ];
     }
 

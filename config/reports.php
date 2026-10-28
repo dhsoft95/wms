@@ -27,6 +27,7 @@ return [
     ],
     'Control' => [
         \App\Reports\Control\StockCountReport::class,
+        \App\Reports\Control\StockAdjustmentReport::class,
         \App\Reports\Control\AssetDisposalReport::class,
     ],
 ];
