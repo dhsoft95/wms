@@ -20,6 +20,8 @@ return [
         \App\Reports\Orders\PendingOrdersReport::class,
         \App\Reports\Orders\DeliveredPendingGrnReport::class,
         \App\Reports\Orders\PlannedOrdersReport::class,
+        \App\Reports\Orders\GoodsReceivedReport::class,
+        \App\Reports\Orders\DispatchReport::class,
     ],
     'Activity' => [
         \App\Reports\Activity\StockMovementReport::class,
@@ -29,5 +31,6 @@ return [
         \App\Reports\Control\StockCountReport::class,
         \App\Reports\Control\StockAdjustmentReport::class,
         \App\Reports\Control\AssetDisposalReport::class,
+        \App\Reports\Control\StockReconciliationReport::class,
     ],
 ];

@@ -8,6 +8,7 @@ use App\Contracts\Reports\ReportDefinition;
 use App\Enums\Inventory\MovementType;
 use App\Models\Inventory\StockTransaction;
 use App\Models\User;
+use App\Services\Reports\ReceivedDispatchedReportService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,21 @@ final class ReceivedDispatchedReport implements ReportDefinition
     public function label(): string { return 'Received & Dispatched'; }
     public function group(): string { return 'Activity'; }
     public function periodType(): string { return 'range'; }
-    public function pdfEnabled(): bool   { return false; }
+    public function pdfEnabled(): bool   { return true; }
+
+    public function pdfView(): string { return 'reports.received-dispatched.pdf'; }
+
+    public function pdfData(array $filters, User $user): array
+    {
+        return app(ReceivedDispatchedReportService::class)->build($filters, $user);
+    }
+
+    public function pdfFilename(array $filters): string
+    {
+        $from = $filters['date_from'] ?? now()->startOfMonth()->format('Y-m-d');
+        $to   = $filters['date_to']   ?? now()->format('Y-m-d');
+        return "received-dispatched-report_{$from}_{$to}";
+    }
 
     public function columns(): array
     {
