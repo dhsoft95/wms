@@ -147,33 +147,29 @@
         /* Notes */
         .notes { margin-top: 8px; font-size: 7.5px; color: #6b7280; }
 
-        /* Footer */
-        .rpt-footer {
-            position: fixed;
-            bottom: -12mm;
-            left: 0;
-            right: 0;
-            font-size: 7px;
-            color: #9ca3af;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 4px;
-        }
-        .rpt-footer table { width: 100%; }
-        .rpt-footer td { border: 0; padding: 0; }
-        .pagenum:before   { content: counter(page); }
-        .pagecount:before { content: counter(pages); }
+        /* Footer rendered via dompdf PHP script (see <script type="text/php"> below) */
     </style>
 </head>
 <body>
 
-<div class="rpt-footer">
-    <table>
-        <tr>
-            <td>{{ $brand['name'] }} · {{ $definition->label() }} · {{ $generatedAt }} · {{ $rows->count() }} records</td>
-            <td class="text-right">Page <span class="pagenum"></span> of <span class="pagecount"></span></td>
-        </tr>
-    </table>
-</div>
+<script type="text/php">
+    if (isset($pdf)) {
+        $font  = $fontMetrics->getFont("DejaVu Sans", "normal");
+        $color = [0.6, 0.6, 0.6];
+        $size  = 7;
+        $y     = $pdf->get_height() - 14;
+        $w     = $pdf->get_width();
+
+        $left  = "{{ addslashes($brand['name']) }} \xB7 {{ addslashes($definition->label()) }} \xB7 {{ $generatedAt }} \xB7 {{ $rows->count() }} records";
+        $right = "Page {PAGE_NUM} of {PAGE_COUNT}";
+
+        $pdf->page_text(10,       $y, $left,  $font, $size, $color);
+        $pdf->page_text($w - 65,  $y, $right, $font, $size, $color);
+
+        // Border line above footer
+        $pdf->line(10, $y - 3, $w - 10, $y - 3, [0.9, 0.9, 0.9], 0.5);
+    }
+</script>
 
 <div class="rpt-brand">
     @if (! empty($brand['logoDataUri']))
