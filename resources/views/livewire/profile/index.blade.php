@@ -25,7 +25,11 @@
 
     {{-- ── TAB: Personal Info ──────────────────────────────────────────── --}}
     @if ($activeTab === 'personal')
-        <form wire:submit="savePersonal" class="card max-w-lg">
+        @php $access = $this->accessInfo; @endphp
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
+        <form wire:submit="savePersonal" class="card">
             <div class="card-header">
                 <h3 class="card-title">Personal Information</h3>
             </div>
@@ -56,6 +60,54 @@
                 </button>
             </div>
         </form>
+
+        {{-- Access & Permissions (read-only) --}}
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Access &amp; Permissions</h3>
+                <p class="card-sub">Assigned by your administrator. Contact admin to request changes.</p>
+            </div>
+            <div class="card-body space-y-4">
+                <div>
+                    <p class="label mb-1">Role</p>
+                    @if (! empty($access['roles']))
+                        <div class="flex flex-wrap gap-1.5">
+                            @foreach ($access['roles'] as $role)
+                                <span class="badge badge-blue">{{ Str::headline($role) }}</span>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-sm text-slate-400">No role assigned</p>
+                    @endif
+                </div>
+
+                <div>
+                    <p class="label mb-1">Department</p>
+                    @if ($access['department'])
+                        <p class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ $access['department'] }}</p>
+                    @else
+                        <p class="text-sm text-slate-400">Not assigned</p>
+                    @endif
+                </div>
+
+                <div>
+                    <p class="label mb-1">Virtual Warehouses</p>
+                    @if ($access['unrestricted'])
+                        <span class="badge badge-green">All Warehouses</span>
+                    @elseif (! empty($access['warehouses']))
+                        <div class="flex flex-wrap gap-1.5">
+                            @foreach ($access['warehouses'] as $vw)
+                                <span class="badge badge-slate">{{ $vw }}</span>
+                            @endforeach
+                        </div>
+                    @else
+                        <p class="text-sm text-slate-400">No warehouse assigned</p>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        </div>{{-- end grid --}}
     @endif
 
     {{-- ── TAB: Password ───────────────────────────────────────────────── --}}

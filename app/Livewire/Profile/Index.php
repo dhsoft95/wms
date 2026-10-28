@@ -64,6 +64,21 @@ class Index extends Component
 
     // ─── Computed ────────────────────────────────────────────────────────────
 
+    #[Computed]
+    public function accessInfo(): array
+    {
+        $user = auth()->user()->load(['department', 'virtualWarehouses']);
+
+        return [
+            'roles'      => $user->getRoleNames()->all(),
+            'department' => $user->department?->name,
+            'warehouses' => $user->canAccessAllVirtualWarehouses()
+                ? null
+                : $user->virtualWarehouses->pluck('name')->all(),
+            'unrestricted' => $user->canAccessAllVirtualWarehouses(),
+        ];
+    }
+
     /** @return array<int, string> */
     #[Computed]
     public function recoveryCodes(): array
