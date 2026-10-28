@@ -126,10 +126,13 @@ final class ReceivedDispatchedReportService
                 'sm.item_id',
                 'items.sku',
                 'items.name as item_name',
-                DB::raw("SUM(CASE WHEN st.type = 'receipt'               THEN sm.qty  ELSE 0 END) as received_qty"),
-                DB::raw("SUM(CASE WHEN st.type IN ('dispatch','pick')    THEN ABS(sm.qty) ELSE 0 END) as dispatched_qty"),
-                DB::raw("SUM(CASE WHEN st.type IN ('adjustment','count_adjustment') THEN sm.qty ELSE 0 END) as adjustment_qty"),
-                DB::raw('SUM(sm.qty) as net_movement'),
+                DB::raw("SUM(CASE WHEN st.type = 'receipt'                           THEN sm.qty      ELSE 0 END) as received_qty"),
+                DB::raw("SUM(CASE WHEN st.type = 'dispatch'                          THEN ABS(sm.qty) ELSE 0 END) as dispatched_qty"),
+                DB::raw("SUM(CASE WHEN st.type IN ('adjustment','count_adjustment')  THEN sm.qty      ELSE 0 END) as adjustment_qty"),
+                DB::raw("SUM(CASE WHEN st.type = 'receipt'                           THEN sm.qty      ELSE 0 END)
+                        - SUM(CASE WHEN st.type = 'dispatch'                         THEN ABS(sm.qty) ELSE 0 END)
+                        + SUM(CASE WHEN st.type IN ('adjustment','count_adjustment') THEN sm.qty      ELSE 0 END)
+                        as net_movement"),
             ])
             ->groupBy('sm.item_id', 'items.sku', 'items.name');
 
