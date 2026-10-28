@@ -249,12 +249,12 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
         <td class="info-card">
             <div class="info-label">Partners</div>
             <div class="info-row">
-                <span class="info-key">Shipper</span>
-                <span class="info-val">{{ $c->shipperPartner?->name ?? '—' }}</span>
+                <span class="info-key">Shipper / Supplier</span>
+                <span class="info-val">{{ $c->shipperPartner?->name ?? $po?->supplierPartner?->name ?? '—' }}</span>
             </div>
             <div class="info-row">
                 <span class="info-key">Consignee</span>
-                <span class="info-val">{{ $c->consigneePartner?->name ?? '—' }}</span>
+                <span class="info-val">{{ $c->consigneePartner?->name ?? $po?->consigneePartner?->name ?? '—' }}</span>
             </div>
             <div class="info-row">
                 <span class="info-key">Shipping Line</span>
@@ -297,12 +297,7 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
             </div>
             <div class="info-row">
                 <span class="info-key">Seal Verified</span>
-                <span class="info-val">
-                    @if ($c->seal_verified === true) YES
-                    @elseif ($c->seal_verified === false) NO
-                    @else —
-                    @endif
-                </span>
+                <span class="info-val">@if ($c->seal_verified === true)YES @elseif ($c->seal_verified === false)NO @else — @endif</span>
             </div>
             @if ($c->seal_mismatch_reason)
             <div class="info-row">

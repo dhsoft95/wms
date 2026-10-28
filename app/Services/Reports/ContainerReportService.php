@@ -13,7 +13,8 @@ final class ContainerReportService
     public function build(Container $container): array
     {
         $container->loadMissing([
-            'purchaseOrder',
+            'purchaseOrder.supplierPartner',
+            'purchaseOrder.consigneePartner',
             'shipperPartner',
             'consigneePartner',
             'shippingLinePartner',
