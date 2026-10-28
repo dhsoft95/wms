@@ -24,6 +24,7 @@ final class ContainerReportService
             'grns.lines.item',
             'grns.lines.uom',
             'grns.lines.varianceReasonCode',
+            'grns.lines.purchaseOrderLine',
             'grns.confirmedBy',
             'discrepancies',
         ]);
@@ -58,7 +59,7 @@ final class ContainerReportService
                     'item_sku'             => $line->item?->sku ?? '—',
                     'item_name'            => $line->item?->name ?? '—',
                     'uom'                  => $line->uom?->code ?? '—',
-                    'mic_number'           => $line->mic_number ?? '',
+                    'mic_number'           => $line->mic_number ?? $line->purchaseOrderLine?->mic_number ?? '',
                     'expected_qty'         => (float) ($line->expected_qty ?? 0),
                     'received_good_qty'    => (float) ($line->received_good_qty ?? 0),
                     'received_damaged_qty' => (float) ($line->received_damaged_qty ?? 0),

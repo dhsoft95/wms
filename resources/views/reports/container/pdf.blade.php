@@ -216,37 +216,7 @@ $fmt = function ($val, string $type = 'text', int $dec = 2): string {
             @endif
         </td>
 
-        <td class="info-card">
-            <div class="info-label">Voyage</div>
-            <div class="info-row">
-                <span class="info-key">Vessel</span>
-                <span class="info-val">{{ $c->vessel ?? '—' }}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-key">Voyage No</span>
-                <span class="info-val mono">{{ $c->voyage ?? '—' }}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-key">BL No</span>
-                <span class="info-val mono">{{ $c->bl_no ?? '—' }}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-key">ETA</span>
-                <span class="info-val">{{ $fmt($c->eta, 'date') }}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-key">Arrived</span>
-                <span class="info-val">{{ $fmt($c->arrived_at, 'dt') }}</span>
-            </div>
-            @if ($c->unloaded_at)
-            <div class="info-row">
-                <span class="info-key">Unloaded</span>
-                <span class="info-val">{{ $fmt($c->unloaded_at, 'dt') }}</span>
-            </div>
-            @endif
-        </td>
-
-        <td class="info-card">
+<td class="info-card">
             <div class="info-label">Partners</div>
             <div class="info-row">
                 <span class="info-key">Shipper / Supplier</span>

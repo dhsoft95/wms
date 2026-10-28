@@ -56,10 +56,12 @@ final class StockReconciliationReport implements ReportDefinition
             ->select([
                 'sm.item_id',
                 'sm.virtual_warehouse_id',
-                DB::raw("SUM(CASE WHEN st.type = 'receipt' AND sm.qty > 0 THEN sm.qty ELSE 0 END) as receipts_qty"),
-                DB::raw("SUM(CASE WHEN st.type IN ('dispatch','pick') AND sm.qty < 0 THEN ABS(sm.qty) ELSE 0 END) as dispatches_qty"),
+                // Inbound: receipts + ownership transfers in
+                DB::raw("SUM(CASE WHEN st.type IN ('receipt','ownership_transfer') AND sm.qty > 0 THEN sm.qty ELSE 0 END) as receipts_qty"),
+                // Outbound: dispatches, picks, ownership transfers out, disposals, obsolete
+                DB::raw("SUM(CASE WHEN st.type IN ('dispatch','pick','ownership_transfer','disposal','obsolete') AND sm.qty < 0 THEN ABS(sm.qty) ELSE 0 END) as dispatches_qty"),
+                // Adjustments: manual and count adjustments (signed)
                 DB::raw("SUM(CASE WHEN st.type IN ('adjustment','count_adjustment') THEN sm.qty ELSE 0 END) as adjustments_qty"),
-                DB::raw('SUM(sm.qty) as net_movement'),
             ]);
 
         $query = StockBalance::withoutGlobalScopes()
@@ -69,11 +71,13 @@ final class StockReconciliationReport implements ReportDefinition
             })
             ->selectRaw(implode(', ', [
                 'stock_balances.*',
-                'COALESCE(mv.receipts_qty,   0) as receipts_qty',
-                'COALESCE(mv.dispatches_qty, 0) as dispatches_qty',
-                'COALESCE(mv.adjustments_qty,0) as adjustments_qty',
-                'COALESCE(mv.net_movement,   0) as net_movement',
-                'stock_balances.qty_on_hand - COALESCE(mv.net_movement, 0) as opening_qty',
+                'COALESCE(mv.receipts_qty,    0) as receipts_qty',
+                'COALESCE(mv.dispatches_qty,  0) as dispatches_qty',
+                'COALESCE(mv.adjustments_qty, 0) as adjustments_qty',
+                // net_movement derived from tracked columns so the equation always balances
+                'COALESCE(mv.receipts_qty, 0) - COALESCE(mv.dispatches_qty, 0) + COALESCE(mv.adjustments_qty, 0) as net_movement',
+                // opening = closing − net_movement (always reconciles)
+                'stock_balances.qty_on_hand - (COALESCE(mv.receipts_qty, 0) - COALESCE(mv.dispatches_qty, 0) + COALESCE(mv.adjustments_qty, 0)) as opening_qty',
             ]))
             ->with(['item', 'virtualWarehouse'])
             ->orderBy('stock_balances.virtual_warehouse_id')
