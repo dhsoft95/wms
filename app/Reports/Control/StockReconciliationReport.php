@@ -70,15 +70,19 @@ final class StockReconciliationReport implements ReportDefinition
                      ->on('mv.virtual_warehouse_id', '=', 'stock_balances.virtual_warehouse_id');
             })
             ->selectRaw(implode(', ', [
-                'stock_balances.*',
-                'COALESCE(mv.receipts_qty,    0) as receipts_qty',
-                'COALESCE(mv.dispatches_qty,  0) as dispatches_qty',
-                'COALESCE(mv.adjustments_qty, 0) as adjustments_qty',
-                // net_movement derived from tracked columns so the equation always balances
-                'COALESCE(mv.receipts_qty, 0) - COALESCE(mv.dispatches_qty, 0) + COALESCE(mv.adjustments_qty, 0) as net_movement',
-                // opening = closing − net_movement (always reconciles)
-                'stock_balances.qty_on_hand - (COALESCE(mv.receipts_qty, 0) - COALESCE(mv.dispatches_qty, 0) + COALESCE(mv.adjustments_qty, 0)) as opening_qty',
+                'stock_balances.item_id',
+                'stock_balances.virtual_warehouse_id',
+                // Sum across all locations/batches/LPNs for this item+warehouse
+                'SUM(stock_balances.qty_on_hand)   as qty_on_hand',
+                'SUM(stock_balances.qty_allocated)  as qty_allocated',
+                // Movement totals are the same for every stock_balance row in the group (MAX = the value)
+                'COALESCE(MAX(mv.receipts_qty),    0) as receipts_qty',
+                'COALESCE(MAX(mv.dispatches_qty),  0) as dispatches_qty',
+                'COALESCE(MAX(mv.adjustments_qty), 0) as adjustments_qty',
+                'COALESCE(MAX(mv.receipts_qty), 0) - COALESCE(MAX(mv.dispatches_qty), 0) + COALESCE(MAX(mv.adjustments_qty), 0) as net_movement',
+                'SUM(stock_balances.qty_on_hand) - (COALESCE(MAX(mv.receipts_qty), 0) - COALESCE(MAX(mv.dispatches_qty), 0) + COALESCE(MAX(mv.adjustments_qty), 0)) as opening_qty',
             ]))
+            ->groupBy('stock_balances.item_id', 'stock_balances.virtual_warehouse_id')
             ->with(['item', 'virtualWarehouse'])
             ->orderBy('stock_balances.virtual_warehouse_id')
             ->orderBy('stock_balances.item_id');
