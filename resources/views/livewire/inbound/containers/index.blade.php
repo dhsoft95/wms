@@ -7,31 +7,10 @@
     </div>
 
     <div class="card overflow-hidden">
-        {{-- Status tabs --}}
-        <div class="card-header flex-wrap gap-y-3">
-            <div class="tabs overflow-x-auto flex-1">
-                <button wire:click="$set('statusFilter','all')" @class(['tab','active' => $statusFilter==='all'])>
-                    All <span class="badge badge-neutral ml-1 text-[10px]">{{ $this->statusCounts['all'] }}</span>
-                </button>
-                @foreach (\App\Enums\ContainerStatus::cases() as $s)
-                    <button wire:click="$set('statusFilter','{{ $s->value }}')" @class(['tab','active' => $statusFilter===$s->value])>
-                        {{ $s->label() }}
-                        @if(($this->statusCounts[$s->value] ?? 0) > 0)
-                            <span class="badge {{ $s->color() }} ml-1 text-[10px]">{{ $this->statusCounts[$s->value] }}</span>
-                        @endif
-                    </button>
-                @endforeach
-            </div>
-            <div class="flex gap-2 flex-wrap">
-                <div class="relative">
-                    <x-ui.icon name="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                    <input wire:model.live.debounce.300ms="search" type="text" placeholder="Container, BL, vessel…" class="input !pl-9 w-52">
-                </div>
-                <select wire:model.live="filterDwell" class="input text-sm py-1.5 px-2 h-auto">
-                    <option value="">All dwell</option>
-                    <option value="warning">Warning dwell</option>
-                    <option value="critical">Critical dwell</option>
-                </select>
+        <div class="card-header">
+            <div class="relative">
+                <x-ui.icon name="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input wire:model.live.debounce.300ms="search" type="text" placeholder="Container, BL, vessel…" class="input !pl-9 w-52">
             </div>
         </div>
 
@@ -41,32 +20,23 @@
                     <tr>
                         <th>Internal #</th>
                         <th>Container</th>
-                        <th>BL</th>
-                        <th>Vessel / Voyage</th>
-                        <th>ETA</th>
-                        <th>Arrived</th>
                         <th>Yard Slot</th>
-                        <th>Dwell</th>
+                        <th>Dock</th>
+                        <th>Vehicle</th>
+                        <th>Driver</th>
                         <th>Status</th>
                         <th class="w-20"></th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($this->containers as $c)
-                        @php $dwell = $c->dwellDays(); $dwellStatus = $c->dwellStatus(); @endphp
+                        @php $grn = $c->grns->first(); @endphp
                         <tr wire:key="container-{{ $c->id }}">
                             <td class="font-mono text-xs text-slate-500">{{ $c->number }}</td>
                             <td>
                                 <div class="font-mono font-semibold text-sm">{{ $c->container_no }}</div>
                                 <div class="text-[11px] text-slate-400 mt-0.5">{{ $c->size_type?->label() }}</div>
                             </td>
-                            <td class="font-mono text-xs text-slate-500">{{ $c->bl_no ?? '—' }}</td>
-                            <td class="text-sm">
-                                {{ $c->vessel ?? '—' }}
-                                @if($c->voyage) <span class="text-slate-400 text-xs">V.{{ $c->voyage }}</span> @endif
-                            </td>
-                            <td class="text-sm tabular-nums">{{ $c->eta?->format('d M Y') ?? '—' }}</td>
-                            <td class="text-sm tabular-nums">{{ $c->arrived_at?->format('d M Y') ?? '—' }}</td>
                             <td>
                                 @if($c->yardLocation)
                                     <span class="font-mono text-xs px-2 py-0.5 rounded-md bg-zinc-900/5 dark:bg-white/10 text-slate-700 dark:text-slate-200">{{ $c->yardLocation->code }}</span>
@@ -74,16 +44,23 @@
                                     <span class="text-slate-400 text-sm italic">—</span>
                                 @endif
                             </td>
-                            <td>
-                                @if($c->arrived_at)
-                                    <span @class([
-                                        'badge',
-                                        'badge-neutral'  => $dwellStatus === 'ok',
-                                        'badge-amber'    => $dwellStatus === 'warning',
-                                        'badge-red'      => $dwellStatus === 'critical',
-                                    ])>{{ $dwell }}d</span>
+                            <td class="text-xs font-mono text-slate-600 dark:text-slate-300">
+                                {{ $grn?->receivingDock?->code ?? '—' }}
+                            </td>
+                            <td class="text-xs text-slate-600 dark:text-slate-300">
+                                @if($grn?->vehicle_type || $grn?->vehicle_plate)
+                                    <div>{{ $grn->vehicle_type ?? '' }}</div>
+                                    <div class="font-mono text-[11px] text-slate-400">{{ $grn->vehicle_plate ?? '' }}</div>
                                 @else
-                                    <span class="text-slate-400 text-sm">—</span>
+                                    <span class="text-slate-400">—</span>
+                                @endif
+                            </td>
+                            <td class="text-xs text-slate-600 dark:text-slate-300">
+                                @if($grn?->driver_name || $grn?->driver_phone)
+                                    <div>{{ $grn->driver_name ?? '' }}</div>
+                                    <div class="text-[11px] text-slate-400">{{ $grn->driver_phone ?? '' }}</div>
+                                @else
+                                    <span class="text-slate-400">—</span>
                                 @endif
                             </td>
                             <td>
@@ -107,7 +84,7 @@
                             </td>
                         </tr>
                     @empty
-                        <x-ui.empty-state icon="cube" title="No containers found" text="Register the first container or adjust your filters." :cols="10" />
+                        <x-ui.empty-state icon="cube" title="No containers found" text="Register the first container or adjust your filters." :cols="8" />
                     @endforelse
                 </tbody>
             </x-ui.table>

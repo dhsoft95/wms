@@ -148,7 +148,7 @@ class Create extends Component
         }
     }
 
-    #[Computed]
+#[Computed]
     public function virtualWarehouses()
     {
         return VirtualWarehouse::where('is_active', true)->orderBy('name')->get();
