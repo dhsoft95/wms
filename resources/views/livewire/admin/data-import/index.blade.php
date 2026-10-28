@@ -64,7 +64,7 @@
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] font-bold text-slate-400 dark:text-slate-500 tabular-nums">STEP {{ $stepNum }}</span>
                             @if ($type->restrictedToSystemAdmin())
-                                <span class="text-[10px] font-medium text-amber-600 dark:text-amber-400">System Admin</span>
+                                <span class="text-[10px] font-medium text-warning dark:text-warning">System Admin</span>
                             @endif
                         </div>
                         <h3 class="font-semibold text-sm text-slate-900 dark:text-white leading-tight">{{ $type->label() }}</h3>
@@ -194,15 +194,15 @@
                            x-on:livewire-upload-error="$wire.handleUploadError()" />
                 </div>
                 @if ($uploadFile)
-                    <p class="text-xs text-green-600 dark:text-green-400 -mt-3">
+                    <p class="text-xs text-success -mt-3">
                         <x-ui.icon name="check" class="w-3 h-3 inline" /> {{ is_object($uploadFile) ? $uploadFile->getClientOriginalName() : 'File selected' }}
                     </p>
                 @endif
                 @if ($uploadError)
-                    <p class="text-xs text-red-500 -mt-3">{{ $uploadError }}</p>
+                    <p class="text-xs text-danger -mt-3">{{ $uploadError }}</p>
                 @endif
                 @error('uploadFile')
-                    <p class="text-xs text-red-500 -mt-3">{{ $message }}</p>
+                    <p class="text-xs text-danger -mt-3">{{ $message }}</p>
                 @enderror
 
                 {{-- Auto-category option (items only) --}}
@@ -272,7 +272,7 @@
                             <td class="text-sm font-mono text-xs text-slate-500 dark:text-slate-400 max-w-[160px] truncate" title="{{ $row->original_filename }}">{{ $row->original_filename }}</td>
                             <td><span class="badge badge-{{ $row->status->color() }}">{{ $row->status->label() }}</span></td>
                             <td class="text-sm tabular-nums">{{ number_format($row->total_rows) }}</td>
-                            <td class="text-sm tabular-nums text-green-600">{{ number_format($row->created_count) }}</td>
+                            <td class="text-sm tabular-nums text-success">{{ number_format($row->created_count) }}</td>
                             <td class="text-sm tabular-nums text-slate-600 dark:text-slate-400">{{ number_format($row->updated_count) }}</td>
                             <td class="text-sm text-slate-500 dark:text-slate-400">{{ $row->uploadedBy?->name ?? '—' }}</td>
                             <td class="text-sm text-slate-500 dark:text-slate-400">{{ $row->created_at?->format('d M Y H:i') }}</td>
