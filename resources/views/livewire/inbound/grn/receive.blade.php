@@ -22,20 +22,36 @@
     </div>
 
     {{-- Scan Input --}}
-    <div class="card">
+    <div class="card" x-data="{ focused: false }">
         <div class="card-body">
             <div class="flex gap-3 items-center">
-                <x-ui.icon name="qr-code" class="w-6 h-6 text-slate-400 shrink-0" />
-                <input
-                    wire:model="scanInput"
-                    wire:keydown.enter="processScan"
-                    type="text"
-                    placeholder="Scan barcode or type SKU then press Enter…"
-                    autofocus
-                    class="input flex-1 text-lg font-mono"
-                    autocomplete="off"
-                />
-                <button wire:click="processScan" class="btn btn-secondary">Scan</button>
+                <div class="relative flex-1">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-4 z-10 pointer-events-none transition-colors"
+                          x-bind:class="focused ? 'text-simba-600 dark:text-simba-400' : 'text-slate-400 dark:text-slate-500'">
+                        <x-ui.icon name="qr-code" class="w-5 h-5 shrink-0" />
+                    </span>
+                    <input
+                        wire:model="scanInput"
+                        type="text"
+                        placeholder="Scan item barcode / SKU / LPN to auto-select line..."
+                        autofocus
+                        x-ref="scanInput"
+                        class="input pl-12 pr-4 text-lg font-mono bg-white/90 dark:bg-zinc-900/80"
+                        autocomplete="off"
+                        x-on:focus="focused = true"
+                        x-on:blur="focused = false"
+                        x-on:keydown.enter.prevent="$wire.processScan().then(() => $nextTick(() => $refs.scanInput.focus()))"
+                    />
+                    <span x-show="focused" x-transition.opacity
+                          class="absolute inset-y-0 right-3 flex items-center gap-1.5 pointer-events-none">
+                        <span class="relative flex h-2 w-2 shrink-0">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-simba-500 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-simba-600"></span>
+                        </span>
+                        <span class="text-xs font-medium text-simba-600 dark:text-simba-400 select-none">Ready</span>
+                    </span>
+                </div>
+                <button wire:click="processScan" class="btn btn-secondary shrink-0">Scan</button>
             </div>
         </div>
     </div>
@@ -79,8 +95,8 @@
                             <td class="tabular-nums">{{ $expected > 0 ? number_format((float)$expected, 2) : '—' }}</td>
                             <td class="tabular-nums">{{ number_format((float)$received, 2) }}</td>
                             <td>
-                                <div class="progress w-20">
-                                    <div class="{{ $pct >= 100 ? 'bg-emerald-600' : 'bg-simba-500' }}" style="width:{{ $pct }}%"></div>
+                                <div class="progress w-20 bg-gray-200 dark:bg-white/20">
+                                    <div class="{{ $pct >= 100 ? 'bg-emerald-600' : 'bg-simba-600' }}" style="width:{{ $pct }}%"></div>
                                 </div>
                                 <span class="text-xs tabular-nums text-slate-400">{{ $pct }}%</span>
                             </td>

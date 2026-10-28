@@ -40,15 +40,13 @@
     </div>
 
     {{-- Scan Input --}}
-    <div class="card">
-        <div class="card-body py-3">
-            <x-scan-input
-                wire:model="scanInput"
-                :method="'processScan'"
-                placeholder="Scan item barcode / SKU / LPN to auto-select line…"
-                autofocus
-            />
-        </div>
+    <div class="card-body py-3">
+        <x-scan-input
+            wire:model="scanInput"
+            :method="'processScan'"
+            placeholder="Scan item barcode / SKU / LPN to auto-select line…"
+            autofocus
+        />
     </div>
 
     {{-- Multi-line picker (when scanned item is on more than one line) --}}
@@ -124,7 +122,7 @@
                             </td>
                             <td>
                                 <div class="flex items-center gap-1.5">
-                                    <div class="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <div class="flex-1 h-1.5 rounded-full bg-gray-200 dark:bg-white/20 overflow-hidden">
                                         <div class="h-full rounded-full transition-all {{ $isDone ? 'bg-emerald-500' : 'bg-simba-500' }}"
                                              style="width: {{ $pct }}%"></div>
                                     </div>

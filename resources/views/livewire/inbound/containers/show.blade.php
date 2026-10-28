@@ -35,6 +35,11 @@
             </div>
 
             <div class="flex flex-wrap items-center gap-2 shrink-0">
+                <a href="{{ route('inbound.containers.report.pdf', $container) }}"
+                   target="_blank"
+                   class="btn btn-secondary shadow-sm">
+                    <x-ui.icon name="printer" class="w-4 h-4" /> Print Report
+                </a>
                 @if($status === \App\Enums\ContainerStatus::Expected)
                     @can('arrive', $container)
                         <button wire:click="$set('arrivalModalOpen', true)" class="btn btn-primary shadow-sm">

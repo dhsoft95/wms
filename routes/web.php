@@ -94,6 +94,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('auth')
         ->name('inbound.containers.po.download');
 
+    // Container PDF report
+    Route::get('/containers/{container}/report/pdf',
+        \App\Http\Controllers\ContainerReportController::class)
+        ->middleware('auth')
+        ->name('inbound.containers.report.pdf');
+
     // Packing list import sample template
     Route::get('/containers/packing-list/sample', function () {
         $headers = ['Item Code', 'Description', 'Quantity', 'Unit', 'Batch No', 'Expiry Date', 'Department'];
