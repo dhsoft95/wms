@@ -116,8 +116,8 @@ class Tally extends Component
 
         $line = GrnLine::with('uom', 'item.uoms.uom')->find($lineId);
 
-        // Default to item's base UoM (e.g. PCS), fall back to GRN line UoM
-        $defaultUomId = $line?->item?->base_uom_id ?? $line?->uom_id;
+        // Default to the PO line's UoM (the UoM the order was placed in)
+        $defaultUomId = $line?->uom_id ?? $line?->item?->base_uom_id;
 
         $this->receiptQty       = '';
         $this->receiptUomId     = (string) ($defaultUomId ?? '');

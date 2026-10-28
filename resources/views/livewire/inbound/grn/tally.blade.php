@@ -130,7 +130,7 @@
                         </div>
 
                         {{-- UoM --}}
-                        @php $uomLocked = $receiptUomId !== '' && $this->uomOptions->count() === 1; @endphp
+                        @php $uomLocked = $this->activeTallyLine?->uom_id && $receiptUomId === (string) $this->activeTallyLine->uom_id; @endphp
                         <div>
                             <label class="label">Unit of Measure <span class="required-mark">*</span></label>
                             <select wire:model="receiptUomId"
