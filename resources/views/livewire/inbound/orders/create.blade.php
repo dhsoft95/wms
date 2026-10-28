@@ -26,7 +26,7 @@
                     {{-- Warehouse --}}
                     <div>
                         <label class="label">Warehouse <span class="required-mark">*</span></label>
-                        <select wire:model="warehouseId" class="input">
+                        <select wire:model.live="warehouseId" class="input">
                             <option value="">Select warehouse</option>
                             @foreach ($this->warehouses as $wh)
                                 <option value="{{ $wh->id }}">{{ $wh->name }}</option>
@@ -39,7 +39,7 @@
                     <div>
                         <label class="label">Department</label>
                         <select wire:model="departmentId" class="input"
-                                {{ auth()->user()->hasRole('department-user') ? 'disabled' : '' }}>
+                                @disabled(auth()->user()->hasRole('department-user'))>
                             <option value="">— None —</option>
                             @foreach ($this->departments as $dept)
                                 <option value="{{ $dept->id }}">{{ $dept->name }}</option>
@@ -317,13 +317,23 @@
                 <div class="card-footer !justify-stretch flex-col gap-2">
                     <button type="submit"
                             wire:loading.attr="disabled"
-                            class="btn btn-primary w-full">
-                        <span wire:loading.remove wire:target="save">
-                            <x-ui.icon name="check" class="w-4 h-4" /> Save Purchase Order
-                        </span>
-                        <span wire:loading wire:target="save">Saving…</span>
+                            wire:target="save"
+                            wire:loading.attr="aria-busy"
+                            class="btn btn-primary w-full disabled:cursor-wait disabled:opacity-80">
+                        {{-- Both states share one grid cell, so the button never changes size --}}
+                        <span class="grid place-items-center [&>*]:col-start-1 [&>*]:row-start-1">
+            <span wire:loading.class="invisible" wire:target="save" class="inline-flex items-center gap-2">
+                <x-ui.icon name="check" class="h-4 w-4" /> Save purchase order
+            </span>
+            <span wire:loading.flex wire:target="save" class="hidden items-center gap-2" aria-live="polite">
+                <x-ui.icon name="refresh" class="h-4 w-4 animate-spin" /> Saving…
+            </span>
+        </span>
                     </button>
-                    <a href="{{ route('inbound.orders.index') }}" wire:navigate class="btn btn-secondary w-full">
+
+                    <a href="{{ route('inbound.orders.index') }}" wire:navigate
+                       wire:loading.class="pointer-events-none opacity-50" wire:target="save"
+                       class="btn btn-ghost w-full">
                         Cancel
                     </a>
                 </div>

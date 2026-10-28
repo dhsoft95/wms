@@ -11,6 +11,7 @@ return [
     'disk' => env('REPORT_DISK', 'local'),
 
     'Stock' => [
+        \App\Reports\Stock\StockOnHandReport::class,
         \App\Reports\Stock\StockHoldingReport::class,
         \App\Reports\Stock\StockAgingReport::class,
         \App\Reports\Stock\StockInTransitReport::class,
@@ -21,6 +22,7 @@ return [
         \App\Reports\Orders\PlannedOrdersReport::class,
     ],
     'Activity' => [
+        \App\Reports\Activity\StockMovementReport::class,
         \App\Reports\Activity\ReceivedDispatchedReport::class,
     ],
     'Control' => [

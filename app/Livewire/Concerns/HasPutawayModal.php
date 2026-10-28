@@ -8,19 +8,23 @@ use App\Enums\Inventory\SerialStatus;
 use App\Enums\LocationLevel;
 use App\Enums\LocationStatus;
 use App\Enums\LocationType;
+use App\Enums\ScanResultType;
 use App\Models\Inventory\SerialNumber;
 use App\Models\Location;
 use App\Models\PutawayTask;
 use App\Services\Inbound\PutawayEngine;
+use App\Services\Scanning\BarcodeResolver;
+use App\Services\Scanning\ScanContext;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Renderless;
 
 trait HasPutawayModal
 {
-    public bool  $showExecuteModal = false;
-    public ?int  $executingTaskId  = null;
-    public bool  $hasDraft         = false;
+    public bool   $showExecuteModal = false;
+    public ?int   $executingTaskId  = null;
+    public bool   $hasDraft         = false;
+    public string $scanBinInput     = '';
 
     /** @var array<int, array{locationId: string, locationCode: string, qty: string, serials: array<string>}> */
     public array $splitRows = [];
@@ -89,7 +93,46 @@ trait HasPutawayModal
         $this->splitRows        = [];
         $this->taskSerials      = [];
         $this->hasDraft         = false;
+        $this->scanBinInput     = '';
         unset($this->executingTask);
+    }
+
+    public function processBinScan(int $rowIndex = 0): void
+    {
+        $input              = trim($this->scanBinInput);
+        $this->scanBinInput = '';
+        if ($input === '') {
+            return;
+        }
+
+        $result = app(BarcodeResolver::class)->resolve(
+            $input,
+            new ScanContext(expects: ScanResultType::Location)
+        );
+
+        if ($result->type !== ScanResultType::Location) {
+            $this->dispatch('toast', message: $result->error ?? 'Not a bin location.', type: 'error');
+            $this->dispatch('scan-error');
+            return;
+        }
+
+        $loc = $result->record;
+
+        if ($loc->status !== LocationStatus::Active) {
+            $this->dispatch('toast', message: "Location {$loc->code} is not active.", type: 'error');
+            $this->dispatch('scan-error');
+            return;
+        }
+
+        if ($loc->level !== LocationLevel::Bin) {
+            $this->dispatch('toast', message: "Choose a bin, not a {$loc->level->label()}.", type: 'error');
+            $this->dispatch('scan-error');
+            return;
+        }
+
+        $this->selectSplitBin($rowIndex, $loc->id, $loc->code);
+        $this->dispatch('scan-success');
+        $this->dispatch('toast', message: "Bin {$loc->code} selected.", type: 'success');
     }
 
     // ─── Draft ────────────────────────────────────────────────────────────────

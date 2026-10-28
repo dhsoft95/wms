@@ -1,8 +1,8 @@
-<div>
+tail <div>
     {{-- Step header --}}
     @php
-        $steps = ['lpn'=>1,'bin'=>2,'confirm'=>3];
-        $stepLabels = ['lpn'=>'Scan LPN','bin'=>'Scan Bin','confirm'=>'Confirm'];
+        $steps = ['item'=>1,'bin'=>2,'confirm'=>3];
+        $stepLabels = ['item'=>'Scan Item','bin'=>'Scan Bin','confirm'=>'Confirm'];
         $current = $steps[$step] ?? 1;
         $total = 3;
     @endphp
@@ -21,15 +21,11 @@
         <button wire:click="cancel" class="text-xs text-slate-400 hover:text-red-500 transition-colors">Cancel</button>
     </div>
 
-    {{-- LPN Step --}}
-    @if ($step === 'lpn')
+    {{-- Item Step --}}
+    @if ($step === 'item')
         <div class="space-y-3">
-            <p class="text-lg font-bold text-slate-800 dark:text-slate-100">Scan LPN barcode or select task:</p>
-            <input type="text" wire:model.defer="barcode"
-                   x-data="{lastScan:'',lastAt:0}"
-                   x-on:keydown.enter="const now=Date.now();if($el.value===lastScan&&now-lastAt<600){$el.value='';return;}lastScan=$el.value;lastAt=now;$wire.processScan()"
-                   data-scan-input placeholder="LPN-XXXXX"
-                   class="input text-lg h-14" autocomplete="off" autofocus />
+            <p class="text-lg font-bold text-slate-800 dark:text-slate-100">Scan item barcode or select task:</p>
+            <x-scan-input wire:model="barcode" :method="'processScan'" placeholder="Scan item barcode or SKU…" autofocus class="text-lg h-14" />
 
             @if ($this->myTasks->isNotEmpty())
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-400 mt-4">My Open Tasks</p>
@@ -39,8 +35,8 @@
                                 class="w-full text-left p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-simba-400 transition-colors">
                             <div class="flex justify-between items-start">
                                 <div>
-                                    <p class="font-bold text-sm">{{ $task->lpn?->code ?? 'No LPN' }}</p>
-                                    <p class="text-xs text-slate-400 mt-0.5">{{ $task->item?->sku }} &middot; {{ $task->item?->name }}</p>
+                                    <p class="font-bold text-sm font-mono">{{ $task->item?->sku }}</p>
+                                    <p class="text-xs text-slate-400 mt-0.5">{{ $task->item?->name }}</p>
                                 </div>
                             </div>
                         </button>
@@ -50,21 +46,18 @@
         </div>
     @endif
 
-    {{-- Bin Step (manual bin scan — no suggestion) --}}
+    {{-- Bin Step --}}
     @if ($step === 'bin')
         <div class="space-y-3">
-            @if ($this->currentLpn)
+            @if ($this->currentTask)
                 <div class="bg-simba-50 dark:bg-simba-900/20 border border-simba-200 rounded-xl p-3 text-sm">
-                    <p class="text-slate-500">LPN</p>
-                    <p class="font-bold text-simba-700 dark:text-simba-400 font-mono">{{ $this->currentLpn->code }}</p>
+                    <p class="text-slate-500">Item</p>
+                    <p class="font-bold text-simba-700 dark:text-simba-400 font-mono">{{ $this->currentTask->item?->sku }}</p>
+                    <p class="text-xs text-slate-400">{{ $this->currentTask->item?->name }}</p>
                 </div>
             @endif
             <p class="text-lg font-bold text-slate-800 dark:text-slate-100">Scan destination bin:</p>
-            <input type="text" wire:model.defer="barcode"
-                   x-data="{lastScan:'',lastAt:0}"
-                   x-on:keydown.enter="const now=Date.now();if($el.value===lastScan&&now-lastAt<600){$el.value='';return;}lastScan=$el.value;lastAt=now;$wire.processScan()"
-                   data-scan-input placeholder="BIN-XXXXX"
-                   class="input text-lg h-14 font-mono" autocomplete="off" autofocus />
+            <x-scan-input wire:model="barcode" :method="'processScan'" placeholder="BIN-XXXXX" autofocus class="text-lg h-14 font-mono" />
         </div>
     @endif
 
@@ -73,7 +66,7 @@
         <div class="space-y-4">
             <p class="text-lg font-bold">Confirm putaway:</p>
 
-            {{-- Suggested / confirmed destination — large prominent display --}}
+            {{-- Destination bin --}}
             <div class="bg-green-50 dark:bg-green-900/20 border-2 border-green-400 rounded-2xl p-6 text-center">
                 <p class="text-xs text-slate-500 mb-1">Destination Bin</p>
                 <p class="text-4xl font-black font-mono text-green-700 dark:text-green-400 tracking-wide">
@@ -85,11 +78,11 @@
             </div>
 
             <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl divide-y divide-slate-100 dark:divide-slate-700">
-                <div class="flex justify-between px-4 py-3">
-                    <span class="text-sm text-slate-400">LPN</span>
-                    <span class="text-sm font-semibold font-mono">{{ $this->currentLpn?->code ?? '—' }}</span>
-                </div>
                 @if ($this->currentTask)
+                    <div class="flex justify-between px-4 py-3">
+                        <span class="text-sm text-slate-400">Item</span>
+                        <span class="text-sm font-semibold font-mono">{{ $this->currentTask->item?->sku }}</span>
+                    </div>
                     <div class="flex justify-between px-4 py-3">
                         <span class="text-sm text-slate-400">Task</span>
                         <span class="text-sm font-semibold">#{{ $this->currentTask->id }}</span>

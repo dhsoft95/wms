@@ -39,6 +39,41 @@
         @endif
     </div>
 
+    {{-- Scan Input --}}
+    <div class="card">
+        <div class="card-body py-3">
+            <x-scan-input
+                wire:model="scanInput"
+                :method="'processScan'"
+                placeholder="Scan item barcode / SKU / LPN to auto-select line…"
+                autofocus
+            />
+        </div>
+    </div>
+
+    {{-- Multi-line picker (when scanned item is on more than one line) --}}
+    @if (! empty($multiMatchLines))
+        <div class="card border-amber-300 dark:border-amber-700">
+            <div class="card-header">
+                <h3 class="card-title text-amber-700 dark:text-amber-400">Multiple lines match — select one</h3>
+            </div>
+            <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                @foreach ($multiMatchLines as $ml)
+                    <button wire:click="selectFromMulti({{ $ml['id'] }})"
+                            class="w-full text-left px-4 py-3 hover:bg-simba-50 dark:hover:bg-simba-900/10 transition-colors flex items-center justify-between gap-4">
+                        <div>
+                            <span class="font-mono text-xs text-simba-600 dark:text-simba-400">{{ $ml['sku'] }}</span>
+                            <span class="ml-2 text-sm text-slate-700 dark:text-slate-300">{{ $ml['name'] }}</span>
+                        </div>
+                        <div class="text-xs tabular-nums text-slate-500 shrink-0">
+                            {{ $ml['received'] }} / {{ $ml['expected'] }}
+                        </div>
+                    </button>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {{-- Lines Panel --}}
@@ -71,6 +106,12 @@
                             <td class="min-w-[12rem]">
                                 <div class="font-mono text-xs text-simba-600 dark:text-simba-400">{{ $line->item?->sku }}</div>
                                 <div class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ $line->item?->name }}</div>
+                                @if ($line->item && $line->item->barcodes->isEmpty())
+                                    <a href="{{ route('items.label', $line->item) }}" target="_blank"
+                                       class="inline-flex items-center gap-1 mt-1 text-[11px] text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 font-medium">
+                                        <x-ui.icon name="printer" class="w-3 h-3" /> Print label
+                                    </a>
+                                @endif
                             </td>
                             <td class="text-right tabular-nums text-sm">
                                 {{ $expected > 0 ? rtrim(rtrim(number_format($expected, 4, '.', ','), '0'), '.') : '—' }}
@@ -119,6 +160,15 @@
                             <p class="font-mono text-sm font-semibold text-simba-600 dark:text-simba-400">{{ $this->activeTallyLine->item?->sku }}</p>
                             <p class="text-sm text-slate-700 dark:text-slate-300">{{ $this->activeTallyLine->item?->name }}</p>
                         </div>
+
+                        {{-- LPN (set by scanning LPN- barcode) --}}
+                        @if ($receiptLpnId)
+                            @php $lpnRecord = \App\Models\Inventory\Lpn::find((int) $receiptLpnId); @endphp
+                            <div class="flex items-center justify-between rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-2 text-sm">
+                                <span class="text-emerald-700 dark:text-emerald-400 font-mono font-semibold">{{ $lpnRecord?->code ?? "LPN #{$receiptLpnId}" }}</span>
+                                <button wire:click="$set('receiptLpnId', '')" class="text-xs text-emerald-500 hover:text-red-500">✕ Clear LPN</button>
+                            </div>
+                        @endif
 
                         {{-- Qty --}}
                         <div>

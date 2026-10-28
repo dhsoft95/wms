@@ -323,6 +323,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('barcodes.png');
         Route::get('/{item}/barcodes/{itemBarcode}/label', [\App\Http\Controllers\ItemBarcodeController::class, 'label'])
             ->name('barcodes.label');
+        Route::get('/{item}/label', [\App\Http\Controllers\ItemBarcodeController::class, 'itemLabel'])
+            ->name('label');
     });
 
     // Master Data — Item Categories

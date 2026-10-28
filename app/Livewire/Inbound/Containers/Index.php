@@ -46,7 +46,7 @@ class Index extends Component
     public function containers()
     {
         $query = $this->queryService()->queryFor(auth()->user())
-            ->with(['yardLocation', 'shippingLinePartner', 'expectedLines'])
+            ->with(['yardLocation', 'shippingLinePartner', 'expectedLines', 'grns.receivingDock'])
             ->orderByDesc('id');
 
         if ($this->statusFilter !== 'all') {

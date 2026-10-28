@@ -34,6 +34,28 @@ final class ItemBarcodeController extends Controller
         ]);
     }
 
+    public function itemLabel(Item $item): Response
+    {
+        $template = LabelTemplate::defaultForType(LabelTemplateType::Item)->first()
+            ?? LabelTemplate::where('type', LabelTemplateType::Item->value)
+                ->where('is_active', true)
+                ->first();
+
+        abort_if($template === null, 404, 'No active Item label template configured.');
+
+        $pdf = app(LabelRenderer::class)->toPdf($template, [[
+            'item_sku'  => $item->sku,
+            'item_name' => $item->name,
+            'barcode'   => $item->sku,
+            'uom_code'  => $item->baseUom?->code ?? '',
+        ]]);
+
+        return response($pdf, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="label-' . $item->sku . '.pdf"',
+        ]);
+    }
+
     public function label(Item $item, ItemBarcode $itemBarcode): Response
     {
         abort_if($itemBarcode->item_id !== $item->id, 404);

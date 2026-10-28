@@ -5,7 +5,6 @@ namespace App\Livewire\Scan;
 use App\Enums\LocationLevel;
 use App\Enums\PutawayTaskStatus;
 use App\Enums\ScanResultType;
-use App\Models\Inventory\Lpn;
 use App\Models\Location;
 use App\Models\PutawayTask;
 use App\Services\Inbound\PutawayEngine;
@@ -19,12 +18,11 @@ use Livewire\Component;
 
 class Putaway extends Component
 {
-    public string $step        = 'lpn';
-    public string $barcode     = '';
-    public string $requestId   = '';
-    public ?int   $lpnId       = null;
-    public ?int   $taskId      = null;
-    public ?int   $destinationId = null;
+    public string $step           = 'item';
+    public string $barcode        = '';
+    public string $requestId      = '';
+    public ?int   $taskId         = null;
+    public ?int   $destinationId  = null;
 
     public function mount(): void
     {
@@ -37,15 +35,9 @@ class Putaway extends Component
     {
         return PutawayTask::where('assigned_to', auth()->id())
             ->where('status', PutawayTaskStatus::Open->value)
-            ->with('lpn', 'item')
+            ->with('item')
             ->latest()
             ->get();
-    }
-
-    #[Computed]
-    public function currentLpn(): ?Lpn
-    {
-        return $this->lpnId ? Lpn::find($this->lpnId) : null;
     }
 
     #[Computed]
@@ -62,10 +54,9 @@ class Putaway extends Component
 
     public function selectTask(int $taskId): void
     {
-        $task = PutawayTask::with('lpn', 'suggestedLocation')->find($taskId);
+        $task = PutawayTask::with('suggestedLocation')->find($taskId);
         if (! $task) return;
         $this->taskId = $task->id;
-        $this->lpnId  = $task->lpn_id;
         if ($task->suggested_location_id) {
             $this->destinationId = $task->suggested_location_id;
             $this->step = 'confirm';
@@ -84,31 +75,35 @@ class Putaway extends Component
         $resolver = app(BarcodeResolver::class);
 
         match ($this->step) {
-            'lpn' => $this->handleLpnScan($raw, $resolver),
-            'bin' => $this->handleBinScan($raw, $resolver),
+            'item' => $this->handleItemScan($raw, $resolver),
+            'bin'  => $this->handleBinScan($raw, $resolver),
             default => null,
         };
     }
 
-    private function handleLpnScan(string $raw, BarcodeResolver $resolver): void
+    private function handleItemScan(string $raw, BarcodeResolver $resolver): void
     {
-        $result = $resolver->resolve($raw, new ScanContext(expects: ScanResultType::Lpn));
-        if ($result->type !== ScanResultType::Lpn) {
-            $this->dispatch('toast', message: $result->error ?? 'Not an LPN.', type: 'error');
+        $result = $resolver->resolve($raw, new ScanContext(expects: ScanResultType::Item));
+        if ($result->type !== ScanResultType::Item) {
+            $this->dispatch('toast', message: $result->error ?? 'Not an item barcode.', type: 'error');
             $this->dispatch('scan-error');
             return;
         }
 
-        $lpn  = $result->record;
-        $task = PutawayTask::where('lpn_id', $lpn->id)
+        $task = PutawayTask::where('item_id', $result->record->id)
             ->where('status', PutawayTaskStatus::Open->value)
             ->with('suggestedLocation')
             ->first();
 
-        $this->lpnId  = $lpn->id;
-        $this->taskId = $task?->id;
+        if (! $task) {
+            $this->dispatch('toast', message: 'No open putaway task for this item.', type: 'error');
+            $this->dispatch('scan-error');
+            return;
+        }
 
-        if ($task?->suggested_location_id) {
+        $this->taskId = $task->id;
+
+        if ($task->suggested_location_id) {
             $this->destinationId = $task->suggested_location_id;
             $this->step = 'confirm';
         } else {
@@ -152,27 +147,22 @@ class Putaway extends Component
 
         $destination = Location::findOrFail($this->destinationId);
 
-        if ($this->taskId) {
-            $task = PutawayTask::findOrFail($this->taskId);
-            app(PutawayEngine::class)->execute($task, $destination, auth()->user());
-        } else {
-            // No task — just update LPN location directly
-            Lpn::where('id', $this->lpnId)->update(['current_location_id' => $destination->id]);
-        }
+        $task = PutawayTask::findOrFail($this->taskId);
+        app(PutawayEngine::class)->execute($task, $destination, auth()->user());
 
         $this->dispatch('toast', message: "Putaway to {$destination->code} complete.", type: 'success');
         $this->dispatch('scan-success');
-        $this->reset(['lpnId', 'taskId', 'destinationId']);
-        $this->step = 'lpn';
+        $this->reset(['taskId', 'destinationId']);
+        $this->step = 'item';
         $this->requestId = (string) Str::uuid();
     }
 
     public function back(): void
     {
         $this->step = match ($this->step) {
-            'bin'     => 'lpn',
-            'confirm' => $this->taskId ? 'lpn' : 'bin',
-            default   => 'lpn',
+            'bin'     => 'item',
+            'confirm' => 'bin',
+            default   => 'item',
         };
     }
 

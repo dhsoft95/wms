@@ -117,6 +117,15 @@ class Show extends Component
     // ── Computed ────────────────────────────────────────────────────────────────
 
     #[Computed]
+    public function receivingDocks()
+    {
+        return Location::where('type', 'receiving_dock')
+            ->where('status', 'active')
+            ->orderBy('code')
+            ->get();
+    }
+
+    #[Computed]
     public function freeYardSlots()
     {
         $activeStatuses = array_column(
@@ -756,11 +765,9 @@ class Show extends Component
         $container = $this->container->load([
             'shipperPartner', 'consigneePartner', 'shippingLinePartner', 'releasedToPartner',
             'yardLocation', 'createdBy',
-            'expectedLines.item', 'expectedLines.uom', 'expectedLines.virtualWarehouse',
-            'discrepancies.reportedBy', 'discrepancies.resolvedBy',
-            'documents.uploadedBy',
-            'statusHistory.user',
-            'yardMoves.fromLocation', 'yardMoves.toLocation', 'yardMoves.user',
+            'grns.receivingDock',
+            'purchaseOrder.lines.item',
+            'purchaseOrder.lines.uom',
         ]);
 
         return view('livewire.inbound.containers.show', ['container' => $container])

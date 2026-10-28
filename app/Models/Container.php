@@ -128,6 +128,11 @@ class Container extends Model
         return $this->hasMany(ContainerDocument::class);
     }
 
+    public function grns(): HasMany
+    {
+        return $this->hasMany(\App\Models\Grn::class);
+    }
+
     // ─── Computed Methods ─────────────────────────────────────────────────────
 
     /**

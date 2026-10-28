@@ -972,65 +972,73 @@
 
     {{-- Start Receiving modal --}}
     @if ($showReceiveModal)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4"
+        <div class="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 backdrop-blur-sm p-4"
              x-data wire:click.self="closeReceiveModal">
-            <div class="card w-full max-w-lg p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-                <div class="flex items-center justify-between">
+            <div class="card w-full max-w-lg p-6 space-y-5 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-slate-200 dark:border-white/10 max-h-[90vh] overflow-y-auto">
+
+                {{-- Modal Header --}}
+                <div class="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-white/5">
                     <div>
-                        <h3 class="font-bold text-slate-900 dark:text-white">Start Receiving</h3>
+                        <h3 class="font-bold text-base text-slate-900 dark:text-white">Start Receiving</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Initialize a receiving tally for this purchase order</p>
                     </div>
-                    <button wire:click="closeReceiveModal" class="icon-btn"><x-ui.icon name="x" class="w-5 h-5" /></button>
+                    <button wire:click="closeReceiveModal" class="icon-btn">
+                        <x-ui.icon name="x" class="w-5 h-5" />
+                    </button>
                 </div>
 
+                {{-- Form Fields --}}
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    {{-- Receiving Dock --}}
                     <div class="md:col-span-2">
-                        <label class="label">Receiving Dock <span class="required-mark">*</span></label>
-                        <select wire:model="receiveDockId" class="input">
+                        <label class="label font-medium text-xs text-slate-700 dark:text-slate-300 mb-1 block">Receiving Dock <span class="required-mark text-red-500">*</span></label>
+                        <select wire:model="receiveDockId" class="input w-full border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:border-simba-500 focus:ring-1 focus:ring-simba-500 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
                             <option value="">Select dock…</option>
                             @foreach ($this->receivingDocks as $dock)
                                 <option value="{{ $dock->id }}">{{ $dock->code }}</option>
                             @endforeach
                         </select>
-                        @error('receiveDockId') <p class="hint hint-error">{{ $message }}</p> @enderror
+                        @error('receiveDockId') <p class="hint hint-error text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
                     </div>
 
                     {{-- Container Details — only when PO package type = Container --}}
                     @if ($purchaseOrder->package_type?->value === 'container')
-                        <div class="md:col-span-2 pt-1">
-                            <div class="flex items-center gap-2 mb-3">
-                                <div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
-                                <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Container Details</span>
-                                <div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
+                        <div class="md:col-span-2 pt-2">
+                            <div class="flex items-center gap-3">
+                                <div class="h-px flex-1 bg-slate-200 dark:bg-white/10"></div>
+                                <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Container Details</span>
+                                <div class="h-px flex-1 bg-slate-200 dark:bg-white/10"></div>
                             </div>
                         </div>
 
                         <div>
-                            <label class="label">Container No. <span class="required-mark">*</span></label>
+                            <label class="label font-medium text-xs text-slate-700 dark:text-slate-300 mb-1 block">Container No. <span class="required-mark text-red-500">*</span></label>
                             <input wire:model="receiveContainerNo" type="text"
                                    placeholder="e.g. TCKU1234567"
-                                   class="input font-mono uppercase" />
-                            @error('receiveContainerNo') <p class="hint hint-error">{{ $message }}</p> @enderror
+                                   class="input w-full border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:border-simba-500 focus:ring-1 focus:ring-simba-500 rounded-lg px-3 py-2 text-sm font-mono uppercase text-slate-900 dark:text-white" />
+                            @error('receiveContainerNo') <p class="hint hint-error text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="label">Size / Type <span class="required-mark">*</span></label>
-                            <select wire:model="receiveContainerSizeType" class="input">
+                            <label class="label font-medium text-xs text-slate-700 dark:text-slate-300 mb-1 block">Size / Type <span class="required-mark text-red-500">*</span></label>
+                            <select wire:model="receiveContainerSizeType" class="input w-full border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:border-simba-500 focus:ring-1 focus:ring-simba-500 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
                                 <option value="">Select…</option>
                                 @foreach (\App\Enums\ContainerSizeType::cases() as $st)
                                     <option value="{{ $st->value }}">{{ $st->label() }}</option>
                                 @endforeach
                             </select>
-                            @error('receiveContainerSizeType') <p class="hint hint-error">{{ $message }}</p> @enderror
+                            @error('receiveContainerSizeType') <p class="hint hint-error text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="label">Seal No. <span class="required-mark">*</span></label>
+                            <label class="label font-medium text-xs text-slate-700 dark:text-slate-300 mb-1 block">Seal No. <span class="required-mark text-red-500">*</span></label>
                             <input wire:model="receiveContainerSealNo" type="text"
                                    placeholder="Seal number"
-                                   class="input font-mono" />
-                            @error('receiveContainerSealNo') <p class="hint hint-error">{{ $message }}</p> @enderror
+                                   class="input w-full border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:border-simba-500 focus:ring-1 focus:ring-simba-500 rounded-lg px-3 py-2 text-sm font-mono text-slate-900 dark:text-white" />
+                            @error('receiveContainerSealNo') <p class="hint hint-error text-xs text-red-500 mt-1">{{ $message }}</p> @enderror
                         </div>
                         <div>
-                            <label class="label">Shipping Line</label>
-                            <select wire:model="receiveContainerShippingLineId" class="input">
+                            <label class="label font-medium text-xs text-slate-700 dark:text-slate-300 mb-1 block">Shipping Line</label>
+                            <select wire:model="receiveContainerShippingLineId" class="input w-full border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:border-simba-500 focus:ring-1 focus:ring-simba-500 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
                                 <option value="">Select shipping line…</option>
                                 @foreach ($this->shippingLines as $sl)
                                     <option value="{{ $sl->id }}">{{ $sl->name }}</option>
@@ -1039,18 +1047,18 @@
                         </div>
                     @endif
 
-                    {{-- Vehicle & Driver Details --}}
-                    <div class="md:col-span-2 pt-1">
-                        <div class="flex items-center gap-2 mb-3">
-                            <div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
-                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Vehicle & Driver</span>
-                            <div class="h-px flex-1 bg-slate-200 dark:bg-slate-700"></div>
+                    {{-- Vehicle & Driver Details Divider --}}
+                    <div class="md:col-span-2 pt-2">
+                        <div class="flex items-center gap-3">
+                            <div class="h-px flex-1 bg-slate-200 dark:bg-white/10"></div>
+                            <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Vehicle & Driver</span>
+                            <div class="h-px flex-1 bg-slate-200 dark:bg-white/10"></div>
                         </div>
                     </div>
 
                     <div>
-                        <label class="label">Vehicle Type</label>
-                        <select wire:model="receiveVehicleType" class="input">
+                        <label class="label font-medium text-xs text-slate-700 dark:text-slate-300 mb-1 block">Vehicle Type</label>
+                        <select wire:model="receiveVehicleType" class="input w-full border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:border-simba-500 focus:ring-1 focus:ring-simba-500 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white">
                             <option value="">Not specified</option>
                             @foreach ($this->vehicleTypes as $vt)
                                 <option value="{{ $vt }}">{{ $vt }}</option>
@@ -1059,33 +1067,34 @@
                     </div>
 
                     <div>
-                        <label class="label">Vehicle Plate</label>
-                        <input wire:model="receiveVehiclePlate" type="text" placeholder="e.g. T123ABC" class="input font-mono" />
+                        <label class="label font-medium text-xs text-slate-700 dark:text-slate-300 mb-1 block">Vehicle Plate</label>
+                        <input wire:model="receiveVehiclePlate" type="text" placeholder="e.g. T123ABC" class="input w-full border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:border-simba-500 focus:ring-1 focus:ring-simba-500 rounded-lg px-3 py-2 text-sm font-mono text-slate-900 dark:text-white" />
                     </div>
 
                     <div>
-                        <label class="label">Driver Name</label>
-                        <input wire:model="receiveDriverName" type="text" class="input" />
+                        <label class="label font-medium text-xs text-slate-700 dark:text-slate-300 mb-1 block">Driver Name</label>
+                        <input wire:model="receiveDriverName" type="text" placeholder="Full name" class="input w-full border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:border-simba-500 focus:ring-1 focus:ring-simba-500 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white" />
                     </div>
 
                     <div>
-                        <label class="label">Driver Phone</label>
-                        <input wire:model="receiveDriverPhone" type="text" class="input" />
+                        <label class="label font-medium text-xs text-slate-700 dark:text-slate-300 mb-1 block">Driver Phone</label>
+                        <input wire:model="receiveDriverPhone" type="text" placeholder="Phone number" class="input w-full border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:border-simba-500 focus:ring-1 focus:ring-simba-500 rounded-lg px-3 py-2 text-sm tabular-nums text-slate-900 dark:text-white" />
                     </div>
 
-                    <div>
-                        <label class="label">Transporter</label>
-                        <input wire:model="receiveTransporter" type="text" class="input" />
+                    <div class="md:col-span-2">
+                        <label class="label font-medium text-xs text-slate-700 dark:text-slate-300 mb-1 block">Transporter</label>
+                        <input wire:model="receiveTransporter" type="text" placeholder="Transporter company name" class="input w-full border border-slate-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:border-simba-500 focus:ring-1 focus:ring-simba-500 rounded-lg px-3 py-2 text-sm text-slate-900 dark:text-white" />
                     </div>
 
                 </div>
 
-                <div class="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                {{-- Footer Actions --}}
+                <div class="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-white/5">
                     <button wire:click="closeReceiveModal" class="btn btn-ghost">Cancel</button>
-                    <button wire:click="startReceiving" wire:loading.attr="disabled" class="btn btn-primary">
-                        <span wire:loading.remove wire:target="startReceiving">
-                            <x-ui.icon name="clipboard" class="w-4 h-4" /> Create Receiving Tally
-                        </span>
+                    <button wire:click="startReceiving" wire:loading.attr="disabled" class="btn btn-primary shadow-sm">
+                <span wire:loading.remove wire:target="startReceiving" class="inline-flex items-center gap-1.5">
+                    <x-ui.icon name="clipboard" class="w-4 h-4" /> Create Receiving Tally
+                </span>
                         <span wire:loading wire:target="startReceiving">Creating…</span>
                     </button>
                 </div>
