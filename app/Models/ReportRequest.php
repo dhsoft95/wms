@@ -11,6 +11,7 @@ class ReportRequest extends Model
 {
     protected $fillable = [
         'user_id',
+        'scheduled_report_id',
         'type',
         'date_from',
         'date_to',
@@ -36,6 +37,11 @@ class ReportRequest extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function scheduledReport(): BelongsTo
+    {
+        return $this->belongsTo(ScheduledReport::class);
     }
 
     public function isPending(): bool    { return $this->status === 'pending'; }

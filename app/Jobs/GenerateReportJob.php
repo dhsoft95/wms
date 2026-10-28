@@ -164,7 +164,36 @@ class GenerateReportJob implements ShouldQueue
             'notified_at' => now(),
         ]);
 
-        $user->notify(new ReportReadyNotification($this->request));
+        try {
+            $user->notify(new ReportReadyNotification($this->request));
+        } catch (Throwable $e) {
+            Log::warning('ReportReadyNotification failed', [
+                'report_request_id' => $this->request->id,
+                'user_id'           => $user->id,
+                'error'             => $e->getMessage(),
+            ]);
+        }
+
+        // If triggered by a schedule, also email additional recipients
+        if ($this->request->scheduled_report_id) {
+            $scheduled = $this->request->scheduledReport;
+            if ($scheduled && ! empty($scheduled->recipients)) {
+                foreach ($scheduled->recipients as $email) {
+                    if ($email !== $user->email) {
+                        try {
+                            \Illuminate\Support\Facades\Mail::to($email)
+                                ->send(new \App\Mail\ScheduledReportMail($this->request, $scheduled->name));
+                        } catch (Throwable $e) {
+                            Log::warning('ScheduledReportMail failed', [
+                                'report_request_id' => $this->request->id,
+                                'recipient'         => $email,
+                                'error'             => $e->getMessage(),
+                            ]);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private function buildReport(): array

@@ -267,6 +267,14 @@ return [
                     // 'can'           => 'reports.view', // TODO: restore after DB seeder runs
                 ],
                 [
+                    'key'           => 'scheduled-reports',
+                    'label'         => 'Scheduled Reports',
+                    'icon'          => 'clock',
+                    'route'         => 'admin.scheduled-reports.index',
+                    'active_routes' => ['admin.scheduled-reports.*'],
+                    'can'           => 'reports.manage',
+                ],
+                [
                     'key'           => 'print',
                     'label'         => 'Printable Documents',
                     'icon'          => 'printer',
@@ -411,6 +419,14 @@ return [
                     'route'         => 'admin.scanner-devices.index',
                     'active_routes' => ['admin.scanner-devices.*'],
                     'can'           => 'scanner-devices.manage',
+                ],
+                [
+                    'key'           => 'scheduled-reports-admin',
+                    'label'         => 'Scheduled Reports',
+                    'icon'          => 'clock',
+                    'route'         => 'admin.scheduled-reports.index',
+                    'active_routes' => ['admin.scheduled-reports.*'],
+                    'can'           => 'reports.manage',
                 ],
             ],
         ],

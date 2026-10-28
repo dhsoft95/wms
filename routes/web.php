@@ -302,6 +302,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware(['auth', 'verified', 'permission:settings.manage'])
         ->name('admin.approval-chains.index');
 
+    // Scheduled Reports
+    Route::get('/admin/scheduled-reports', \App\Livewire\Admin\ScheduledReports\Index::class)
+        ->middleware('permission:reports.manage')
+        ->name('admin.scheduled-reports.index');
+
     // Settings — System Admin only
     Route::get('/admin/settings', \App\Livewire\Admin\Settings\Index::class)
         ->middleware('permission:settings.manage')

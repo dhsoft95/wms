@@ -279,7 +279,7 @@
         <div class="card-header">
             <div>
                 <h3 class="card-title">Document Reports</h3>
-                <p class="text-xs text-slate-400 mt-0.5">Per-record PDF documents — generated directly from the relevant record page.</p>
+                <p class="text-xs text-slate-400 mt-0.5">Per-record PDF documents  generated directly from the relevant record page.</p>
             </div>
         </div>
         <div class="divide-y divide-slate-100 dark:divide-white/[0.05]">
