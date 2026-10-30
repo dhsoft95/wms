@@ -116,9 +116,10 @@ final class GeneralReportExcelWriter
             $options->setColumnWidth($this->colWidth($col['fmt']), $i + 1);
         }
 
-        // Merge title row (row 2, 0-indexed row 1) per sheet
+        // Merge title (row 2, 0-indexed 1) and address (row 3, 0-indexed 2) per sheet
         foreach ([count(self::COLS_RECEIPTS), count(self::COLS_DESPATCHES), count(self::COLS_AGEING)] as $si => $n) {
             $options->mergeCells(0, 1, $n - 1, 1, $si);
+            $options->mergeCells(0, 2, $n - 1, 2, $si);
         }
 
         $writer = new Writer($options);
@@ -127,21 +128,21 @@ final class GeneralReportExcelWriter
         // Sheet 1 – Receipts
         $s1 = $writer->getCurrentSheet();
         $s1->setName('Receipts');
-        $s1->setSheetView((new SheetView())->setFreezeRow(15));
+        $s1->setSheetView((new SheetView())->setFreezeRow(16));
         $this->writeSheet($writer, $brand, $filters, $receipts, 'RECEIPTS', self::COLS_RECEIPTS, self::TOTALS_RECEIPTS);
 
         // Sheet 2 – Despatches
         $writer->addNewSheetAndMakeItCurrent();
         $s2 = $writer->getCurrentSheet();
         $s2->setName('Despatches');
-        $s2->setSheetView((new SheetView())->setFreezeRow(15));
+        $s2->setSheetView((new SheetView())->setFreezeRow(16));
         $this->writeSheet($writer, $brand, $filters, $despatches, 'DESPATCHES', self::COLS_DESPATCHES, self::TOTALS_DESPATCHES);
 
         // Sheet 3 – Stock Ageing
         $writer->addNewSheetAndMakeItCurrent();
         $s3 = $writer->getCurrentSheet();
         $s3->setName('Stock Ageing');
-        $s3->setSheetView((new SheetView())->setFreezeRow(15));
+        $s3->setSheetView((new SheetView())->setFreezeRow(16));
         $this->writeSheet($writer, $brand, $filters, $ageing, 'STOCK AGEING', self::COLS_AGEING, self::TOTALS_AGEING);
 
         $writer->close();
@@ -179,11 +180,21 @@ final class GeneralReportExcelWriter
             $titleStyle,
         ));
 
-        // ── Rows 3–4: blank ───────────────────────────────────────────────────
+        // ── Row 3: Company address (merged via Options) ───────────────────────
+        $addrStyle = (new Style())
+            ->setFontSize(9)
+            ->setFontColor(self::GREY)
+            ->setCellAlignment(CellAlignment::LEFT);
+        $writer->addRow(Row::fromValues(
+            array_merge([$brand['address'] ?? ''], $empty),
+            $addrStyle,
+        ));
+
+        // ── Rows 4–5: blank ───────────────────────────────────────────────────
         $writer->addRow(Row::fromValues(array_fill(0, $n, '')));
         $writer->addRow(Row::fromValues(array_fill(0, $n, '')));
 
-        // ── Row 5: generated timestamp | operations period ────────────────────
+        // ── Row 6: generated timestamp | operations period ────────────────────
         $metaStyle = (new Style())->setFontSize(9)->setFontColor(self::GREY);
         $periodStr = ($from && $to)
             ? 'Operations from ' . Carbon::parse($from)->format('d/m/Y') . ' to ' . Carbon::parse($to)->format('d/m/Y')
@@ -194,7 +205,7 @@ final class GeneralReportExcelWriter
             ...array_map(fn () => Cell::fromValue('', $metaStyle), array_fill(0, $n - 2, null)),
         ]));
 
-        // ── Row 6: report date | department ───────────────────────────────────
+        // ── Row 7: report date | department ───────────────────────────────────
         $deptName = '';
         if ($filters['department_id'] ?? null) {
             $deptName = \App\Models\Department::find($filters['department_id'])?->name ?? '';
@@ -205,19 +216,19 @@ final class GeneralReportExcelWriter
             ...array_map(fn () => Cell::fromValue('', $metaStyle), array_fill(0, $n - 2, null)),
         ]));
 
-        // ── Rows 7–11: blank × 5 ─────────────────────────────────────────────
+        // ── Rows 8–12: blank × 5 ─────────────────────────────────────────────
         for ($i = 0; $i < 5; $i++) {
             $writer->addRow(Row::fromValues(array_fill(0, $n, '')));
         }
 
-        // ── Row 12: section title ─────────────────────────────────────────────
+        // ── Row 13: section title ─────────────────────────────────────────────
         $secStyle = (new Style())->setFontBold(true)->setFontSize(11);
         $writer->addRow(Row::fromValues(array_merge([$sectionTitle], $empty), $secStyle));
 
-        // ── Row 13: blank ─────────────────────────────────────────────────────
+        // ── Row 14: blank ─────────────────────────────────────────────────────
         $writer->addRow(Row::fromValues(array_fill(0, $n, '')));
 
-        // ── Row 14: column headers ────────────────────────────────────────────
+        // ── Row 15: column headers ────────────────────────────────────────────
         $border = new Border(
             new BorderPart(Border::BOTTOM, Color::BLACK, Border::WIDTH_THIN, Border::STYLE_SOLID),
             new BorderPart(Border::TOP,    Color::BLACK, Border::WIDTH_THIN, Border::STYLE_SOLID),
@@ -234,10 +245,10 @@ final class GeneralReportExcelWriter
         $hdrCells = array_map(fn ($col) => Cell::fromValue($col['label'], $hdrStyle), $columns);
         $writer->addRow(new Row($hdrCells));
 
-        // ── Row 15: blank (spacer before data) ───────────────────────────────
+        // ── Row 16: blank (spacer before data) ───────────────────────────────
         $writer->addRow(Row::fromValues(array_fill(0, $n, '')));
 
-        // ── Rows 16+: data ────────────────────────────────────────────────────
+        // ── Rows 17+: data ────────────────────────────────────────────────────
         foreach ($rows as $row) {
             $writer->addRow(new Row($this->buildDataCells($row, $columns)));
         }
