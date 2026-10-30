@@ -26,6 +26,7 @@ return [
     'Activity' => [
         \App\Reports\Activity\StockMovementReport::class,
         \App\Reports\Activity\ReceivedDispatchedReport::class,
+        \App\Reports\Activity\GeneralReport::class,
     ],
     'Control' => [
         \App\Reports\Control\StockCountReport::class,

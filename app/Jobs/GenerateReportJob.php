@@ -103,14 +103,21 @@ class GenerateReportJob implements ShouldQueue
 
         if ($format === 'excel') {
             $brand   = PdfBrand::make();
-            $rows    = $definition->query($filters, $user)->get();
-
             $tmpPath = tempnam(sys_get_temp_dir(), 'wms_report_');
             $tmpXlsx = $tmpPath . '.xlsx';
 
+            $filename = method_exists($definition, 'excelFilename')
+                ? $definition->excelFilename($filters)
+                : $definition->key() . '_' . now()->format('Ymd-Hi') . '.xlsx';
+
             try {
-                (new ExcelStyler())->write($tmpXlsx, $definition, $rows, $brand, $filters);
-                $storagePath = 'reports/' . $this->request->id . '_' . $definition->key() . '_' . now()->format('Ymd-Hi') . '.xlsx';
+                if (method_exists($definition, 'writeExcel')) {
+                    $definition->writeExcel($tmpXlsx, $filters, $user, $brand);
+                } else {
+                    $rows = $definition->query($filters, $user)->get();
+                    (new ExcelStyler())->write($tmpXlsx, $definition, $rows, $brand, $filters);
+                }
+                $storagePath = 'reports/' . $this->request->id . '_' . $filename;
                 $disk->put($storagePath, file_get_contents($tmpXlsx));
             } finally {
                 @unlink($tmpPath);
