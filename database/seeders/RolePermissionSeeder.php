@@ -57,8 +57,7 @@ class RolePermissionSeeder extends Seeder
         // Outbound — POD & Returns
         'pod.upload',
         'returns.create',
-        // Outbound — Scanner
-        'scan.dispatch', 'scan.gate',
+        // Outbound — Scanner (also includes base scan.* defined below)
 
         // Approvals
         'approvals.view',  'approvals.approve',
@@ -86,11 +85,14 @@ class RolePermissionSeeder extends Seeder
         'virtual-warehouses.view',
         'virtual-warehouses.manage',
 
-        // Scanner
+        // Scanner permissions (all scan.* in one place)
         'scan.receive',
         'scan.putaway',
         'scan.pick',
-        'scan.stock-lookup',
+        'scan.dispatch',
+        'scan.gate',
+        'scan.move',
+        'scan.lookup',
 
         // Serials (Module 2B)
         'serials.view',
@@ -105,8 +107,6 @@ class RolePermissionSeeder extends Seeder
         'labels.log.view',
         'printers.manage',
         'scanner-devices.manage',
-        'scan.move',
-        'scan.lookup',
 
         // Purchase Orders (Module 10 — Inbound Workflow)
         'po.view', 'po.create', 'po.approve', 'po.accept', 'po.assign',
@@ -143,7 +143,7 @@ class RolePermissionSeeder extends Seeder
             'picking.view', 'picking.assign', 'picking.execute',
             'dispatch.view', 'dispatch.execute',
             'gate.verify', 'pod.upload', 'returns.create',
-            'scan.dispatch', 'scan.gate',
+            'scan.receive', 'scan.putaway', 'scan.pick', 'scan.dispatch', 'scan.gate', 'scan.move', 'scan.lookup',
             'approvals.view', 'approvals.approve',
             'reports.view', 'reports.export', 'reports.ai_summary',
             'traceability.view',
@@ -154,7 +154,7 @@ class RolePermissionSeeder extends Seeder
             'stock.view', 'stock.movements.view', 'stock.verify',
             'serials.view', 'imports.manage',
             'labels.templates.manage', 'labels.print', 'labels.reprint', 'labels.log.view',
-            'printers.manage', 'scanner-devices.manage', 'scan.move', 'scan.lookup',
+            'printers.manage', 'scanner-devices.manage',
             // PO workflow
             'po.view', 'po.accept', 'po.assign', 'po.receive',
             'po.validate', 'po.excess.approve', 'po.close.short',
@@ -176,7 +176,8 @@ class RolePermissionSeeder extends Seeder
             'virtual-warehouses.view',
             'stock.view', 'stock.movements.view',
             'serials.view',
-            'labels.print', 'labels.log.view', 'scan.move', 'scan.lookup',
+            'labels.print', 'labels.log.view',
+            'scan.receive', 'scan.putaway', 'scan.pick', 'scan.dispatch', 'scan.gate', 'scan.move', 'scan.lookup',
             // PO workflow
             'po.view', 'po.assign', 'po.receive', 'po.validate',
         ],
@@ -220,14 +221,14 @@ class RolePermissionSeeder extends Seeder
             'picking.view', 'picking.assign', 'picking.execute',
             'dispatch.view', 'dispatch.execute',
             'pod.upload', 'returns.create',
-            'scan.pick', 'scan.dispatch',
+            'scan.receive', 'scan.putaway', 'scan.pick', 'scan.dispatch', 'scan.gate', 'scan.move', 'scan.lookup',
             'items.view',
             'partners.view',
             'locations.view',
             'virtual-warehouses.view',
             'stock.view', 'stock.movements.view',
             'serials.view',
-            'labels.print', 'labels.log.view', 'scan.move', 'scan.lookup',
+            'labels.print', 'labels.log.view',
         ],
 
         'scanner-operator' => [
@@ -236,11 +237,12 @@ class RolePermissionSeeder extends Seeder
             'scan.putaway',
             'scan.pick',
             'scan.dispatch',
-            'scan.stock-lookup',
+            'scan.move',
+            'scan.lookup',
             'items.view',
             'locations.view',
             'virtual-warehouses.view',
-            'labels.print', 'scan.move', 'scan.lookup',
+            'labels.print',
         ],
 
         'gate-security' => [
@@ -355,6 +357,9 @@ class RolePermissionSeeder extends Seeder
 
         // Remove the old transfers.approve permission (replaced by transfers.accept)
         Permission::where('name', 'transfers.approve')->where('guard_name', 'web')->delete();
+
+        // scan.stock-lookup merged into scan.lookup
+        Permission::where('name', 'scan.stock-lookup')->where('guard_name', 'web')->delete();
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
     }

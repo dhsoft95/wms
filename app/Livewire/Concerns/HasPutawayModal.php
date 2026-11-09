@@ -111,27 +111,24 @@ trait HasPutawayModal
         );
 
         if ($result->type !== ScanResultType::Location) {
-            $this->dispatch('toast', message: $result->error ?? 'Not a bin location.', type: 'error');
-            $this->dispatch('scan-error');
+            $this->scanFail($result->error ?? 'Not a bin location.');
             return;
         }
 
         $loc = $result->record;
 
         if ($loc->status !== LocationStatus::Active) {
-            $this->dispatch('toast', message: "Location {$loc->code} is not active.", type: 'error');
-            $this->dispatch('scan-error');
+            $this->scanFail("Location {$loc->code} is not active.");
             return;
         }
 
         if ($loc->level !== LocationLevel::Bin) {
-            $this->dispatch('toast', message: "Choose a bin, not a {$loc->level->label()}.", type: 'error');
-            $this->dispatch('scan-error');
+            $this->scanFail("Choose a bin, not a {$loc->level->label()}.");
             return;
         }
 
         $this->selectSplitBin($rowIndex, $loc->id, $loc->code);
-        $this->dispatch('scan-success');
+        $this->scanOk();
         $this->dispatch('toast', message: "Bin {$loc->code} selected.", type: 'success');
     }
 

@@ -56,11 +56,9 @@ final class ScannerDeviceService
 
     private function nextDeviceCode(): string
     {
-        $max = ScannerDevice::max('code');
+        $max = ScannerDevice::selectRaw('MAX(CAST(SUBSTRING(code, 5) AS UNSIGNED)) as max_num')->value('max_num');
         if (! $max) return 'SCN-001';
-        // Extract numeric part: SCN-001 → 1
-        $num = (int) ltrim(substr($max, 4), '0') ?: 0;
-        return 'SCN-' . str_pad((string) ($num + 1), 3, '0', STR_PAD_LEFT);
+        return 'SCN-' . str_pad((string) ($max + 1), 3, '0', STR_PAD_LEFT);
     }
 
     public function unreviewedCount(): int

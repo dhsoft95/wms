@@ -2,18 +2,26 @@
     Reusable barcode scan input.
     Usage: <x-scan-input wire:model="scanInput" :method="'processScan'" placeholder="Scan..." />
     Listens to scan-success / scan-error browser events for green/red feedback and beep.
+
+    Props:
+      method      – Livewire method to call (default: processScan)
+      placeholder – Input placeholder text
+      dedupMs     – Milliseconds to suppress the same scan being submitted twice (default: 600, 0 = disable)
 --}}
 @props([
     'method'      => 'processScan',
     'placeholder' => 'Scan barcode or type SKU then press Enter...',
+    'dedupMs'     => 600,
 ])
 
 <div
     x-data="{
-        focused: false,
+        focused:  false,
         lastScan: '',
-        lastAt: 0,
-        status: null,
+        lastAt:   0,
+        dedupMs:  {{ (int) $dedupMs }},
+        status:   null,
+        message:  '',
         beep(ok) {
             try {
                 const ctx  = new (window.AudioContext || window.webkitAudioContext)();
@@ -29,10 +37,11 @@
                 osc.stop(ctx.currentTime + 0.15);
             } catch (e) {}
         },
-        flash(ok) {
-            this.status = ok ? 'ok' : 'err';
+        flash(ok, msg) {
+            this.message = msg || (ok ? 'Matched' : 'Not recognised');
+            this.status  = ok ? 'ok' : 'err';
             this.beep(ok);
-            setTimeout(() => this.status = null, 1500);
+            setTimeout(() => { this.status = null; this.message = ''; }, 1500);
         },
         iconClass() {
             if (this.status === 'ok')  return 'bg-emerald-50 text-emerald-600 ring-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:ring-emerald-500/30';
@@ -40,9 +49,20 @@
             if (this.focused)          return 'bg-simba-50 text-simba-700 ring-simba-200 dark:bg-simba-500/15 dark:text-simba-300 dark:ring-simba-500/30';
             return 'bg-slate-100 text-slate-600 ring-slate-200 dark:bg-zinc-800 dark:text-slate-300 dark:ring-zinc-700';
         },
+        submit(el) {
+            if (!el.value.trim()) return;
+            const now = Date.now();
+            if (this.dedupMs > 0 && el.value === this.lastScan && now - this.lastAt < this.dedupMs) {
+                el.value = '';
+                return;
+            }
+            this.lastScan = el.value;
+            this.lastAt   = now;
+            $wire.{{ $method }}().finally(() => $nextTick(() => el.focus()));
+        },
     }"
-    @scan-success.window="flash(true)"
-    @scan-error.window="flash(false)"
+    @scan-success.window="flash(true, $event.detail?.message)"
+    @scan-error.window="flash(false, $event.detail?.message)"
 >
     <div class="relative">
         <span
@@ -91,14 +111,8 @@
             data-scan-input
             x-on:focus="focused = true"
             x-on:blur="focused = false"
-            x-on:keydown.enter.prevent="
-                const now = Date.now();
-                if (!$el.value.trim()) return;
-                if ($el.value === lastScan && now - lastAt < 600) { $el.value = ''; return; }
-                lastScan = $el.value;
-                lastAt   = now;
-                $wire.{{ $method }}().then(() => $nextTick(() => $el.focus()));
-            "
+            x-on:keydown.enter.prevent="submit($el)"
+            x-on:keydown.tab.prevent="submit($el)"
             x-bind:class="{
                 'ring-2 ring-emerald-400 !border-emerald-400': status === 'ok',
                 'ring-2 ring-red-400 !border-red-400': status === 'err',
@@ -125,6 +139,55 @@
         x-cloak
         class="mt-1 text-xs font-medium"
         x-bind:class="status === 'ok' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'"
-        x-text="status === 'ok' ? 'Matched' : 'Not recognised'"
+        x-text="message"
     ></p>
 </div>
+
+{{-- Global scan capture: routes fast hardware-scanner keystrokes to the first visible [data-scan-input] --}}
+<script>
+(function () {
+    if (window.__wmsGlobalScanListenerAttached) return;
+    window.__wmsGlobalScanListenerAttached = true;
+
+    let buffer = '';
+    let lastKey = 0;
+    const MAX_GAP_MS  = 50;
+    const MIN_CHARS   = 4;
+
+    document.addEventListener('keydown', function (e) {
+        // If the event is already targeting a scan input, let the Alpine handler deal with it
+        if (e.target && e.target.hasAttribute('data-scan-input')) return;
+        // Don't intercept typing in ordinary text fields
+        if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
+        const now = Date.now();
+        const gap = now - lastKey;
+        lastKey   = now;
+
+        if (e.key === 'Enter' || e.key === 'Tab') {
+            if (buffer.length >= MIN_CHARS) {
+                e.preventDefault();
+                const scanEl = document.querySelector('[data-scan-input]:not([disabled])');
+                if (scanEl) {
+                    scanEl.value = buffer;
+                    // Sync wire:model then fire the Alpine keydown handler
+                    scanEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    scanEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+                    scanEl.focus();
+                }
+            }
+            buffer = '';
+            return;
+        }
+
+        // Reset buffer if too long a pause between keystrokes (human typing, not scanner)
+        if (gap > MAX_GAP_MS && buffer.length > 0) {
+            buffer = '';
+        }
+
+        if (e.key.length === 1) {
+            buffer += e.key;
+        }
+    }, true);
+})();
+</script>

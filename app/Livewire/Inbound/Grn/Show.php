@@ -3,6 +3,7 @@
 namespace App\Livewire\Inbound\Grn;
 
 use App\Enums\GrnStatus;
+use App\Livewire\Concerns\HandlesScans;
 use App\Livewire\Concerns\HasPutawayModal;
 use App\Models\Grn;
 use App\Models\PutawayTask;
@@ -14,6 +15,7 @@ use Livewire\Component;
 class Show extends Component
 {
     use HasPutawayModal;
+    use HandlesScans;
 
     public Grn $grn;
 

@@ -59,7 +59,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/grn/{grn}/receive', \App\Livewire\Inbound\Grn\Receive::class)
             ->middleware('permission:grn.receive')->name('grn.receive');
         Route::get('/grn/{grn}/tally',   \App\Livewire\Inbound\Grn\Tally::class)
-            ->middleware('permission:po.receive')->name('grn.tally');
+            ->middleware('permission:po.receive|grn.receive')->name('grn.tally');
         Route::get('/grn/{grn}/document', [\App\Http\Controllers\GrnDocumentController::class, 'download'])
             ->middleware('permission:grn.view')->name('grn.document');
         Route::get('/putaway',           \App\Livewire\Warehouse\Putaway\Index::class)
@@ -438,16 +438,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // ─── Scanner operator portal ──────────────────────────────────────────────────
-Route::middleware(['auth', 'permission:scan.receive|scan.putaway|scan.pick|scan.dispatch|scan.gate|scan.move|scan.lookup|scan.stock-lookup'])->prefix('scan')->name('scan.')->group(function () {
-    Route::get('/',             \App\Livewire\Scan\Home::class)->name('home');
-    Route::get('/receive',      \App\Livewire\Scan\Receive::class)->name('receive');
-    Route::get('/putaway',      \App\Livewire\Scan\Putaway::class)->name('putaway');
-    Route::get('/pick',         \App\Livewire\Scan\Pick::class)->name('pick');
-    Route::get('/dispatch',     \App\Livewire\Scan\Dispatch::class)->name('dispatch');
-    Route::get('/move',         \App\Livewire\Scan\Move::class)->name('move');
-    Route::get('/lookup',       \App\Livewire\Scan\Lookup::class)->name('lookup');
-    Route::get('/stock-lookup', \App\Livewire\Scan\Lookup::class)->name('stock-lookup');
-    Route::get('/gate',         \App\Livewire\Scan\GateCheck::class)->name('gate');
+Route::middleware(['auth', 'permission:scan.receive|scan.putaway|scan.pick|scan.dispatch|scan.gate|scan.move|scan.lookup'])->prefix('scan')->name('scan.')->group(function () {
+    Route::get('/',         \App\Livewire\Scan\Home::class)->name('home');
+    Route::get('/receive',  \App\Livewire\Scan\Receive::class)->name('receive');
+    Route::get('/putaway',  \App\Livewire\Scan\Putaway::class)->name('putaway');
+    Route::get('/pick',     \App\Livewire\Scan\Pick::class)->name('pick');
+    Route::get('/dispatch', \App\Livewire\Scan\Dispatch::class)->name('dispatch');
+    Route::get('/move',     \App\Livewire\Scan\Move::class)->name('move');
+    Route::get('/lookup',   \App\Livewire\Scan\Lookup::class)->name('lookup');
+    Route::get('/gate',     \App\Livewire\Scan\GateCheck::class)->name('gate');
 });
 
 require __DIR__.'/auth.php';

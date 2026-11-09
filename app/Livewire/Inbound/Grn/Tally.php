@@ -6,23 +6,22 @@ namespace App\Livewire\Inbound\Grn;
 
 use App\Enums\GrnStatus;
 use App\Enums\ScanResultType;
+use App\Livewire\Concerns\HandlesScans;
 use App\Models\Grn;
 use App\Models\GrnLine;
 use App\Models\GrnReceipt;
 use App\Models\UnitOfMeasure;
 use App\Services\Foundation\UomConverter;
 use App\Services\Inbound\GrnWorkflow;
-use App\Services\Scanning\BarcodeResolver;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 class Tally extends Component
 {
-    public Grn $grn;
+    use HandlesScans;
 
-    // Scan bar
-    public string $scanInput = '';
+    public Grn $grn;
 
     // Active line being tallied
     public ?int   $activeLine    = null;
@@ -115,26 +114,22 @@ class Tally extends Component
 
     public function processScan(): void
     {
-        $input          = trim($this->scanInput);
-        $this->scanInput = '';
         $this->multiMatchLines = [];
 
-        if ($input === '') {
+        $result = $this->resolveScan(warehouseId: $this->grn->warehouse_id);
+        if ($result === null) {
             return;
         }
 
-        $result = app(BarcodeResolver::class)->resolve($input);
-
         if ($result->type === ScanResultType::Lpn) {
             $this->receiptLpnId = (string) $result->record->id;
-            $this->dispatch('scan-success');
+            $this->scanOk();
             $this->dispatch('toast', message: "LPN: {$result->record->code}", type: 'info');
             return;
         }
 
         if ($result->type !== ScanResultType::Item) {
-            $this->dispatch('scan-error');
-            $this->dispatch('toast', message: $result->error ?? 'Barcode not recognised.', type: 'error');
+            $this->scanFail($result->error ?? 'Barcode not recognised.');
             return;
         }
 
@@ -142,8 +137,7 @@ class Tally extends Component
         $matchingLines = $this->lines->filter(fn ($l) => $l->item_id === $item->id)->values();
 
         if ($matchingLines->isEmpty()) {
-            $this->dispatch('scan-error');
-            $this->dispatch('toast', message: "Item {$item->sku} is not on this GRN.", type: 'error');
+            $this->scanFail("Item {$item->sku} is not on this GRN.");
             return;
         }
 
@@ -155,7 +149,7 @@ class Tally extends Component
                 'expected' => (float) $l->expected_qty,
                 'received' => (float) bcadd((string) $l->received_good_qty, (string) $l->received_damaged_qty, 4),
             ])->toArray();
-            $this->dispatch('scan-success');
+            $this->scanOk();
             return;
         }
 
@@ -164,7 +158,7 @@ class Tally extends Component
         // Same item scanned while line is already active → increment qty by 1
         if ($this->activeLine === $line->id) {
             $this->receiptQty = (string) ((is_numeric($this->receiptQty) ? (float) $this->receiptQty : 0) + 1);
-            $this->dispatch('scan-success');
+            $this->scanOk();
             return;
         }
 
@@ -177,7 +171,7 @@ class Tally extends Component
             if (! empty($result->gs1Data['qty']))    $this->receiptQty     = (string) $result->gs1Data['qty'];
         }
 
-        $this->dispatch('scan-success');
+        $this->scanOk();
     }
 
     public function selectFromMulti(int $lineId): void

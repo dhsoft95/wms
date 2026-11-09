@@ -4,12 +4,16 @@ namespace App\Services\Scanning;
 
 use App\Enums\ScanResultType;
 use App\Models\Container;
+use App\Models\DeliveryOrder;
+use App\Models\Dispatch;
+use App\Models\GatePass;
 use App\Models\Grn;
 use App\Models\Inventory\Lpn;
 use App\Models\Inventory\SerialNumber;
 use App\Models\Item;
 use App\Models\ItemBarcode;
 use App\Models\Location;
+use App\Models\PickList;
 use App\Services\Foundation\ISO6346Validator;
 use Illuminate\Database\Eloquent\Model;
 
@@ -17,12 +21,13 @@ final class BarcodeResolver
 {
     public function resolve(string $raw, ?ScanContext $context = null): ScanResult
     {
-        $raw = trim($raw);
+        $raw = $this->normalizeRaw($raw);
+
         if ($raw === '') {
             return new ScanResult(ScanResultType::Unknown, error: 'Empty barcode');
         }
 
-        // Amendment 1: GS1 first
+        // GS1 first (symbology identifiers already stripped by normalizeRaw)
         if ($this->isGs1($raw)) {
             return $this->resolveGs1($raw, $context);
         }
@@ -42,7 +47,7 @@ final class BarcodeResolver
                 : new ScanResult(ScanResultType::Unknown, error: "Container not found: {$raw}");
         }
 
-        // Amendment 4: ISO container — must match regex AND pass check digit
+        // ISO container — must match regex AND pass check digit
         if (preg_match('/^[A-Z]{4}\d{7}$/', $raw) && ISO6346Validator::isValid($raw)) {
             $container = Container::where('iso_number', $raw)->first();
             return $container
@@ -65,21 +70,54 @@ final class BarcodeResolver
         }
 
         if (str_starts_with($raw, 'DO-')) {
-            return new ScanResult(ScanResultType::Unknown, error: 'Dispatch Orders not available in this module');
+            $do = DeliveryOrder::where('number', $raw)->first();
+            return $do
+                ? new ScanResult(ScanResultType::DispatchOrder, record: $do)
+                : new ScanResult(ScanResultType::Unknown, error: "Delivery Order not found: {$raw}");
         }
 
-        // Amendment 3: Collect ALL matches for remaining types
+        if (str_starts_with($raw, 'PCK-')) {
+            $pl = PickList::where('number', $raw)->first();
+            return $pl
+                ? new ScanResult(ScanResultType::PickList, record: $pl)
+                : new ScanResult(ScanResultType::Unknown, error: "Pick List not found: {$raw}");
+        }
+
+        if (str_starts_with($raw, 'DSP-')) {
+            $dispatch = Dispatch::where('number', $raw)->first();
+            return $dispatch
+                ? new ScanResult(ScanResultType::Dispatch, record: $dispatch)
+                : new ScanResult(ScanResultType::Unknown, error: "Dispatch not found: {$raw}");
+        }
+
+        if (str_starts_with($raw, 'GP-')) {
+            $gp = GatePass::where('number', $raw)->first();
+            return $gp
+                ? new ScanResult(ScanResultType::GatePass, record: $gp)
+                : new ScanResult(ScanResultType::Unknown, error: "Gate Pass not found: {$raw}");
+        }
+
+        // Multi-candidate fallback: location, item barcode, SKU, serial
         return $this->resolveMulti($raw, $context);
+    }
+
+    /**
+     * Strip AIM symbology identifiers (]X0 .. ]Xz) and trim whitespace.
+     * AIM format: ] followed by one letter and one alphanumeric character.
+     */
+    private function normalizeRaw(string $raw): string
+    {
+        $raw = trim($raw);
+        // Strip AIM symbology identifier prefix: ] + letter + alphanumeric (e.g. ]C1, ]E0, ]Q3, ]d2)
+        $raw = preg_replace('/^\][A-Za-z][0-9A-Za-z]/', '', $raw) ?? $raw;
+        return $raw;
     }
 
     private function isGs1(string $raw): bool
     {
-        return str_starts_with($raw, ']C1')
-            || str_starts_with($raw, ']d2')
-            || str_starts_with($raw, ']Q3')
-            || str_contains($raw, chr(29))
+        return str_contains($raw, chr(29))
             || (bool) preg_match('/^\(01\)\d{14}/', $raw)
-            || (bool) preg_match('/^\x1d?01\d{14}/', $raw);
+            || (bool) preg_match('/^01\d{14}/', $raw);
     }
 
     private function resolveGs1(string $raw, ?ScanContext $context): ScanResult
@@ -109,30 +147,27 @@ final class BarcodeResolver
 
     private function parseGs1(string $raw): ?array
     {
-        // Strip symbology identifier prefix
-        $raw = preg_replace('/^\](C1|d2|Q3)/', '', $raw);
-
-        // Normalise: if human-readable (01)... format, strip parens
+        // Normalise human-readable (01)... format → GS-separated
         if (str_contains($raw, '(')) {
-            $raw = preg_replace('/\((\d+)\)/', chr(29) . '$1', $raw);
+            $raw = preg_replace('/\((\d+)\)/', chr(29) . '$1', $raw) ?? $raw;
         }
 
         // Strip leading GS if present
         $raw = ltrim($raw, chr(29));
 
-        $gs = chr(29);
+        $gs     = chr(29);
         $result = ['gtin' => null, 'batch' => null, 'expiry' => null, 'serial' => null, 'qty' => null];
-        $i = 0;
-        $len = strlen($raw);
+        $i      = 0;
+        $len    = strlen($raw);
 
         while ($i < $len) {
-            // Skip any GS separator between fields
+            // Skip GS separators
             while ($i < $len && $raw[$i] === $gs) {
                 $i++;
             }
             if ($i >= $len) break;
 
-            // Try 2-char AI first, then 3-char, then 4-char
+            // Try 2-char AI first, then 3, then 4
             $ai = null;
             foreach ([2, 3, 4] as $aiLen) {
                 if ($i + $aiLen > $len) continue;
@@ -143,7 +178,13 @@ final class BarcodeResolver
                     break;
                 }
             }
-            if ($ai === null) break;
+
+            if ($ai === null) {
+                // Unknown AI — skip to next GS separator instead of aborting
+                $next = strpos($raw, $gs, $i);
+                $i    = $next === false ? $len : $next + 1;
+                continue;
+            }
 
             switch ($ai) {
                 case '01': // GTIN-14, fixed 14 chars
@@ -151,33 +192,31 @@ final class BarcodeResolver
                     $i += 14;
                     break;
                 case '10': // batch, variable, GS terminated
-                    $end = strpos($raw, $gs, $i);
+                    $end            = strpos($raw, $gs, $i);
                     $result['batch'] = $end === false ? substr($raw, $i) : substr($raw, $i, $end - $i);
-                    $i = $end === false ? $len : $end + 1;
+                    $i              = $end === false ? $len : $end + 1;
                     break;
                 case '17': // expiry YYMMDD, fixed 6 chars
                     $yymmdd = substr($raw, $i, 6);
                     $i += 6;
-                    $yy = (int) substr($yymmdd, 0, 2);
-                    $mm = substr($yymmdd, 2, 2);
-                    $dd = substr($yymmdd, 4, 2);
+                    $yy   = (int) substr($yymmdd, 0, 2);
+                    $mm   = substr($yymmdd, 2, 2);
+                    $dd   = substr($yymmdd, 4, 2);
                     $year = $yy <= 30 ? 2000 + $yy : 1900 + $yy;
                     $result['expiry'] = "{$year}-{$mm}-{$dd}";
                     break;
                 case '21': // serial, variable, GS terminated
-                    $end = strpos($raw, $gs, $i);
+                    $end             = strpos($raw, $gs, $i);
                     $result['serial'] = $end === false ? substr($raw, $i) : substr($raw, $i, $end - $i);
-                    $i = $end === false ? $len : $end + 1;
+                    $i               = $end === false ? $len : $end + 1;
                     break;
                 case '30': // qty, variable up to 8, GS terminated
                 case '37':
-                    $end = strpos($raw, $gs, $i);
-                    $qtyStr = $end === false ? substr($raw, $i) : substr($raw, $i, $end - $i);
+                    $end       = strpos($raw, $gs, $i);
+                    $qtyStr    = $end === false ? substr($raw, $i) : substr($raw, $i, $end - $i);
                     $result['qty'] = (int) $qtyStr;
-                    $i = $end === false ? $len : $end + 1;
+                    $i         = $end === false ? $len : $end + 1;
                     break;
-                default:
-                    $i = $len; // unknown AI, stop
             }
         }
 
@@ -201,23 +240,27 @@ final class BarcodeResolver
     {
         $candidates = [];
 
-        // Location by barcode or code
-        $loc = Location::where('barcode', $raw)->orWhere('code', $raw)->first();
+        // Location by barcode (exact) or code (case-insensitive)
+        $loc = Location::where('barcode', $raw)
+            ->orWhereRaw('UPPER(code) = UPPER(?)', [$raw])
+            ->first();
         if ($loc) {
             $candidates[] = new ScanResult(ScanResultType::Location, record: $loc);
         }
 
         // Item by item_barcodes — bypass VW scope (scanners see all items)
-        $itemBarcode = ItemBarcode::where('barcode', $raw)->with(['item' => fn ($q) => $q->withoutGlobalScopes()])->first();
+        $itemBarcode = ItemBarcode::where('barcode', $raw)
+            ->with(['item' => fn ($q) => $q->withoutGlobalScopes()])
+            ->first();
         if ($itemBarcode?->item) {
             $candidates[] = new ScanResult(ScanResultType::Item, record: $itemBarcode->item);
         }
 
-        // Item by SKU — bypass VW scope (scanners see all items)
+        // Item by SKU — bypass VW scope
         $item = Item::withoutGlobalScopes()->where('sku', $raw)->first();
         if ($item) {
             $alreadyFound = collect($candidates)->contains(
-                fn($r) => $r->type === ScanResultType::Item && $r->record?->id === $item->id
+                fn ($r) => $r->type === ScanResultType::Item && $r->record?->id === $item->id
             );
             if (! $alreadyFound) {
                 $candidates[] = new ScanResult(ScanResultType::Item, record: $item);
@@ -240,7 +283,7 @@ final class BarcodeResolver
 
         // Narrow by context
         if ($context?->expects !== null) {
-            $narrowed = array_filter($candidates, fn($r) => $r->type === $context->expects);
+            $narrowed = array_filter($candidates, fn ($r) => $r->type === $context->expects);
             if (count($narrowed) === 1) {
                 return array_values($narrowed)[0];
             }
