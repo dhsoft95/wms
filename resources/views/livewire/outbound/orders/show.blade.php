@@ -1274,32 +1274,59 @@
 
     {{-- Delete Confirmation Modal --}}
     @if ($showDeleteModal)
-        <div class="modal-backdrop"
-             x-data wire:click.self="$set('showDeleteModal', false)">
-            <div class="modal-box max-w-md">
-                <div class="flex items-start justify-between mb-4">
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4"
+             role="dialog"
+             aria-modal="true"
+             x-data
+             x-on:keydown.escape.window="$wire.showDeleteModal = false">
+
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+                 wire:click="$set('showDeleteModal', false)"></div>
+
+            <div class="relative z-10 w-full max-w-md rounded-2xl bg-white dark:bg-zinc-900 shadow-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
+
+                <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/[0.08]">
                     <div class="flex items-center gap-3">
-                        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                            <x-ui.icon name="trash" class="w-5 h-5 text-red-600 dark:text-red-400" />
+                        <div class="w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                            <x-ui.icon name="trash" class="w-4 h-4 text-red-600 dark:text-red-400" />
                         </div>
-                        <h3 class="text-base font-semibold text-slate-900 dark:text-white">Delete Order</h3>
+                        <h3 class="text-[15px] font-semibold text-slate-900 dark:text-white">Delete Order</h3>
                     </div>
-                    <button wire:click="$set('showDeleteModal', false)" class="icon-btn">
-                        <x-ui.icon name="x-mark" class="w-5 h-5" />
+                    <button type="button"
+                            wire:click="$set('showDeleteModal', false)"
+                            class="icon-btn -mr-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                            aria-label="Close">
+                        <x-ui.icon name="x" class="h-4 w-4" />
                     </button>
                 </div>
-                <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                    Are you sure you want to permanently delete <strong class="font-mono">{{ $this->do->number }}</strong>?
-                </p>
-                <p class="text-sm text-red-600 dark:text-red-400 mb-5">
-                    This will delete all lines, pick lists, allocations, and dispatch records. Stock movements will be reversed where applicable. This cannot be undone.
-                </p>
-                <div class="flex justify-end gap-3">
-                    <button wire:click="$set('showDeleteModal', false)" class="btn btn-secondary">Cancel</button>
-                    <button wire:click="deleteOrder" wire:loading.attr="disabled" class="btn bg-red-600 hover:bg-red-700 text-white">
-                        <x-ui.icon name="trash" class="w-4 h-4" /> Delete Permanently
+
+                <div class="px-6 py-5 space-y-3">
+                    <p class="text-sm text-slate-600 dark:text-slate-400">
+                        Permanently delete <strong class="font-mono text-slate-900 dark:text-white">{{ $this->do->number }}</strong> and all related records (lines, pick lists, allocations, dispatches)?
+                    </p>
+                    <p class="text-sm text-red-600 dark:text-red-400">
+                        Stock movements will be reversed where applicable. This cannot be undone.
+                    </p>
+                </div>
+
+                <div class="flex justify-end gap-3 px-6 py-4 bg-slate-50/80 dark:bg-white/[0.02] border-t border-slate-100 dark:border-white/[0.08] rounded-b-2xl">
+                    <button type="button"
+                            wire:click="$set('showDeleteModal', false)"
+                            class="btn btn-secondary">
+                        Cancel
+                    </button>
+                    <button type="button"
+                            wire:click="deleteOrder"
+                            wire:loading.attr="disabled"
+                            wire:target="deleteOrder"
+                            class="btn bg-red-600 hover:bg-red-700 text-white font-semibold">
+                        <span wire:loading.remove wire:target="deleteOrder">
+                            <x-ui.icon name="trash" class="w-4 h-4" /> Delete Permanently
+                        </span>
+                        <span wire:loading wire:target="deleteOrder">Deleting…</span>
                     </button>
                 </div>
+
             </div>
         </div>
     @endif

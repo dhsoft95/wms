@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace App\Livewire\Orders;
 
+use App\Models\DeliveryOrder;
+use App\Models\InternalMovement;
+use App\Models\PurchaseOrder;
+use App\Models\StockTransfer;
+use App\Models\WarehouseTransfer;
+use App\Services\Outbound\DeliveryOrderWorkflow;
 use Illuminate\Contracts\View\View;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -31,23 +37,41 @@ class Index extends Component
     #[Url]
     public string $dateTo = '';
 
-    public bool   $showTypeModal      = false;
-    public bool   $showTransferStep   = false;
+    public bool    $showTypeModal    = false;
+    public bool    $showTransferStep = false;
+
+    // Delete modal state (system-admin only)
+    public ?string $deleteType   = null;
+    public ?int    $deleteId     = null;
+    public string  $deleteNumber = '';
+
+    // Bulk selection (system-admin only)
+    /** @var array<array{type:string,id:int,number:string}> */
+    public array $selectedItems      = [];
+    public bool  $showBulkDeleteModal = false;
 
     public function updatedSearch(): void
     {
         $this->resetPage();
+        $this->selectedItems = [];
     }
 
     public function updatedTab(): void
     {
         $this->resetPage();
-        $this->statusFilter = '';
+        $this->statusFilter  = '';
+        $this->selectedItems = [];
     }
 
     public function updatedStatusFilter(): void
     {
         $this->resetPage();
+        $this->selectedItems = [];
+    }
+
+    public function updatingPage(): void
+    {
+        $this->selectedItems = [];
     }
 
     #[Computed]
@@ -117,6 +141,7 @@ class Index extends Component
         $doQ = DB::table('delivery_orders')
             ->join('virtual_warehouses', 'delivery_orders.virtual_warehouse_id', '=', 'virtual_warehouses.id')
             ->leftJoin('departments', 'delivery_orders.department_id', '=', 'departments.id')
+            ->whereNull('delivery_orders.deleted_at')
             ->select(
                 DB::raw("'mrn' as rec_type"),
                 'delivery_orders.id', 'delivery_orders.number',
@@ -164,6 +189,7 @@ class Index extends Component
         // ── Departmental transfer (TRF) query ─────────────────────────────────
         $trQ = DB::table('stock_transfers')
             ->leftJoin('virtual_warehouses as fvw', 'stock_transfers.from_virtual_warehouse_id', '=', 'fvw.id')
+            ->whereNull('stock_transfers.deleted_at')
             ->select(
                 DB::raw("'trf' as rec_type"),
                 'stock_transfers.id', 'stock_transfers.number',
@@ -239,6 +265,199 @@ class Index extends Component
 
         return $user->can('po.create') || $user->can('orders.create') || $user->can('transfers.create');
     }
+
+    // ─── Bulk selection ───────────────────────────────────────────────────────
+
+    #[Computed]
+    public function allOnPageSelected(): bool
+    {
+        if (empty($this->selectedItems) || $this->orders->isEmpty()) {
+            return false;
+        }
+        foreach ($this->orders as $order) {
+            $key = $order->rec_type . ':' . $order->id;
+            $found = false;
+            foreach ($this->selectedItems as $item) {
+                if ($item['type'] === $order->rec_type && (int) $item['id'] === (int) $order->id) {
+                    $found = true;
+                    break;
+                }
+            }
+            if (! $found) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public function selectAll(): void
+    {
+        abort_unless(auth()->user()->hasRole('system-admin'), 403);
+
+        $this->selectedItems = $this->orders->map(fn ($o) => [
+            'type'   => $o->rec_type,
+            'id'     => (int) $o->id,
+            'number' => $o->number,
+        ])->all();
+    }
+
+    public function deselectAll(): void
+    {
+        $this->selectedItems = [];
+    }
+
+    public function toggleItem(string $type, int $id, string $number): void
+    {
+        foreach ($this->selectedItems as $k => $item) {
+            if ($item['type'] === $type && (int) $item['id'] === $id) {
+                array_splice($this->selectedItems, $k, 1);
+                return;
+            }
+        }
+        $this->selectedItems[] = ['type' => $type, 'id' => $id, 'number' => $number];
+    }
+
+    public function isSelected(string $type, int $id): bool
+    {
+        foreach ($this->selectedItems as $item) {
+            if ($item['type'] === $type && (int) $item['id'] === $id) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public function bulkDelete(): void
+    {
+        abort_unless(auth()->user()->hasRole('system-admin'), 403);
+
+        if (empty($this->selectedItems)) {
+            $this->showBulkDeleteModal = false;
+            return;
+        }
+
+        $count = count($this->selectedItems);
+        $errors = [];
+
+        foreach ($this->selectedItems as $item) {
+            try {
+                DB::transaction(function () use ($item) {
+                    $this->deleteType   = $item['type'];
+                    $this->deleteId     = (int) $item['id'];
+                    $this->deleteNumber = $item['number'];
+
+                    match ($item['type']) {
+                        'po'  => $this->deletePo(),
+                        'mrn' => $this->deleteMrn(),
+                        'mov' => $this->deleteMov(),
+                        'trf' => $this->deleteTrf(),
+                        'wtr' => $this->deleteWtr(),
+                        default => null,
+                    };
+                });
+            } catch (\Throwable $e) {
+                $errors[] = $item['number'] . ': ' . $e->getMessage();
+            }
+        }
+
+        $this->selectedItems       = [];
+        $this->showBulkDeleteModal = false;
+        $this->deleteType          = null;
+        $this->deleteId            = null;
+        $this->deleteNumber        = '';
+
+        if (empty($errors)) {
+            $this->dispatch('toast', message: "{$count} " . ($count === 1 ? 'record' : 'records') . " permanently deleted.", type: 'success');
+        } else {
+            $deleted = $count - count($errors);
+            $this->dispatch('toast', message: "{$deleted}/{$count} deleted. Errors: " . implode('; ', $errors), type: 'warning');
+        }
+
+        $this->resetPage();
+    }
+
+    // ─── Delete ───────────────────────────────────────────────────────────────
+
+    public function openDeleteModal(string $type, int $id, string $number): void
+    {
+        abort_unless(auth()->user()->hasRole('system-admin'), 403);
+
+        $this->deleteType   = $type;
+        $this->deleteId     = $id;
+        $this->deleteNumber = $number;
+    }
+
+    public function deleteRecord(): void
+    {
+        abort_unless(auth()->user()->hasRole('system-admin'), 403);
+
+        try {
+            DB::transaction(function () {
+                match ($this->deleteType) {
+                    'po'  => $this->deletePo(),
+                    'mrn' => $this->deleteMrn(),
+                    'mov' => $this->deleteMov(),
+                    'trf' => $this->deleteTrf(),
+                    'wtr' => $this->deleteWtr(),
+                    default => throw new \InvalidArgumentException("Unknown record type: {$this->deleteType}"),
+                };
+            });
+
+            $this->dispatch('toast', message: "{$this->deleteNumber} permanently deleted.", type: 'success');
+        } catch (\Throwable $e) {
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+
+        $this->deleteType   = null;
+        $this->deleteId     = null;
+        $this->deleteNumber = '';
+        $this->resetPage();
+    }
+
+    private function deletePo(): void
+    {
+        $po = PurchaseOrder::findOrFail($this->deleteId);
+        $po->approvals()->delete();
+        $po->assignments()->delete();
+        $po->issues()->delete();
+        foreach ($po->grns as $grn) {
+            $grn->lines()->delete();
+            $grn->delete();
+        }
+        $po->lines()->delete();
+        // purchase_orders has no deleted_at column — hard delete directly
+        DB::table('purchase_orders')->where('id', $po->id)->delete();
+    }
+
+    private function deleteMrn(): void
+    {
+        $do = DeliveryOrder::findOrFail($this->deleteId);
+        app(DeliveryOrderWorkflow::class)->adminDelete($do, auth()->user());
+    }
+
+    private function deleteMov(): void
+    {
+        $mov = InternalMovement::findOrFail($this->deleteId);
+        $mov->lines()->delete();
+        $mov->delete();
+    }
+
+    private function deleteTrf(): void
+    {
+        $trf = StockTransfer::findOrFail($this->deleteId);
+        $trf->approvals()->delete();
+        $trf->lines()->delete();
+        $trf->delete();
+    }
+
+    private function deleteWtr(): void
+    {
+        $wtr = WarehouseTransfer::findOrFail($this->deleteId);
+        $wtr->lines()->delete();
+        $wtr->delete();
+    }
+
+    // ─── Render ───────────────────────────────────────────────────────────────
 
     public function render(): View
     {

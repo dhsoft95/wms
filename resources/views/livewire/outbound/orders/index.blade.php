@@ -191,10 +191,40 @@
             @endif
         </div>
 
+        {{-- ── Bulk action bar (system-admin only, shown when rows are selected) --}}
+        @if (count($selectedIds) > 0 && auth()->user()->hasRole('system-admin'))
+        <div class="flex items-center gap-3 px-4 py-2.5 bg-red-50 dark:bg-red-950/30 border-b border-red-200 dark:border-red-800/40">
+            <x-ui.icon name="check-circle" class="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
+            <span class="text-sm font-medium text-red-700 dark:text-red-300">
+                {{ count($selectedIds) }} {{ count($selectedIds) === 1 ? 'order' : 'orders' }} selected
+            </span>
+            <div class="flex items-center gap-2 ml-auto">
+                <button wire:click="deselectAll" type="button" class="btn btn-secondary btn-sm">
+                    Clear
+                </button>
+                <button wire:click="$set('showBulkDeleteModal', true)" type="button"
+                        class="btn btn-sm bg-red-600 hover:bg-red-700 text-white font-semibold">
+                    <x-ui.icon name="trash" class="w-3.5 h-3.5" />
+                    Delete {{ count($selectedIds) }} {{ count($selectedIds) === 1 ? 'Order' : 'Orders' }}
+                </button>
+            </div>
+        </div>
+        @endif
+
         {{-- ── Table ──────────────────────────────────────────────────────────── --}}
         <x-ui.table>
             <thead>
                 <tr>
+                    @if (auth()->user()->hasRole('system-admin'))
+                    <th class="w-10 text-center">
+                        <input type="checkbox"
+                               x-data
+                               {{ $this->allOnPageSelected ? 'checked' : '' }}
+                               :indeterminate="{{ !$this->allOnPageSelected && count($selectedIds) > 0 ? 'true' : 'false' }}"
+                               x-on:change="{{ $this->allOnPageSelected ? '$wire.deselectAll()' : '$wire.selectAll()' }}"
+                               class="rounded border-slate-300 text-simba-600 focus:ring-simba-500 dark:border-slate-600 dark:bg-slate-800" />
+                    </th>
+                    @endif
                     <th class="w-36">DO Number</th>
                     <th class="w-44">Department / VW</th>
                     <th>Consignee</th>
@@ -225,6 +255,16 @@
                         $hasRejectAction  = $order->status === $S::Submitted;
                     @endphp
                     <tr wire:key="do-{{ $order->id }}">
+
+                        {{-- Checkbox --}}
+                        @if (auth()->user()->hasRole('system-admin'))
+                        <td class="align-middle text-center w-10">
+                            <input type="checkbox"
+                                   wire:model.live="selectedIds"
+                                   value="{{ $order->id }}"
+                                   class="rounded border-slate-300 text-simba-600 focus:ring-simba-500 dark:border-slate-600 dark:bg-slate-800" />
+                        </td>
+                        @endif
 
                         {{-- DO Number --}}
                         <td class="align-middle">
@@ -382,7 +422,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="!py-16 text-center">
+                        <td colspan="{{ auth()->user()->hasRole('system-admin') ? 10 : 9 }}" class="!py-16 text-center">
                             <div class="flex flex-col items-center gap-2">
                                 <x-ui.icon name="document-text" class="w-8 h-8 text-slate-300 dark:text-slate-600" />
                                 <p class="text-sm font-medium text-slate-500 dark:text-slate-400">
@@ -471,36 +511,123 @@
         </div>
     @endif
 
+    {{-- ── Bulk Delete Confirmation Modal ────────────────────────────────────── --}}
+    @if ($showBulkDeleteModal)
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4"
+             role="dialog"
+             aria-modal="true"
+             x-data
+             x-on:keydown.escape.window="$wire.showBulkDeleteModal = false">
+
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+                 wire:click="$set('showBulkDeleteModal', false)"></div>
+
+            <div class="relative z-10 w-full max-w-md rounded-2xl bg-white dark:bg-zinc-900 shadow-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
+
+                <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/[0.08]">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                            <x-ui.icon name="trash" class="w-4 h-4 text-red-600 dark:text-red-400" />
+                        </div>
+                        <h3 class="text-[15px] font-semibold text-slate-900 dark:text-white">
+                            Delete {{ count($selectedIds) }} {{ count($selectedIds) === 1 ? 'Order' : 'Orders' }}
+                        </h3>
+                    </div>
+                    <button type="button"
+                            wire:click="$set('showBulkDeleteModal', false)"
+                            class="icon-btn -mr-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                            aria-label="Close">
+                        <x-ui.icon name="x" class="h-4 w-4" />
+                    </button>
+                </div>
+
+                <div class="px-6 py-5 space-y-3">
+                    <p class="text-sm text-slate-600 dark:text-slate-400">
+                        Permanently delete <strong class="text-slate-900 dark:text-white">{{ count($selectedIds) }} {{ count($selectedIds) === 1 ? 'order' : 'orders' }}</strong>
+                        and all related records (lines, pick lists, allocations, dispatches, approvals)?
+                    </p>
+                    <p class="text-sm text-red-600 dark:text-red-400">
+                        Stock reservations will be released and any staged pick movements reversed. This cannot be undone.
+                    </p>
+                </div>
+
+                <div class="flex justify-end gap-3 px-6 py-4 bg-slate-50/80 dark:bg-white/[0.02] border-t border-slate-100 dark:border-white/[0.08] rounded-b-2xl">
+                    <button type="button"
+                            wire:click="$set('showBulkDeleteModal', false)"
+                            class="btn btn-secondary">
+                        Cancel
+                    </button>
+                    <button type="button"
+                            wire:click="bulkDelete"
+                            wire:loading.attr="disabled"
+                            wire:target="bulkDelete"
+                            class="btn bg-red-600 hover:bg-red-700 text-white font-semibold">
+                        <span wire:loading.remove wire:target="bulkDelete">
+                            <x-ui.icon name="trash" class="w-4 h-4" /> Delete Permanently
+                        </span>
+                        <span wire:loading wire:target="bulkDelete">Deleting…</span>
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    @endif
+
     {{-- ── Delete Confirmation Modal ─────────────────────────────────────────── --}}
     @if ($deleteOrderId)
-        <div class="modal-backdrop"
-             x-data wire:click.self="$set('deleteOrderId', null)">
-            <div class="modal-box max-w-md">
-                <div class="flex items-start justify-between mb-4">
+        <div class="fixed inset-0 z-50 flex items-center justify-center p-4"
+             role="dialog"
+             aria-modal="true"
+             x-data
+             x-on:keydown.escape.window="$wire.deleteOrderId = null">
+
+            <div class="absolute inset-0 bg-black/50 backdrop-blur-[2px]"
+                 wire:click="$set('deleteOrderId', null)"></div>
+
+            <div class="relative z-10 w-full max-w-md rounded-2xl bg-white dark:bg-zinc-900 shadow-2xl ring-1 ring-black/[0.06] dark:ring-white/[0.08]">
+
+                <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-white/[0.08]">
                     <div class="flex items-center gap-3">
-                        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                            <x-ui.icon name="trash" class="w-5 h-5 text-red-600 dark:text-red-400" />
+                        <div class="w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                            <x-ui.icon name="trash" class="w-4 h-4 text-red-600 dark:text-red-400" />
                         </div>
-                        <h3 class="text-base font-semibold text-slate-900 dark:text-white">Delete Order</h3>
+                        <h3 class="text-[15px] font-semibold text-slate-900 dark:text-white">Delete Order</h3>
                     </div>
-                    <button wire:click="$set('deleteOrderId', null)" class="icon-btn">
-                        <x-ui.icon name="x-mark" class="w-5 h-5" />
+                    <button type="button"
+                            wire:click="$set('deleteOrderId', null)"
+                            class="icon-btn -mr-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                            aria-label="Close">
+                        <x-ui.icon name="x" class="h-4 w-4" />
                     </button>
                 </div>
-                <p class="text-sm text-slate-600 dark:text-slate-400 mb-2">
-                    Permanently delete this order and all related records?
-                </p>
-                <p class="text-sm text-red-600 dark:text-red-400 mb-5">
-                    Stock reservations will be released and pick movements reversed. This cannot be undone.
-                </p>
-                <div class="flex justify-end gap-3">
-                    <button wire:click="$set('deleteOrderId', null)" class="btn btn-secondary">Cancel</button>
-                    <button wire:click="deleteOrder({{ $deleteOrderId }})"
+
+                <div class="px-6 py-5 space-y-3">
+                    <p class="text-sm text-slate-600 dark:text-slate-400">
+                        Permanently delete this order and all related records (lines, pick lists, allocations, dispatches, approvals)?
+                    </p>
+                    <p class="text-sm text-red-600 dark:text-red-400">
+                        Stock reservations will be released and pick movements reversed. This cannot be undone.
+                    </p>
+                </div>
+
+                <div class="flex justify-end gap-3 px-6 py-4 bg-slate-50/80 dark:bg-white/[0.02] border-t border-slate-100 dark:border-white/[0.08] rounded-b-2xl">
+                    <button type="button"
+                            wire:click="$set('deleteOrderId', null)"
+                            class="btn btn-secondary">
+                        Cancel
+                    </button>
+                    <button type="button"
+                            wire:click="deleteOrder({{ $deleteOrderId }})"
                             wire:loading.attr="disabled"
-                            class="btn bg-red-600 hover:bg-red-700 text-white">
-                        <x-ui.icon name="trash" class="w-4 h-4" /> Delete Permanently
+                            wire:target="deleteOrder"
+                            class="btn bg-red-600 hover:bg-red-700 text-white font-semibold">
+                        <span wire:loading.remove wire:target="deleteOrder">
+                            <x-ui.icon name="trash" class="w-4 h-4" /> Delete Permanently
+                        </span>
+                        <span wire:loading wire:target="deleteOrder">Deleting…</span>
                     </button>
                 </div>
+
             </div>
         </div>
     @endif
