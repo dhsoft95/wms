@@ -7,15 +7,23 @@
         </div>
     </div>
 
-    {{-- Search card --}}
-    <div class="card max-w-lg">
-        <div class="card-body space-y-4">
-            <div>
-                <label class="label">Gate Pass Number</label>
+    {{-- Scan card --}}
+    <div class="max-w-lg space-y-4">
+        <x-scan-input
+            wire:model="scanInput"
+            :method="'processScan'"
+            placeholder="Scan gate pass or dispatch barcode..."
+            autofocus
+        />
+
+        {{-- Manual lookup fallback --}}
+        <div class="card">
+            <div class="card-body">
+                <label class="label">Manual Lookup</label>
                 <div class="flex gap-2">
                     <input wire:model="gatePassNumber" wire:keydown.enter="search"
                            type="text" placeholder="GP-2026-00001"
-                           class="input font-mono uppercase flex-1" autofocus />
+                           class="input font-mono uppercase flex-1" />
                     <button wire:click="search" class="btn btn-primary">Search</button>
                 </div>
                 @if ($scanError)

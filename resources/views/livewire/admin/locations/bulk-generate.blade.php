@@ -11,7 +11,37 @@
         </a>
     </div>
 
-    @if (! $previewing)
+    @if ($generated)
+
+        {{-- ── STEP 3: Done — print prompt ────────────────────────────────── --}}
+
+        <div class="max-w-md mx-auto text-center space-y-6 py-8">
+            <div class="w-16 h-16 rounded-2xl bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center mx-auto">
+                <x-ui.icon name="check-badge" class="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white">
+                    {{ count($createdIds) }} Location{{ count($createdIds) === 1 ? '' : 's' }} Created
+                </h3>
+                <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                    Would you like to print location labels now?
+                </p>
+            </div>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+                @can('labels.print')
+                    <button wire:click="printAndFinish" class="btn btn-primary gap-1.5 w-full sm:w-auto justify-center">
+                        <x-ui.icon name="printer" class="w-4 h-4" />
+                        Print Labels &amp; Finish
+                    </button>
+                @endcan
+                <a href="{{ route('admin.locations.index') }}" wire:navigate
+                   class="btn btn-secondary w-full sm:w-auto text-center">
+                    Skip
+                </a>
+            </div>
+        </div>
+
+    @elseif (! $previewing)
 
         {{-- ── STEP 1: Configuration Form ─────────────────────────────────── --}}
 

@@ -8,6 +8,14 @@
         </div>
     </div>
 
+    {{-- Scan Input --}}
+    <x-scan-input
+        wire:model="scanInput"
+        :method="'processScan'"
+        placeholder="Scan delivery order (DO-) or dispatch (DSP-) barcode..."
+        autofocus
+    />
+
     <div class="card">
         {{-- Tabs + Search --}}
         <div class="card-header flex-col sm:flex-row gap-3">
@@ -223,6 +231,30 @@
                         @endif
                     </div>
                 </div>
+
+                {{-- LPN Load Check --}}
+                @if (count($loadedLpnCodes) > 0 || true)
+                    <div class="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-2.5 bg-slate-50 dark:bg-white/[0.04] border-b border-slate-200 dark:border-slate-700">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">LPN Load Check</span>
+                            <span class="text-xs text-slate-500">{{ count($loadedLpnCodes) }} scanned</span>
+                        </div>
+                        @if (count($loadedLpnCodes) > 0)
+                            <div class="divide-y divide-slate-100 dark:divide-white/[0.06] max-h-36 overflow-y-auto">
+                                @foreach ($loadedLpnCodes as $lpnCode)
+                                    <div class="flex items-center gap-2 px-4 py-2 text-sm">
+                                        <x-ui.icon name="check-circle" class="w-4 h-4 text-emerald-500 shrink-0" />
+                                        <span class="mono text-slate-800 dark:text-slate-200">{{ $lpnCode }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        @else
+                            <p class="px-4 py-3 text-sm text-slate-400 dark:text-slate-500">
+                                Scan LPN barcodes to verify they are loaded on the vehicle.
+                            </p>
+                        @endif
+                    </div>
+                @endif
 
                 {{-- Short-pick warning --}}
                 @if ($shortLines->isNotEmpty())

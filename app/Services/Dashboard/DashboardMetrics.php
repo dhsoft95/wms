@@ -5,14 +5,19 @@ declare(strict_types=1);
 namespace App\Services\Dashboard;
 
 use App\Enums\ContainerStatus;
+use App\Enums\Inbound\PurchaseOrderStatus;
+use App\Enums\Inventory\DisposalStatus;
 use App\Enums\Inventory\MovementType;
+use App\Enums\Inventory\StockStatusRequestStatus;
 use App\Enums\LocationLevel;
 use App\Enums\LocationStatus;
 use App\Enums\Outbound\DeliveryOrderStatus;
 use App\Enums\PutawayTaskStatus;
 use App\Enums\TransferStatus;
+use App\Enums\Transfers\WarehouseTransferStatus;
 use App\Models\CycleCountLine;
 use App\Models\DeliveryOrder;
+use App\Models\DisposalRequest;
 use App\Models\Grn;
 use App\Models\GrnLine;
 use App\Models\GrnVarianceApproval;
@@ -25,11 +30,17 @@ use App\Models\Location;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderApproval;
 use App\Models\PutawayTask;
+use App\Models\StockStatusRequest;
 use App\Models\StockTransfer;
 use App\Models\User;
 use App\Models\VirtualWarehouse;
+use App\Models\WarehouseTransfer;
+use App\Services\Inbound\ApprovalChainService;
 use App\Services\Inbound\ContainerQueryService;
+use App\Services\Inventory\DisposalWorkflow;
 use App\Services\Inventory\StockQueryService;
+use App\Services\Inventory\StockStatusRequestWorkflow;
+use App\Services\Inventory\TransferApprovalService;
 use Carbon\Carbon;
 use Carbon\CarbonPeriod;
 use Illuminate\Support\Collection;
@@ -89,13 +100,127 @@ final class DashboardMetrics
     public function pendingApprovals(User $user): array
     {
         return $this->remember('pending_approvals', $user, null, function () use ($user) {
-            $poCount  = PurchaseOrderApproval::where('user_id', $user->id)->whereNull('action')->count();
-            $grnCount = GrnVarianceApproval::where('decided_by', null)->whereHas('grn', fn ($q) => $q->where('warehouse_id', '>', 0))->count();
+            $approvalChain    = app(ApprovalChainService::class);
+            $transferApproval = app(TransferApprovalService::class);
+            $disposalWf       = app(DisposalWorkflow::class);
+            $ssrWf            = app(StockStatusRequestWorkflow::class);
+
+            // PO approvals — same filter as Approvals/Index
+            $poCount = PurchaseOrder::with(['department', 'approvals' => fn ($q) => $q->latest()])
+                ->whereIn('status', [
+                    PurchaseOrderStatus::PendingApproval,
+                    PurchaseOrderStatus::ReturnedForCorrection,
+                    PurchaseOrderStatus::AwaitingRequesterCorrection,
+                    PurchaseOrderStatus::ApprovedPendingAcceptance,
+                ])
+                ->get()
+                ->filter(function ($po) use ($user, $approvalChain) {
+                    if ($user->hasRole('system-admin')) return true;
+                    if ($user->hasRole('warehouse-manager') && $user->can('po.accept')
+                        && $po->status === PurchaseOrderStatus::ApprovedPendingAcceptance) return true;
+                    if ($po->status === PurchaseOrderStatus::ReturnedForCorrection
+                        && $po->department?->head_user_id === $user->id) return true;
+                    if ($po->status === PurchaseOrderStatus::PendingApproval
+                        && $po->requested_by === $user->id
+                        && $po->department?->head_user_id !== $user->id) return false;
+                    if ($po->status === PurchaseOrderStatus::AwaitingRequesterCorrection
+                        && $po->requested_by === $user->id) return true;
+                    return $approvalChain->canActAtCurrentLevel($po, $user)
+                        || $approvalChain->canActOnCategoryLevel($po, $user)
+                        || $approvalChain->canActAsFallbackApprover($po, $user);
+                })
+                ->count();
+
+            // DO approvals
+            $doCount = DeliveryOrder::with(['department'])
+                ->whereIn('status', [
+                    DeliveryOrderStatus::Submitted,
+                    DeliveryOrderStatus::Approved,
+                    DeliveryOrderStatus::ReturnedForCorrection,
+                    DeliveryOrderStatus::AwaitingRequesterCorrection,
+                ])
+                ->get()
+                ->filter(function ($do) use ($user) {
+                    if ($user->hasRole('system-admin')) return true;
+                    if ($do->status === DeliveryOrderStatus::Approved
+                        && $user->hasRole('warehouse-manager') && $user->can('orders.allocate')) return true;
+                    if ($do->status === DeliveryOrderStatus::ReturnedForCorrection
+                        && $do->department?->head_user_id === $user->id) return true;
+                    if ($do->status === DeliveryOrderStatus::Submitted
+                        && $do->requested_by === $user->id
+                        && $do->department?->head_user_id !== $user->id) return false;
+                    if ($do->status === DeliveryOrderStatus::AwaitingRequesterCorrection
+                        && $do->requested_by === $user->id) return true;
+                    return $do->status === DeliveryOrderStatus::Submitted
+                        && $do->department?->head_user_id === $user->id;
+                })
+                ->count();
+
+            // Disposal approvals
+            $disposalCount = DisposalRequest::with(['department'])
+                ->whereIn('status', [
+                    DisposalStatus::Submitted->value,
+                    DisposalStatus::PendingWarehouseManagerApproval->value,
+                ])
+                ->get()
+                ->filter(fn ($req) => $disposalWf->canApprove($req, $user))
+                ->count();
+
+            // SSR approvals
+            $ssrCount = StockStatusRequest::with(['department'])
+                ->whereIn('status', [
+                    StockStatusRequestStatus::Submitted->value,
+                    StockStatusRequestStatus::PendingWarehouseManagerApproval->value,
+                ])
+                ->get()
+                ->filter(fn ($req) => $ssrWf->canApprove($req, $user))
+                ->count();
+
+            // STN approvals
+            $stnCount = StockTransfer::with(['department', 'approvals' => fn ($q) => $q->latest()])
+                ->whereIn('status', [
+                    TransferStatus::Submitted,
+                    TransferStatus::ReturnedForCorrection,
+                    TransferStatus::AwaitingRequesterCorrection,
+                ])
+                ->get()
+                ->filter(function ($stn) use ($user, $transferApproval) {
+                    if ($user->hasRole('system-admin')) return true;
+                    if ($stn->status === TransferStatus::Submitted
+                        && $stn->department?->head_user_id === $user->id) return true;
+                    if ($stn->status === TransferStatus::ReturnedForCorrection
+                        && $stn->department?->head_user_id === $user->id) return true;
+                    if ($stn->status === TransferStatus::AwaitingRequesterCorrection
+                        && $stn->created_by === $user->id) return true;
+                    if ($stn->status === TransferStatus::Submitted
+                        && $stn->created_by === $user->id
+                        && ! $transferApproval->canActAtCurrentLevel($stn, $user)) return false;
+                    return $transferApproval->canActAtCurrentLevel($stn, $user);
+                })
+                ->count();
+
+            // WTR approvals
+            $wtrCount = WarehouseTransfer::whereIn('status', [
+                    WarehouseTransferStatus::Submitted,
+                    WarehouseTransferStatus::Accepted,
+                ])
+                ->get()
+                ->filter(function ($wtr) use ($user) {
+                    if ($user->hasRole('system-admin')) return true;
+                    if ($wtr->status === WarehouseTransferStatus::Submitted
+                        && $user->hasRole('warehouse-manager')) return true;
+                    if ($wtr->status === WarehouseTransferStatus::Accepted
+                        && $user->can('transfers.execute')) return true;
+                    return false;
+                })
+                ->count();
+
+            $total = $poCount + $doCount + $disposalCount + $ssrCount + $stnCount + $wtrCount;
 
             return [
                 'po_count'  => $poCount,
-                'grn_count' => $grnCount,
-                'total'     => $poCount + $grnCount,
+                'grn_count' => 0,
+                'total'     => $total,
             ];
         });
     }
@@ -534,11 +659,16 @@ final class DashboardMetrics
                     ->where('stock_balances.qty_on_hand', '>', 0)
                 )->count();
 
-            $pct = $total > 0 ? round(($withStock / $total) * 100, 1) : 0;
+            $available = $total - $withStock;
+            $pct       = $total > 0 ? round(($withStock / $total) * 100, 1) : 0.0;
 
             return [
-                'categories' => ['Utilised'],
+                'total'      => $total,
+                'occupied'   => $withStock,
+                'available'  => $available,
+                'pct'        => $pct,
                 'series'     => [$pct],
+                'categories' => ['Utilised'],
             ];
         });
     }

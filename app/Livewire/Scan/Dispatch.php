@@ -63,6 +63,7 @@ class Dispatch extends Component
                     'driver_name'  => $this->driverName,
                     'driver_phone' => $this->driverPhone ?: null,
                     'seal_no'      => $this->sealNo ?: null,
+                    'device'       => session('scan_device_code'),
                 ],
                 auth()->user(),
                 "scan:dispatch:{$do->id}"

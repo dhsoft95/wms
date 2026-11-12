@@ -3,6 +3,7 @@
 namespace App\Livewire\Admin\Locations;
 
 use App\Actions\Foundation\BulkGenerateLocationsAction;
+use App\Enums\LabelTemplateType;
 use App\Models\Location;
 use App\Models\Warehouse;
 use Illuminate\Contracts\View\View;
@@ -20,9 +21,13 @@ class BulkGenerate extends Component
     public string $segmentEnd       = '';
     public string $segmentPadding   = '2';
     public bool   $previewing       = false;
+    public bool   $generated        = false;
 
     /** @var array<int, array{code: string, segment: string, exists: bool}> */
     public array $previewList = [];
+
+    /** @var array<int> IDs of locations created in the last generate() call */
+    public array $createdIds = [];
 
     // ─── Computed ─────────────────────────────────────────────────────────────
 
@@ -36,7 +41,7 @@ class BulkGenerate extends Component
     public function parentOptions(): \Illuminate\Database\Eloquent\Collection
     {
         if (! $this->warehouseId) {
-            return collect();
+            return Location::whereNull('id')->get(); // empty Eloquent collection
         }
 
         return Location::where('warehouse_id', $this->warehouseId)
@@ -199,6 +204,20 @@ class BulkGenerate extends Component
             message: "{$result['created']} location(s) created, {$result['skipped']} skipped (already exist).",
             type: 'success'
         );
+
+        $this->createdIds = $result['ids'];
+        $this->generated  = true;
+        $this->previewing = false;
+    }
+
+    public function printAndFinish(): void
+    {
+        if (! empty($this->createdIds)) {
+            $this->dispatch('open-label-print',
+                type: \App\Enums\LabelTemplateType::Location->value,
+                ids:  $this->createdIds,
+            );
+        }
 
         $this->redirect(route('admin.locations.index'), navigate: true);
     }

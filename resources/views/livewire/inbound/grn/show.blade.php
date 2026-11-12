@@ -68,6 +68,15 @@
                 @endcan
             @endif
 
+            @can('labels.print')
+                @if ($this->lpns->isNotEmpty())
+                    <button wire:click="printAllLpns" class="btn btn-secondary gap-1.5">
+                        <x-ui.icon name="printer" class="w-4 h-4" />
+                        Print LPN Labels ({{ $this->lpns->count() }})
+                    </button>
+                @endif
+            @endcan
+
             @if ($grn->number)
                 <x-ui.pdf-viewer :url="route('inbound.grn.document', $grn)" label="GRN Document"
                                  btnClass="btn btn-secondary gap-1.5">
@@ -164,6 +173,7 @@
                 @foreach ([
                     'lines'    => 'Lines (' . $grn->lines()->count() . ')',
                     'receipts' => 'Receipts (' . $grn->receipts()->count() . ')',
+                    'lpns'     => 'LPNs (' . $this->lpns->count() . ')',
                     'putaway'  => 'Putaway (' . $grn->putawayTasks()->count() . ')',
                     'activity' => 'Activity',
                 ] as $tab => $label)
@@ -279,6 +289,55 @@
                 @endforelse
             </tbody>
         </x-ui.table>
+        @endif
+
+        {{-- LPNs Tab --}}
+        @if ($activeTab === 'lpns')
+        <div class="p-4 space-y-3">
+
+            @can('labels.print')
+                @if ($this->lpns->isNotEmpty())
+                <div class="flex justify-end">
+                    <button wire:click="printAllLpns" class="btn btn-secondary gap-1.5">
+                        <x-ui.icon name="printer" class="w-4 h-4" />
+                        Print All LPN Labels ({{ $this->lpns->count() }})
+                    </button>
+                </div>
+                @endif
+            @endcan
+
+            @forelse ($this->lpns as $lpn)
+            <div wire:key="lpn-{{ $lpn->id }}"
+                 class="flex items-center justify-between gap-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-white/[0.04] px-4 py-3">
+                <div class="flex items-center gap-3 min-w-0">
+                    <div class="w-8 h-8 rounded-lg bg-simba-50 dark:bg-simba-900/30 flex items-center justify-center shrink-0">
+                        <x-ui.icon name="tag" class="w-4 h-4 text-simba-600 dark:text-simba-400" />
+                    </div>
+                    <div class="min-w-0">
+                        <p class="font-mono text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $lpn->code }}</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            {{ $lpn->currentLocation?->code ? 'At: ' . $lpn->currentLocation->code : 'Not put away' }}
+                            @if ($lpn->print_count > 0)
+                                &middot; Printed {{ $lpn->print_count }}×
+                            @endif
+                        </p>
+                    </div>
+                </div>
+                @can('labels.print')
+                <button wire:click="printLpn({{ $lpn->id }})"
+                        class="btn btn-secondary btn-xs gap-1 shrink-0">
+                    <x-ui.icon name="printer" class="w-3.5 h-3.5" />
+                    Print
+                </button>
+                @endcan
+            </div>
+            @empty
+            <div class="py-10 text-center">
+                <x-ui.icon name="tag" class="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600" />
+                <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">No LPNs generated for this GRN yet.</p>
+            </div>
+            @endforelse
+        </div>
         @endif
 
         {{-- Putaway Tasks Tab --}}

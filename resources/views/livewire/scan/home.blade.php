@@ -1,79 +1,55 @@
-<div class="space-y-4">
-    <div class="rounded-2xl bg-white dark:bg-slate-900 p-5 shadow-sm border border-slate-200 dark:border-slate-800">
-        <p class="text-xs text-slate-500 uppercase tracking-wider mb-1">Logged in as</p>
-        <p class="font-semibold text-slate-800 dark:text-slate-100">{{ auth()->user()->name }}</p>
-        <p class="text-sm text-slate-400">{{ session('scan_device_code', 'Unknown Device') }} &middot; {{ now()->format('D, d M Y · H:i') }}</p>
+@php
+$greeting = match(true) {
+    now()->hour < 12 => 'Good morning',
+    now()->hour < 17 => 'Good afternoon',
+    default          => 'Good evening',
+};
+
+$operations = [
+    ['permission' => 'scan.receive',  'route' => 'scan.receive',  'icon' => 'inbox',          'label' => 'Receive',    'desc' => 'Scan incoming goods'],
+    ['permission' => 'scan.putaway',  'route' => 'scan.putaway',  'icon' => 'archive',        'label' => 'Putaway',    'desc' => 'Assign bin location'],
+    ['permission' => 'scan.lookup',   'route' => 'scan.lookup',   'icon' => 'search',         'label' => 'Lookup',     'desc' => 'Check stock, bin or serial'],
+    ['permission' => 'scan.pick',     'route' => 'scan.pick',     'icon' => 'clipboard-list', 'label' => 'Pick',       'desc' => 'Fulfil a pick list'],
+    ['permission' => 'scan.dispatch', 'route' => 'scan.dispatch', 'icon' => 'truck',          'label' => 'Dispatch',   'desc' => 'Process outbound shipment'],
+    ['permission' => 'scan.gate',     'route' => 'scan.gate',     'icon' => 'check',          'label' => 'Gate Check', 'desc' => 'Verify vehicle exit'],
+];
+
+$visible = array_filter($operations, fn ($op) => auth()->user()->can($op['permission']));
+@endphp
+
+<div class="space-y-5">
+
+    {{-- Greeting card --}}
+    <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-5 py-4 shadow-sm">
+        <p class="font-semibold text-slate-800 dark:text-slate-100">{{ $greeting }}</p>
+        <p class="mt-0.5 text-sm text-slate-400">{{ now()->format('l, d M Y') }} &middot; {{ now()->format('H:i') }}</p>
     </div>
 
-    <div class="flex items-center justify-between px-1">
-        <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Scan Operations</p>
-        <button x-data="{muted: localStorage.getItem('scan_muted')==='1'}"
-                @click="muted=!muted; localStorage.setItem('scan_muted',muted?'1':'0'); ScanFeedback.muted=muted"
-                class="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1">
-            <x-ui.icon name="volume-2" class="w-4 h-4" />
-            <span x-text="muted ? 'Sound off' : 'Sound on'">Sound on</span>
-        </button>
+    {{-- Operations grid --}}
+    @if (count($visible) > 0)
+    <div>
+        <p class="mb-3 px-1 text-xs font-semibold uppercase tracking-wider text-slate-400">Scan Operations</p>
+
+        <div class="grid grid-cols-2 gap-3">
+            @foreach ($visible as $op)
+            <a href="{{ route($op['route']) }}" wire:navigate
+               class="group flex min-h-[120px] flex-col gap-3 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 shadow-sm transition
+                      hover:border-simba-200 dark:hover:border-simba-900/60 hover:shadow-md
+                      active:scale-[0.97]
+                      focus:outline-none focus-visible:ring-2 focus-visible:ring-simba-600">
+                <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-simba-50 text-simba-600 dark:bg-simba-950/40 dark:text-simba-300 transition group-hover:bg-simba-100 dark:group-hover:bg-simba-950/60">
+                    <x-ui.icon name="{{ $op['icon'] }}" class="size-5" />
+                </span>
+                <div class="min-w-0">
+                    <p class="font-bold text-slate-900 dark:text-slate-100">{{ $op['label'] }}</p>
+                    <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ $op['desc'] }}</p>
+                </div>
+            </a>
+            @endforeach
+        </div>
     </div>
-
-    @if(auth()->user()->can('scan.receive'))
-    <a href="{{ route('scan.receive') }}" wire:navigate class="scan-btn scan-btn-primary">
-        <x-ui.icon name="inbox" class="w-7 h-7" />
-        <div class="text-left">
-            <p class="font-bold">Receive</p>
-            <p class="text-sm text-simba-200 font-normal">Scan incoming goods</p>
-        </div>
-    </a>
+    @else
+    <p class="text-center text-sm text-slate-400 py-8">No scan operations are available for your account.</p>
     @endif
 
-    @if(auth()->user()->can('scan.putaway'))
-    <a href="{{ route('scan.putaway') }}" wire:navigate class="scan-btn scan-btn-secondary">
-        <x-ui.icon name="archive" class="w-7 h-7 text-simba-600" />
-        <div class="text-left">
-            <p class="font-bold">Putaway</p>
-            <p class="text-sm text-slate-400 font-normal">Assign bin location</p>
-        </div>
-    </a>
-    @endif
-
-    {{-- Scanner quick-move hidden: use internal movement workflow from Orders instead --}}
-
-    @if(auth()->user()->can('scan.lookup'))
-    <a href="{{ route('scan.lookup') }}" wire:navigate class="scan-btn scan-btn-secondary">
-        <x-ui.icon name="search" class="w-7 h-7 text-simba-600" />
-        <div class="text-left">
-            <p class="font-bold">Lookup</p>
-            <p class="text-sm text-slate-400 font-normal">Check stock, bin or serial</p>
-        </div>
-    </a>
-    @endif
-
-    @if(auth()->user()->can('scan.pick'))
-    <a href="{{ route('scan.pick') }}" wire:navigate class="scan-btn scan-btn-secondary">
-        <x-ui.icon name="clipboard-list" class="w-7 h-7 text-simba-600" />
-        <div class="text-left">
-            <p class="font-bold">Pick</p>
-            <p class="text-sm text-slate-400 font-normal">Fulfil a pick list</p>
-        </div>
-    </a>
-    @endif
-
-    @if(auth()->user()->can('scan.dispatch'))
-    <a href="{{ route('scan.dispatch') }}" wire:navigate class="scan-btn scan-btn-secondary">
-        <x-ui.icon name="truck" class="w-7 h-7 text-simba-600" />
-        <div class="text-left">
-            <p class="font-bold">Dispatch</p>
-            <p class="text-sm text-slate-400 font-normal">Process outbound shipment</p>
-        </div>
-    </a>
-    @endif
-
-    @if(auth()->user()->can('scan.gate'))
-    <a href="{{ route('scan.gate') }}" wire:navigate class="scan-btn scan-btn-secondary">
-        <x-ui.icon name="check" class="w-7 h-7 text-simba-600" />
-        <div class="text-left">
-            <p class="font-bold">Gate Check</p>
-            <p class="text-sm text-slate-400 font-normal">Verify vehicle exit</p>
-        </div>
-    </a>
-    @endif
 </div>

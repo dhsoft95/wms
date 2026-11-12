@@ -252,7 +252,7 @@
         </td>
         <td width="45%">
             <div class="doc-title">Goods Received Note</div>
-            <div class="doc-sub">Original — retain for your records</div>
+            <div class="doc-sub">Original retain for your records</div>
             <table class="meta">
                 <tr><td class="k">GRN No.</td>   <td class="v code">{{ $grn->number }}</td></tr>
                 @if ($po)

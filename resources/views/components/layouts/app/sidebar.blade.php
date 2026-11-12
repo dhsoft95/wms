@@ -133,7 +133,7 @@ $hasLogo = !empty($logoUrl);
     ></div>
 </div>
 
-<div class="h-screen flex overflow-hidden">
+<div class="min-h-dvh flex">
 
     {{-- Mobile sidebar overlay --}}
     <div
@@ -155,7 +155,7 @@ $hasLogo = !empty($logoUrl);
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
             sidebarRail ? 'w-[72px]' : 'w-64',
         ]"
-        class="fixed inset-y-0 left-0 z-40 lg:static flex flex-col shrink-0 glass-nav dark:glass-nav-dark transition-all duration-200 ease-in-out"
+        class="fixed inset-y-0 left-0 z-40 lg:sticky lg:top-0 lg:h-dvh flex flex-col shrink-0 glass-nav dark:glass-nav-dark transition-all duration-200 ease-in-out"
         style="border-right: 1px solid rgb(255 255 255 / 0.4);"
         :style="darkMode ? 'border-right-color: rgb(255 255 255 / 0.1)' : 'border-right-color: rgb(255 255 255 / 0.4)'"
     >
@@ -238,7 +238,7 @@ $hasLogo = !empty($logoUrl);
     </aside>
 
     {{-- ─── Main column ─────────────────────────────────────────────────────── --}}
-    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+    <div class="flex-1 flex flex-col min-w-0">
 
         {{-- Topbar --}}
         <header class="h-16 shrink-0 flex items-center gap-3 px-4 sm:px-6 glass-nav dark:glass-nav-dark sticky top-0 z-20 no-print"
@@ -338,7 +338,7 @@ $hasLogo = !empty($logoUrl);
             </div>
         </header>
 
-        <main class="flex-1 overflow-y-auto">
+        <main class="flex-1">
             <div class="w-full max-w-[1600px] mx-auto px-6 lg:px-8 xl:px-10 py-8">
                 {{ $slot }}
             </div>
@@ -354,6 +354,9 @@ $hasLogo = !empty($logoUrl);
 
 {{-- Stock validation error dialog --}}
 <x-ui.stock-alert-dialog />
+
+{{-- Label print modal --}}
+<livewire:labels.print-modal />
 
 {{-- ─── Global loading indicator ───────────────────────────────────────────── --}}
 

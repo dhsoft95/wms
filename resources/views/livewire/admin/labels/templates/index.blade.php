@@ -61,6 +61,7 @@
                     <tr>
                         <th class="px-4 py-3">Name</th>
                         <th class="px-4 py-3">Type</th>
+                        <th class="px-4 py-3">Mode</th>
                         <th class="px-4 py-3">Size (mm)</th>
                         <th class="px-4 py-3">DPI</th>
                         <th class="px-4 py-3">Default</th>
@@ -84,8 +85,17 @@
                             <span class="badge {{ $template->type->color() }}">{{ $template->type->label() }}</span>
                         </td>
 
+                        {{-- Mode --}}
+                        <td class="px-4 py-3.5">
+                            @if (($template->settings['mode'] ?? 'custom') === 'simple')
+                                <span class="badge badge-green text-xs">Simple</span>
+                            @else
+                                <span class="badge badge-slate text-xs">Custom</span>
+                            @endif
+                        </td>
+
                         {{-- Size --}}
-                        <td class="px-4 py-3.5 text-slate-600 dark:text-slate-400 mono text-sm">
+                        <td class="px-4 py-3.5 text-slate-600 dark:text-slate-400 font-mono text-sm">
                             {{ $template->width_mm }} × {{ $template->height_mm }}
                         </td>
 
@@ -130,7 +140,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-5 py-16 text-center">
+                        <td colspan="8" class="px-5 py-16 text-center">
                             <x-ui.icon name="tag" class="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600" />
                             <p class="mt-3 font-medium text-slate-900 dark:text-white">No label templates found</p>
                             <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
@@ -146,6 +156,7 @@
                         <tr class="skeleton-row">
                             <td class="px-4"><div class="skeleton-cell w-48"></div></td>
                             <td class="px-4"><div class="skeleton-cell w-24"></div></td>
+                            <td class="px-4"><div class="skeleton-cell w-16"></div></td>
                             <td class="px-4"><div class="skeleton-cell w-20"></div></td>
                             <td class="px-4"><div class="skeleton-cell w-12"></div></td>
                             <td class="px-4"><div class="skeleton-cell w-16"></div></td>

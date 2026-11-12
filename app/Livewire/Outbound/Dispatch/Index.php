@@ -7,8 +7,11 @@ namespace App\Livewire\Outbound\Dispatch;
 use App\Enums\Outbound\ContainerSize;
 use App\Enums\Outbound\DeliveryOrderStatus;
 use App\Enums\Outbound\PackageType;
+use App\Enums\ScanResultType;
+use App\Livewire\Concerns\HandlesScans;
 use App\Models\DeliveryOrder;
 use App\Models\Dispatch as DispatchModel;
+use App\Models\Inventory\Lpn;
 use App\Models\Partner;
 use App\Services\Outbound\DispatchService;
 use Illuminate\Contracts\View\View;
@@ -20,6 +23,7 @@ use Livewire\WithPagination;
 class Index extends Component
 {
     use WithPagination;
+    use HandlesScans;
 
     public string $search = '';
     public string $tab    = 'ready';   // 'ready' | 'recent'
@@ -42,6 +46,10 @@ class Index extends Component
     // Gate verify modal
     public bool  $showGateModal  = false;
     public ?int  $actionGatePassId = null;
+
+    // LPN load-check (populated when dispatch modal opens)
+    public array $loadedLpnCodes   = [];
+    public array $expectedLpnCodes = [];
 
     public function updatedSearch(): void { $this->resetPage(); }
     public function updatedTab(): void    { $this->resetPage(); }
@@ -109,6 +117,62 @@ class Index extends Component
         return $this->packageType === PackageType::Container->value;
     }
 
+    // ─── Scan ─────────────────────────────────────────────────────────────────
+
+    public function processScan(): void
+    {
+        $result = $this->resolveScan();
+        if ($result === null) return;
+
+        if (! $result->ok()) {
+            $this->scanFail($result->error ?? 'Barcode not recognised.');
+            return;
+        }
+
+        match ($result->type) {
+            ScanResultType::DispatchOrder => $this->openDispatchForScan($result->record),
+            ScanResultType::Dispatch      => $this->openDispatchByDsp($result->record),
+            ScanResultType::Lpn           => $this->checkLpn($result->record),
+            default                       => $this->scanFail('Not a dispatch order or LPN barcode.'),
+        };
+    }
+
+    private function openDispatchForScan(?DeliveryOrder $do): void
+    {
+        if (! $do) {
+            $this->scanFail('Delivery order not found.');
+            return;
+        }
+        $this->openDispatchModal($do->getKey());
+        $this->scanOk("DO {$do->number} opened.");
+    }
+
+    private function openDispatchByDsp(?DispatchModel $dispatch): void
+    {
+        if (! $dispatch || ! $dispatch->delivery_order_id) {
+            $this->scanFail('Dispatch not found.');
+            return;
+        }
+        $this->openDispatchModal($dispatch->delivery_order_id);
+        $this->scanOk("Dispatch {$dispatch->number} opened.");
+    }
+
+    private function checkLpn(?Lpn $lpn): void
+    {
+        if (! $this->showDispatchModal) {
+            $this->scanFail('Open a dispatch first, then scan LPNs.');
+            return;
+        }
+        if (! $lpn) {
+            $this->scanFail('LPN not found.');
+            return;
+        }
+        if (! in_array($lpn->code, $this->loadedLpnCodes, true)) {
+            $this->loadedLpnCodes[] = $lpn->code;
+        }
+        $this->scanOk("LPN {$lpn->code} loaded.");
+    }
+
     // ─── Actions ──────────────────────────────────────────────────────────────
 
     public function openDispatchModal(int $doId): void
@@ -129,6 +193,7 @@ class Index extends Component
         $this->createBackorder      = $do->lines->some(
             fn ($l) => bccomp((string) $l->picked_qty, (string) $l->requested_qty_base, 4) < 0
         );
+        $this->loadedLpnCodes       = [];
         $this->showDispatchModal    = true;
         unset($this->actionDo);
     }
@@ -146,6 +211,7 @@ class Index extends Component
     {
         $this->showDispatchModal = false;
         $this->actionDoId        = null;
+        $this->loadedLpnCodes    = [];
         unset($this->actionDo);
     }
 

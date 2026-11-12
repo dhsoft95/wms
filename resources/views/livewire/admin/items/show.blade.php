@@ -30,6 +30,12 @@
             <a href="{{ route('admin.items.index') }}" wire:navigate class="btn btn-secondary btn-sm">
                 <x-ui.icon name="arrows" class="h-4 w-4" /> Back
             </a>
+            @can('labels.print')
+                <button @click="$dispatch('open-label-print', { type: 'item', ids: [{{ $item->id }}] })"
+                        class="btn btn-secondary gap-1.5">
+                    <x-ui.icon name="printer" class="h-4 w-4" /> Print Label
+                </button>
+            @endcan
             @can('items.edit')
                 <a href="{{ route('admin.items.edit', $item) }}" wire:navigate class="btn btn-secondary">
                     <x-ui.icon name="cog" class="h-4 w-4" /> Edit Item

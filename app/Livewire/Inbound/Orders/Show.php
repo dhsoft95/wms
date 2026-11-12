@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Livewire\Inbound\Orders;
 
 use App\Enums\Inbound\PurchaseOrderStatus;
+use App\Livewire\Concerns\HandlesScans;
 use App\Livewire\Concerns\HasPutawayModal;
 use App\Models\Location;
 use App\Models\PoIssue;
@@ -22,6 +23,7 @@ use Livewire\Component;
 class Show extends Component
 {
     use HasPutawayModal;
+    use HandlesScans;
 
     public PurchaseOrder $purchaseOrder;
 

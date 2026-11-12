@@ -145,13 +145,13 @@
                                     />
                                 @endcan
 
-                                {{-- Print Label (always, disabled) --}}
+                                @can('labels.print')
                                 <x-ui.row-actions.item
                                     icon="printer"
                                     label="Print Label"
-                                    :disabled="true"
-                                    hint="Available in Module 7"
+                                    @click="$dispatch('open-label-print', { type: 'item', ids: [{{ $item->id }}] })"
                                 />
+                                @endcan
 
                                 <x-ui.row-actions.divider />
 

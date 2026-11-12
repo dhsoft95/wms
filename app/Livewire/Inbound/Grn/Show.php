@@ -3,6 +3,8 @@
 namespace App\Livewire\Inbound\Grn;
 
 use App\Enums\GrnStatus;
+use App\Enums\LabelTemplateType;
+use App\Livewire\Concerns\HandlesScans;
 use App\Livewire\Concerns\HasPutawayModal;
 use App\Models\Grn;
 use App\Models\PutawayTask;
@@ -14,6 +16,7 @@ use Livewire\Component;
 class Show extends Component
 {
     use HasPutawayModal;
+    use HandlesScans;
 
     public Grn $grn;
 
@@ -181,6 +184,29 @@ class Show extends Component
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }
     }
+
+    // ─── LPN Labels ───────────────────────────────────────────────────────────
+
+    public function printAllLpns(): void
+    {
+        $ids = $this->lpns->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if (empty($ids)) return;
+
+        $this->dispatch('open-label-print',
+            type: LabelTemplateType::PalletLpn->value,
+            ids:  $ids,
+        );
+    }
+
+    public function printLpn(int $lpnId): void
+    {
+        $this->dispatch('open-label-print',
+            type: LabelTemplateType::PalletLpn->value,
+            ids:  [$lpnId],
+        );
+    }
+
+    // ─── Workflow ─────────────────────────────────────────────────────────────
 
     public function cancel(): void
     {

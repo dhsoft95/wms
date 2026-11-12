@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->appendToGroup('web', \App\Http\Middleware\ScannerOnly::class);
+        $middleware->appendToGroup('web', \App\Http\Middleware\RegisterScannerDevice::class);
 
         $middleware->alias([
             'role'       => \Spatie\Permission\Middleware\RoleMiddleware::class,

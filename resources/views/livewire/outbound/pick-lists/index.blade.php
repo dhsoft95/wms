@@ -8,6 +8,14 @@
         </div>
     </div>
 
+    {{-- Scan Input --}}
+    <x-scan-input
+        wire:model="scanInput"
+        :method="'processScan'"
+        placeholder="Scan pick list (PCK-) or delivery order (DO-) barcode..."
+        autofocus
+    />
+
     <div class="card">
         {{-- Status Tabs + Search --}}
         <div class="card-header flex-col sm:flex-row gap-3">

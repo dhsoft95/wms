@@ -1,102 +1,124 @@
 <?php
+
 declare(strict_types=1);
+
 namespace App\Services\Labels;
 
+use App\Enums\LabelTemplateType;
 use App\Enums\PrintOutput;
 use App\Enums\PrinterKind;
+use App\Models\Container;
+use App\Models\Dispatch;
+use App\Models\Inventory\Lpn;
+use App\Models\Item;
 use App\Models\LabelPrintJob;
 use App\Models\LabelTemplate;
-use App\Models\Inventory\Lpn;
+use App\Models\Location;
 use App\Models\Printer;
 use App\Models\User;
+use App\Services\Labels\Data\ContainerLabelData;
+use App\Services\Labels\Data\DispatchLabelData;
+use App\Services\Labels\Data\ItemLabelData;
+use App\Services\Labels\Data\LocationLabelData;
+use App\Services\Labels\Data\LpnLabelData;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 
 final class PrintJobService
 {
     public function __construct(private readonly LabelRenderer $renderer) {}
 
+    /**
+     * Print one or many printables of the same type.
+     * Creates one LabelPrintJob per printable. Returns a single PrintResult.
+     */
     public function print(
-        LabelTemplate $tpl,
-        Model         $printable,
-        Printer       $printer,
-        int           $copies,
-        User          $user,
-        ?string       $reprintReasonCodeId = null,
-        ?string       $reprintNote         = null,
-    ): LabelPrintJob {
-        $isReprint = false;
+        LabelTemplateType $type,
+        iterable          $printables,
+        Printer           $printer,
+        int               $copies,
+        User              $user,
+        ?LabelTemplate    $tpl          = null,
+        ?string           $reasonCodeId = null,
+        ?string           $note         = null,
+    ): PrintResult {
+        Gate::forUser($user)->authorize('labels.print');
 
-        if ($printable instanceof Lpn && $printable->print_count > 0) {
-            $isReprint = true;
-            Gate::forUser($user)->authorize('labels.reprint');
-            if (! $reprintReasonCodeId) {
-                throw new \InvalidArgumentException('A reprint reason code is required.');
+        $tpl ??= LabelTemplate::where('type', $type->value)
+            ->where('is_default', true)
+            ->where('is_active', true)
+            ->firstOrFail();
+
+        $output = $this->outputForPrinter($printer);
+        $rows   = [];
+
+        foreach ($printables as $printable) {
+            $isReprint = $this->isReprint($printable);
+
+            if ($isReprint) {
+                Gate::forUser($user)->authorize('labels.reprint');
+                if (! $reasonCodeId) {
+                    throw new \InvalidArgumentException('A reprint reason code is required.');
+                }
+            }
+
+            $rows[] = $this->buildDataRow($type, $printable);
+
+            LabelPrintJob::create([
+                'label_template_id'      => $tpl->id,
+                'type'                   => $type->value,
+                'printable_type'         => get_class($printable),
+                'printable_id'           => $printable->getKey(),
+                'copies'                 => $copies,
+                'printer_id'             => $printer->id,
+                'output'                 => $output->value,
+                'is_reprint'             => $isReprint,
+                'reprint_reason_code_id' => $isReprint ? $reasonCodeId : null,
+                'reprint_note'           => $isReprint ? ($note ?: null) : null,
+                'printed_by'             => $user->id,
+                'created_at'             => now(),
+            ]);
+
+            if ($printable instanceof Lpn) {
+                $printable->increment('print_count');
+                $printable->update(['printed_at' => now()]);
             }
         }
 
-        $row    = $this->buildDataRow($printable);
-        $output = $this->outputForPrinter($printer);
-
         $rendered = $output === PrintOutput::Pdf
-            ? $this->renderer->toPdf($tpl, [$row], $copies)
-            : $this->renderer->toZpl($tpl, [$row], $copies);
+            ? $this->renderer->toPdf($tpl, $rows, $copies)
+            : $this->renderer->toZpl($tpl, $rows, $copies);
 
-        $job = LabelPrintJob::create([
-            'label_template_id'      => $tpl->id,
-            'type'                   => $tpl->type->value,
-            'printable_type'         => get_class($printable),
-            'printable_id'           => $printable->getKey(),
-            'copies'                 => $copies,
-            'printer_id'             => $printer->id,
-            'output'                 => $output->value,
-            'is_reprint'             => $isReprint,
-            'reprint_reason_code_id' => $reprintReasonCodeId,
-            'reprint_note'           => $reprintNote,
-            'printed_by'             => $user->id,
-        ]);
-
-        if ($printable instanceof Lpn) {
-            $printable->increment('print_count');
-            $printable->update(['printed_at' => now()]);
-        }
-
-        return $job;
+        return $this->buildResult($printer, $output, $rendered);
     }
 
-    public function dispatchToPrinter(LabelPrintJob $job, Printer $printer, string $rendered): array
-    {
-        return match($printer->kind) {
-            PrinterKind::PdfBrowser => [
-                'success'      => true,
-                'output'       => $rendered,
-                'content_type' => 'application/pdf',
-            ],
-            PrinterKind::ZplDownload => [
-                'success'      => true,
-                'output'       => $rendered,
-                'content_type' => 'application/octet-stream',
-            ],
-            PrinterKind::ZplNetwork => $this->sendZplOverNetwork($printer, $rendered),
-        };
-    }
+    // ─── Helpers ─────────────────────────────────────────────────────────────
 
-    private function sendZplOverNetwork(Printer $printer, string $zpl): array
+    private function buildResult(Printer $printer, PrintOutput $output, string $rendered): PrintResult
     {
-        $socket = @fsockopen($printer->ip, $printer->port, $errno, $errstr, 5);
-
-        if (! $socket) {
-            return [
-                'success'      => false,
-                'error'        => "Cannot connect to printer {$printer->ip}:{$printer->port} — {$errstr}",
-                'fallback_zpl' => $zpl,
-            ];
+        if ($output === PrintOutput::Pdf) {
+            $token = Str::uuid()->toString();
+            Cache::put("label_pdf:{$token}", base64_encode($rendered), now()->addMinutes(15));
+            return new PrintResult(outputType: 'pdf', content: $rendered, pdfToken: $token);
         }
 
-        fwrite($socket, $zpl);
-        fclose($socket);
+        if ($printer->kind === PrinterKind::ZplNetwork) {
+            $result = $this->sendZplOverNetwork($printer, $rendered);
+            if ($result['success']) {
+                return new PrintResult(outputType: 'sent', printerName: $printer->name);
+            }
+            // Fall back to download on network failure
+            return new PrintResult(outputType: 'zpl', content: $rendered);
+        }
 
-        return ['success' => true];
+        return new PrintResult(outputType: 'zpl', content: $rendered);
+    }
+
+    private function isReprint(Model $printable): bool
+    {
+        return $printable instanceof Lpn && $printable->print_count > 0;
     }
 
     private function outputForPrinter(Printer $printer): PrintOutput
@@ -107,24 +129,31 @@ final class PrintJobService
         };
     }
 
-    private function buildDataRow(Model $printable): array
+    private function buildDataRow(LabelTemplateType $type, Model $printable): array
     {
-        return match(true) {
-            $printable instanceof Lpn => [
-                'lpn_code'       => $printable->code,
-                'grn_number'     => $printable->grn?->number ?? '',
-                'warehouse_name' => $printable->warehouse?->name ?? '',
-                'item_sku'       => '',
-                'item_name'      => '',
-                'batch_no'       => '',
-                'expiry_date'    => '',
-                'qty'            => '',
-                'uom_code'       => '',
-                'vw_name'        => '',
-                'receive_date'   => $printable->created_at?->format('Y-m-d') ?? '',
-                'location_code'  => $printable->currentLocation?->code ?? '',
-            ],
-            default => [],
+        return match($type) {
+            LabelTemplateType::Location  => LocationLabelData::build($printable),
+            LabelTemplateType::PalletLpn => LpnLabelData::build($printable),
+            LabelTemplateType::Item      => ItemLabelData::build($printable),
+            LabelTemplateType::Container => ContainerLabelData::build($printable),
+            LabelTemplateType::Dispatch  => DispatchLabelData::build($printable),
         };
+    }
+
+    private function sendZplOverNetwork(Printer $printer, string $zpl): array
+    {
+        $socket = @fsockopen($printer->ip, $printer->port, $errno, $errstr, 5);
+
+        if (! $socket) {
+            return [
+                'success' => false,
+                'error'   => "Cannot connect to {$printer->ip}:{$printer->port} — {$errstr}",
+            ];
+        }
+
+        fwrite($socket, $zpl);
+        fclose($socket);
+
+        return ['success' => true];
     }
 }

@@ -67,10 +67,14 @@ class Lookup extends Component
     private function itemStockData(): array
     {
         $item  = \App\Models\Item::find($this->resultId);
-        $stock = \App\Models\Inventory\StockBalance::with(['location', 'virtualWarehouse'])
+        $user  = auth()->user();
+        $query = \App\Models\Inventory\StockBalance::with(['location', 'virtualWarehouse'])
             ->where('item_id', $this->resultId)
-            ->where('qty_on_hand', '>', 0)
-            ->get()
+            ->where('qty_on_hand', '>', 0);
+        if (! $user->canAccessAllVirtualWarehouses()) {
+            $query->whereIn('virtual_warehouse_id', $user->accessibleVirtualWarehouseIds());
+        }
+        $stock = $query->get()
             ->map(fn ($b) => (object) [
                 'location'      => $b->location?->code,
                 'vw'            => $b->virtualWarehouse?->name,
@@ -83,11 +87,15 @@ class Lookup extends Component
 
     private function locationData(): array
     {
-        $loc      = \App\Models\Location::find($this->resultId);
-        $contents = \App\Models\Inventory\StockBalance::with(['item', 'lpn'])
+        $loc   = \App\Models\Location::find($this->resultId);
+        $user  = auth()->user();
+        $query = \App\Models\Inventory\StockBalance::with(['item', 'lpn'])
             ->where('location_id', $this->resultId)
-            ->where('qty_on_hand', '>', 0)
-            ->get()
+            ->where('qty_on_hand', '>', 0);
+        if (! $user->canAccessAllVirtualWarehouses()) {
+            $query->whereIn('virtual_warehouse_id', $user->accessibleVirtualWarehouseIds());
+        }
+        $contents = $query->get()
             ->map(fn ($b) => (object) [
                 'sku'          => $b->item?->sku,
                 'name'         => $b->item?->name,

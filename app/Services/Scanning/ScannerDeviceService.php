@@ -2,10 +2,10 @@
 declare(strict_types=1);
 namespace App\Services\Scanning;
 
-use App\Models\Printer;
 use App\Models\ScannerDevice;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Str;
 
 final class ScannerDeviceService
@@ -17,6 +17,8 @@ final class ScannerDeviceService
         if (! $uid) {
             $uid    = (string) Str::uuid();
             $device = $this->autoRegister($uid);
+            // Persist the UID as a long-lived cookie so the same device is recognised on future visits
+            Cookie::queue('wms_device_uid', $uid, 60 * 24 * 365 * 5); // 5 years
         } else {
             $device = ScannerDevice::where('device_uid', $uid)->first();
             if (! $device) {
@@ -56,11 +58,9 @@ final class ScannerDeviceService
 
     private function nextDeviceCode(): string
     {
-        $max = ScannerDevice::max('code');
+        $max = ScannerDevice::selectRaw('MAX(CAST(SUBSTRING(code, 5) AS UNSIGNED)) as max_num')->value('max_num');
         if (! $max) return 'SCN-001';
-        // Extract numeric part: SCN-001 → 1
-        $num = (int) ltrim(substr($max, 4), '0') ?: 0;
-        return 'SCN-' . str_pad((string) ($num + 1), 3, '0', STR_PAD_LEFT);
+        return 'SCN-' . str_pad((string) ($max + 1), 3, '0', STR_PAD_LEFT);
     }
 
     public function unreviewedCount(): int

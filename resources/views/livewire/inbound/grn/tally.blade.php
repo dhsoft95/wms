@@ -215,10 +215,25 @@
 
                         {{-- Serial Numbers --}}
                         @if($this->activeTallyLine->item?->track_serial)
-                            <div>
+                            <div class="space-y-1.5">
                                 <label class="label">Serial Numbers <span class="required-mark">*</span>
-                                    <span class="font-normal text-xs text-slate-400 ml-1">one per line, must match qty</span>
+                                    <span class="font-normal text-xs text-slate-400 ml-1">one per line or comma-separated, must match qty</span>
                                 </label>
+
+                                {{-- Scan input: appends each scan as a new line --}}
+                                <div class="flex gap-2">
+                                    <input
+                                        wire:model="serialInput"
+                                        wire:keydown.enter.prevent="addScannedSerial"
+                                        type="text"
+                                        class="input font-mono text-sm flex-1"
+                                        placeholder="Scan serial number…"
+                                        autocomplete="off"
+                                    />
+                                    <button type="button" wire:click="addScannedSerial"
+                                            class="btn btn-secondary text-sm px-3">Add</button>
+                                </div>
+
                                 <textarea wire:model="receiptSerials" rows="4"
                                           class="input font-mono text-xs @error('receiptSerials') border-red-400 @enderror"
                                           placeholder="SN-000001&#10;SN-000002"></textarea>

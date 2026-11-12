@@ -22,39 +22,12 @@
     </div>
 
     {{-- Scan Input --}}
-    <div class="card" x-data="{ focused: false }">
-        <div class="card-body">
-            <div class="flex gap-3 items-center">
-                <div class="relative flex-1">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-4 z-10 pointer-events-none transition-colors"
-                          x-bind:class="focused ? 'text-simba-600 dark:text-simba-400' : 'text-slate-400 dark:text-slate-500'">
-                        <x-ui.icon name="qr-code" class="w-5 h-5 shrink-0" />
-                    </span>
-                    <input
-                        wire:model="scanInput"
-                        type="text"
-                        placeholder="Scan item barcode / SKU / LPN to auto-select line..."
-                        autofocus
-                        x-ref="scanInput"
-                        class="input pl-12 pr-4 text-lg font-mono bg-white/90 dark:bg-zinc-900/80"
-                        autocomplete="off"
-                        x-on:focus="focused = true"
-                        x-on:blur="focused = false"
-                        x-on:keydown.enter.prevent="$wire.processScan().then(() => $nextTick(() => $refs.scanInput.focus()))"
-                    />
-                    <span x-show="focused" x-transition.opacity
-                          class="absolute inset-y-0 right-3 flex items-center gap-1.5 pointer-events-none">
-                        <span class="relative flex h-2 w-2 shrink-0">
-                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-simba-500 opacity-75"></span>
-                            <span class="relative inline-flex rounded-full h-2 w-2 bg-simba-600"></span>
-                        </span>
-                        <span class="text-xs font-medium text-simba-600 dark:text-simba-400 select-none">Ready</span>
-                    </span>
-                </div>
-                <button wire:click="processScan" class="btn btn-secondary shrink-0">Scan</button>
-            </div>
-        </div>
-    </div>
+    <x-scan-input
+        wire:model="scanInput"
+        :method="'processScan'"
+        placeholder="Scan item barcode / SKU / LPN to auto-select line..."
+        autofocus
+    />
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 

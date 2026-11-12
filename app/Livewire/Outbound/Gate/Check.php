@@ -5,17 +5,68 @@ declare(strict_types=1);
 namespace App\Livewire\Outbound\Gate;
 
 use App\Enums\Outbound\GatePassStatus;
+use App\Enums\ScanResultType;
+use App\Livewire\Concerns\HandlesScans;
+use App\Models\Dispatch as DispatchModel;
 use App\Models\GatePass;
 use App\Services\Outbound\DispatchService;
 use Illuminate\Contracts\View\View;
-use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 class Check extends Component
 {
+    use HandlesScans;
+
     public string $gatePassNumber = '';
     public ?GatePass $found       = null;
     public string $scanError      = '';
+
+    public function processScan(): void
+    {
+        $result = $this->resolveScan();
+        if ($result === null) return;
+
+        if (! $result->ok()) {
+            $this->scanError = $result->error ?? 'Barcode not recognised.';
+            $this->scanFail($this->scanError);
+            return;
+        }
+
+        match ($result->type) {
+            ScanResultType::GatePass => $this->loadGatePass($result->record),
+            ScanResultType::Dispatch => $this->loadGatePassByDispatch($result->record),
+            default                  => $this->scanFail('Not a gate pass or dispatch barcode.'),
+        };
+    }
+
+    private function loadGatePass(?GatePass $gp): void
+    {
+        if (! $gp) {
+            $this->scanFail('Gate pass not found.');
+            return;
+        }
+        $this->found     = $gp->load(['dispatch.deliveryOrder.consigneePartner', 'dispatch.items.item']);
+        $this->scanError = '';
+        $this->scanOk("Gate pass {$gp->number} found.");
+    }
+
+    private function loadGatePassByDispatch(?DispatchModel $dispatch): void
+    {
+        if (! $dispatch) {
+            $this->scanFail('Dispatch not found.');
+            return;
+        }
+        $gp = GatePass::with(['dispatch.deliveryOrder.consigneePartner', 'dispatch.items.item'])
+            ->where('dispatch_id', $dispatch->id)
+            ->first();
+        if (! $gp) {
+            $this->scanFail("No gate pass for dispatch {$dispatch->number}.");
+            return;
+        }
+        $this->found     = $gp;
+        $this->scanError = '';
+        $this->scanOk("Gate pass {$gp->number} found.");
+    }
 
     public function search(): void
     {

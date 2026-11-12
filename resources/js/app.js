@@ -1,5 +1,6 @@
 import Collapse from '@alpinejs/collapse'
 import { Chart, registerables } from 'chart.js'
+import './camera-scan'
 Chart.register(...registerables)
 
 // ─── chartJs Alpine component (drop-in replacement for apexChart) ─────────────
@@ -235,6 +236,152 @@ const apexChartDef = (config) => ({
     },
 })
 
+// ─── Bin Utilisation doughnut ─────────────────────────────────────────────────
+const binUtilChartDef = (config) => ({
+    config,
+    chart: null,
+    _darkObserver: null,
+    _navHandler: null,
+
+    isDark() {
+        return document.documentElement.classList.contains('dark')
+    },
+
+    colors() {
+        const dark = this.isDark()
+        return {
+            occupied:       '#a22631',
+            occupiedHover:  '#891e29',
+            available:      dark ? '#16a34a' : '#16a34a',
+            availableHover: dark ? '#15803d' : '#15803d',
+            text:           dark ? '#f1f5f9' : '#0f172a',
+            muted:          dark ? '#94a3b8' : '#64748b',
+            tooltipBg:      dark ? '#1e293b' : '#ffffff',
+            tooltipBorder:  dark ? 'rgba(148,163,184,0.1)' : 'rgba(15,23,42,0.08)',
+        }
+    },
+
+    centerTextPlugin() {
+        const self = this
+        return {
+            id: 'binUtilCenterText',
+            afterDraw(chart) {
+                const meta = chart.getDatasetMeta(0)
+                if (!meta?.data[0]) return
+                const { ctx } = chart
+                const cx = meta.data[0].x
+                const cy = meta.data[0].y
+
+                // Read the actual computed colour from the canvas so the text
+                // always contrasts correctly in both light and dark themes.
+                const textColor  = getComputedStyle(chart.canvas).color
+                const mutedColor = self.isDark() ? '#94a3b8' : '#64748b'
+
+                ctx.save()
+                ctx.textAlign    = 'center'
+                ctx.textBaseline = 'middle'
+
+                ctx.font      = 'bold 28px Sora, ui-sans-serif, system-ui, sans-serif'
+                ctx.fillStyle = textColor
+                ctx.fillText(self.config.pct.toFixed(1) + '%', cx, cy - 10)
+
+                ctx.font      = '12px Sora, ui-sans-serif, system-ui, sans-serif'
+                ctx.fillStyle = mutedColor
+                ctx.fillText('occupied', cx, cy + 14)
+
+                ctx.restore()
+            },
+        }
+    },
+
+    build() {
+        const c = this.colors()
+        const { occupied, available, total } = this.config
+        const nonZeroCount = [occupied, available].filter(v => v > 0).length
+
+        return {
+            type: 'doughnut',
+            data: {
+                labels: ['Occupied', 'Available'],
+                datasets: [{
+                    data:                [occupied, available],
+                    backgroundColor:     [c.occupied, c.available],
+                    hoverBackgroundColor:[c.occupiedHover, c.availableHover],
+                    borderWidth:         0,
+                    borderRadius:        [8, 0],
+                    spacing:             nonZeroCount > 1 ? 2 : 0,
+                    hoverOffset:         4,
+                }],
+            },
+            options: {
+                responsive:          true,
+                maintainAspectRatio: false,
+                cutout:              '75%',
+                rotation:            0,
+                circumference:       360,
+                animation: {
+                    animateRotate: true,
+                    animateScale:  false,
+                    duration:      800,
+                    easing:        'easeOutQuart',
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: c.tooltipBg,
+                        titleColor:      c.text,
+                        bodyColor:       c.muted,
+                        borderColor:     c.tooltipBorder,
+                        borderWidth:     1,
+                        borderRadius:    8,
+                        padding:         10,
+                        callbacks: {
+                            label: (ctx) => {
+                                const count = ctx.raw
+                                const pct   = total > 0 ? ((count / total) * 100).toFixed(1) : '0.0'
+                                return ` ${ctx.label}: ${count} bins (${pct}%)`
+                            },
+                        },
+                    },
+                },
+            },
+            plugins: [this.centerTextPlugin()],
+        }
+    },
+
+    init() {
+        this.$nextTick(() => {
+            const canvas = document.getElementById(this.config.chartId)
+            if (!canvas) return
+            if (this.chart) { this.chart.destroy(); this.chart = null }
+            this.chart = new Chart(canvas, this.build())
+        })
+
+        this._darkObserver = new MutationObserver(() => {
+            if (!this.chart) return
+            const rebuilt = this.build()
+            this.chart.data    = rebuilt.data
+            this.chart.options = rebuilt.options
+            this.chart.update('none')
+        })
+        this._darkObserver.observe(document.documentElement, {
+            attributes:      true,
+            attributeFilter: ['class'],
+        })
+
+        document.addEventListener('livewire:navigated', this._navHandler = () => this.destroy())
+    },
+
+    destroy() {
+        if (this.chart)         { this.chart.destroy();           this.chart         = null }
+        if (this._darkObserver) { this._darkObserver.disconnect(); this._darkObserver = null }
+        if (this._navHandler)   {
+            document.removeEventListener('livewire:navigated', this._navHandler)
+            this._navHandler = null
+        }
+    },
+})
+
 // Row-actions UID counter (module-scoped, survives hot-reload)
 let _raNextId = 0
 
@@ -294,6 +441,7 @@ function registerWithAlpine(Alpine) {
     Alpine.plugin(Collapse)
     Alpine.data('rowActionsMenu', rowActionsMenuDef)
     Alpine.data('apexChart', apexChartDef)
+    Alpine.data('binUtilChart', binUtilChartDef)
 }
 
 // Livewire's <script> tag has no `defer`, so it runs synchronously at end of

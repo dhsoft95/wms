@@ -4,10 +4,10 @@ namespace App\Livewire\Warehouse\Putaway;
 
 use App\Enums\PutawayTaskStatus;
 use App\Enums\ScanResultType;
+use App\Livewire\Concerns\HandlesScans;
 use App\Livewire\Concerns\HasPutawayModal;
 use App\Models\PutawayTask;
 use App\Models\User;
-use App\Services\Scanning\BarcodeResolver;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
@@ -17,11 +17,11 @@ class Index extends Component
 {
     use WithPagination;
     use HasPutawayModal;
+    use HandlesScans;
 
     public string $statusFilter = 'all';
     public bool   $myTasksOnly  = false;
     public string $search       = '';
-    public string $scanInput    = '';
 
     // Bulk assign modal
     public bool   $showBulkAssignModal = false;
@@ -32,17 +32,13 @@ class Index extends Component
 
     public function processScan(): void
     {
-        $input          = trim($this->scanInput);
-        $this->scanInput = '';
-        if ($input === '') {
+        $result = $this->resolveScan(ScanResultType::Item);
+        if ($result === null) {
             return;
         }
 
-        $result = app(BarcodeResolver::class)->resolve($input);
-
         if ($result->type !== ScanResultType::Item) {
-            $this->dispatch('scan-error');
-            $this->dispatch('toast', message: $result->error ?? 'Not an item barcode.', type: 'error');
+            $this->scanFail($result->error ?? 'Not an item barcode.');
             return;
         }
 
@@ -55,13 +51,12 @@ class Index extends Component
             ->first();
 
         if (! $task) {
-            $this->dispatch('scan-error');
-            $this->dispatch('toast', message: 'No open putaway task found for this barcode.', type: 'error');
+            $this->scanFail('No open putaway task found for this barcode.');
             return;
         }
 
         $this->openExecute($task->id);
-        $this->dispatch('scan-success');
+        $this->scanOk();
     }
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────

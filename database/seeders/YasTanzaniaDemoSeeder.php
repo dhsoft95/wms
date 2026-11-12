@@ -482,6 +482,9 @@ class YasTanzaniaDemoSeeder extends Seeder
             $approver = User::firstWhere('email', $approverEmail);
             if (! $dept || ! $approver) continue;
 
+            // canActAtCurrentLevel checks department.head_user_id, not ApprovalChainUser
+            $dept->update(['head_user_id' => $approver->id]);
+
             foreach ($docTypes as $docType) {
                 $chain = ApprovalChain::firstOrCreate(
                     ['department_id' => $dept->id, 'document_type' => $docType, 'level' => 1],

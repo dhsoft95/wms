@@ -11,7 +11,7 @@ class BulkGenerateLocationsAction
 {
     /**
      * @param  array<array{code: string, segment: string, exists: bool}> $previewList
-     * @return array{created: int, skipped: int}
+     * @return array{created: int, skipped: int, ids: array<int>}
      */
     public static function execute(
         string $warehouseId,
@@ -26,6 +26,7 @@ class BulkGenerateLocationsAction
             $path       = $parent ? "{$parent->path}{$parent->id}/" : '/';
             $created    = 0;
             $skipped    = 0;
+            $ids        = [];
 
             foreach ($previewList as $entry) {
                 if ($entry['exists']) {
@@ -33,7 +34,7 @@ class BulkGenerateLocationsAction
                     continue;
                 }
 
-                Location::create([
+                $location = Location::create([
                     'warehouse_id'  => $warehouseId,
                     'parent_id'     => $parent?->id,
                     'level'         => $level,
@@ -43,13 +44,14 @@ class BulkGenerateLocationsAction
                     'status'        => 'active',
                     'path'          => $path,
                     'is_pickable'   => $isPickable,
-                    'barcode'       => $entry['code'],
+                    'barcode'       => strtoupper($entry['code']),
                 ]);
 
+                $ids[] = $location->id;
                 $created++;
             }
 
-            return compact('created', 'skipped');
+            return compact('created', 'skipped', 'ids');
         });
     }
 }

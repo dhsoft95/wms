@@ -8,9 +8,12 @@ enum ScanResultType: string
 {
     case Lpn           = 'lpn';
     case Container     = 'container';
-    case Grn             = 'grn';
-    case PurchaseOrder   = 'purchase_order';
-    case DispatchOrder   = 'dispatch_order';
+    case Grn           = 'grn';
+    case PurchaseOrder = 'purchase_order';
+    case DispatchOrder = 'dispatch_order';
+    case PickList      = 'pick_list';
+    case Dispatch      = 'dispatch';
+    case GatePass      = 'gate_pass';
     case Location      = 'location';
     case Item          = 'item';
     case Serial        = 'serial';

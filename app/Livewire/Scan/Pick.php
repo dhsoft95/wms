@@ -66,7 +66,7 @@ class Pick extends Component
 
         $serials = $this->pickedSerial !== '' ? [$this->pickedSerial] : [];
 
-        app(PickingService::class)->executeTask($task, $qty, auth()->user(), $serials);
+        app(PickingService::class)->executeTask($task, $qty, auth()->user(), $serials, session('scan_device_code'));
 
         // Refresh pick list
         $this->pickList     = $task->pickList->fresh(['tasks.allocation.item', 'tasks.allocation.location', 'tasks.allocation.batch']);

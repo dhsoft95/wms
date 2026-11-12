@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\LabelTemplateType;
 use App\Models\Grn;
 use App\Models\Inventory\Lpn;
+use App\Models\LabelTemplate;
 use App\Services\Inbound\LpnService;
+use App\Services\Labels\Data\LpnLabelData;
+use App\Services\Labels\LabelRenderer;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
@@ -25,13 +29,37 @@ class LpnPrintController extends Controller
         $lpnIds = array_filter(array_map('intval', $lpnIds));
 
         if (empty($lpnIds)) {
-            // Generate a new LPN for this GRN
             $lpn    = app(LpnService::class)->generate($grn);
             $lpnIds = [$lpn->id];
         }
 
-        $html = app(LpnService::class)->printSheet($lpnIds, $grn);
+        $tpl = LabelTemplate::where('type', LabelTemplateType::PalletLpn->value)
+            ->where('is_default', true)
+            ->where('is_active', true)
+            ->first()
+            ?? LabelTemplate::where('type', LabelTemplateType::PalletLpn->value)
+                ->where('is_active', true)
+                ->first();
 
-        return response($html)->header('Content-Type', 'text/html');
+        if (! $tpl) {
+            abort(404, 'No active LPN label template found.');
+        }
+
+        $lpns = Lpn::whereIn('id', $lpnIds)->get();
+
+        // Increment print counts
+        $lpns->each(function (Lpn $lpn): void {
+            $lpn->increment('print_count');
+            $lpn->updateQuietly(['printed_at' => now()]);
+        });
+
+        $rows = $lpns->map(fn (Lpn $lpn) => LpnLabelData::build($lpn))->all();
+
+        $pdf = app(LabelRenderer::class)->toPdf($tpl, $rows);
+
+        return response($pdf, 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="lpn-labels.pdf"',
+        ]);
     }
 }

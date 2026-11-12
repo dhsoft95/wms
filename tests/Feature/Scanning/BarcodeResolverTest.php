@@ -118,3 +118,102 @@ it('parses serial AI (21) from GS1', function () {
 it('returns unknown for GS1 with unrecognised GTIN', function () {
     expect($this->resolver->resolve('(01)09999999999994')->type)->toBe(ScanResultType::Unknown);
 });
+
+// ─── New prefix tests ─────────────────────────────────────────────────────────
+
+it('resolves DO- prefix to DispatchOrder', function () {
+    $wh = \App\Models\Warehouse::factory()->create();
+    $vw = \App\Models\VirtualWarehouse::factory()->create(['warehouse_id' => $wh->id]);
+    $do = \App\Models\DeliveryOrder::factory()->create(['number' => 'DO-2025-000099']);
+    $r  = $this->resolver->resolve('DO-2025-000099');
+    expect($r->type)->toBe(ScanResultType::DispatchOrder)->and($r->record->id)->toBe($do->id);
+});
+
+it('returns unknown for DO- that does not exist', function () {
+    expect($this->resolver->resolve('DO-9999-999999')->type)->toBe(ScanResultType::Unknown);
+});
+
+it('resolves PCK- prefix to PickList', function () {
+    $do  = \App\Models\DeliveryOrder::factory()->create();
+    $pl  = \App\Models\PickList::create(['number' => 'PCK-2025-000001', 'delivery_order_id' => $do->id, 'status' => 'open']);
+    $r   = $this->resolver->resolve('PCK-2025-000001');
+    expect($r->type)->toBe(ScanResultType::PickList)->and($r->record->id)->toBe($pl->id);
+});
+
+it('returns unknown for PCK- that does not exist', function () {
+    expect($this->resolver->resolve('PCK-9999-999999')->type)->toBe(ScanResultType::Unknown);
+});
+
+it('resolves DSP- prefix to Dispatch', function () {
+    $do  = \App\Models\DeliveryOrder::factory()->create();
+    $dsp = \App\Models\Dispatch::create([
+        'number'           => 'DSP-2025-000001',
+        'delivery_order_id' => $do->id,
+        'vehicle_reg_no'   => 'T-123-ABC',
+        'driver_name'      => 'Test Driver',
+    ]);
+    $r = $this->resolver->resolve('DSP-2025-000001');
+    expect($r->type)->toBe(ScanResultType::Dispatch)->and($r->record->id)->toBe($dsp->id);
+});
+
+it('returns unknown for DSP- that does not exist', function () {
+    expect($this->resolver->resolve('DSP-9999-999999')->type)->toBe(ScanResultType::Unknown);
+});
+
+it('resolves GP- prefix to GatePass', function () {
+    $do  = \App\Models\DeliveryOrder::factory()->create();
+    $dsp = \App\Models\Dispatch::create([
+        'number'           => 'DSP-2025-000002',
+        'delivery_order_id' => $do->id,
+        'vehicle_reg_no'   => 'T-456-DEF',
+        'driver_name'      => 'Test Driver',
+    ]);
+    $gp = \App\Models\GatePass::create(['number' => 'GP-2025-000001', 'dispatch_id' => $dsp->id, 'status' => 'issued']);
+    $r  = $this->resolver->resolve('GP-2025-000001');
+    expect($r->type)->toBe(ScanResultType::GatePass)->and($r->record->id)->toBe($gp->id);
+});
+
+it('returns unknown for GP- that does not exist', function () {
+    expect($this->resolver->resolve('GP-9999-999999')->type)->toBe(ScanResultType::Unknown);
+});
+
+// ─── AIM identifier stripping ─────────────────────────────────────────────────
+
+it('strips AIM ]E0 prefix before resolving LPN', function () {
+    $wh  = \App\Models\Warehouse::factory()->create();
+    $lpn = \App\Models\Inventory\Lpn::factory()->create(['code' => 'LPN-AIM001', 'warehouse_id' => $wh->id]);
+    expect($this->resolver->resolve(']E0LPN-AIM001')->type)->toBe(ScanResultType::Lpn);
+});
+
+it('strips AIM ]C0 prefix before resolving item SKU', function () {
+    \App\Models\Item::factory()->create(['sku' => 'SKU-AIMTEST']);
+    expect($this->resolver->resolve(']C0SKU-AIMTEST')->type)->toBe(ScanResultType::Item);
+});
+
+it('strips AIM ]Q3 prefix before resolving location', function () {
+    $wh = \App\Models\Warehouse::factory()->create();
+    \App\Models\Location::factory()->create(['code' => 'AIM-BIN-01', 'warehouse_id' => $wh->id]);
+    expect($this->resolver->resolve(']Q3AIM-BIN-01')->type)->toBe(ScanResultType::Location);
+});
+
+// ─── GS1 unknown AI skips rather than aborts ──────────────────────────────────
+
+it('skips unknown GS1 AI and still extracts GTIN and batch', function () {
+    $item = \App\Models\Item::factory()->create();
+    \App\Models\ItemBarcode::factory()->create(['item_id' => $item->id, 'barcode' => '0614141123452']);
+    // AI 99 is not in our parser — should skip it and continue to AI 10
+    $gs = chr(29);
+    $raw = '0100614141123452' . $gs . '99UNKNOWN' . $gs . '10BATCH77';
+    $r   = $this->resolver->resolve($raw);
+    expect($r->type)->toBe(ScanResultType::Item)
+        ->and($r->gs1Data['batch'])->toBe('BATCH77');
+});
+
+// ─── Case-insensitive location lookup ────────────────────────────────────────
+
+it('resolves location code case-insensitively', function () {
+    $wh = \App\Models\Warehouse::factory()->create();
+    \App\Models\Location::factory()->create(['code' => 'A-01-02', 'warehouse_id' => $wh->id]);
+    expect($this->resolver->resolve('a-01-02')->type)->toBe(ScanResultType::Location);
+    expect($this->resolver->resolve('A-01-02')->type)->toBe(ScanResultType::Location);
+});

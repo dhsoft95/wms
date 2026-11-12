@@ -586,6 +586,7 @@
             @endif
 
             {{-- Audit Trail --}}
+
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">Audit Trail</h3>
@@ -593,7 +594,7 @@
 
                 {{-- Timeline --}}
                 @php
-                    // ── Approval descriptions that are fully captured by purchase_order_approvals.
+                    // Approval descriptions that are fully captured by purchase_order_approvals.
                     // Any activity_log entry with one of these descriptions is a duplicate and
                     // must be suppressed. This covers both the current code and legacy descriptions
                     // that older versions of the workflow wrote.
@@ -614,10 +615,10 @@
                         'Forwarded to requester',
                     ];
 
-                    // ── Deduplicate purchase_order_approvals:
+                    // Deduplicate purchase_order_approvals:
                     // Old multi-level code could write 2+ records for the same action click.
                     // Group by (actor, action, level, 5-second timestamp bucket) and keep the
-                    // richest record — prefer the entry that has an approval_chain_id set, because
+                    // richest record, preferring the entry that has an approval_chain_id set because
                     // it carries the stage name for the rich label.
                     $deduplicatedApprovals = $purchaseOrder->approvals
                         ->groupBy(fn ($ap) => implode('|', [
@@ -700,8 +701,8 @@
                                         $badgeText   = $actionLabel;
                                         // Rich label: append stage descriptor for chain-linked records.
                                         $stageName = $d->approvalChain ? 'Department Approval' : null;
-                                        $label     = $stageName ? "{$actionLabel} — {$stageName}" : $actionLabel;
-                                        $actor     = $d->user?->name ?? '—';
+                                        $label     = $stageName ? "{$actionLabel} ({$stageName})" : $actionLabel;
+                                        $actor     = $d->user?->name ?? '';
                                         $meta      = 'Level ' . $d->level . ' · ' . $time->format('d M Y H:i');
                                         $note      = $d->comment ?: null;
 
@@ -711,15 +712,15 @@
                                             'receiving_clerk', 'clerk' => 'Receiving Clerk',
                                             default                    => ucfirst(str_replace('_', ' ', $d->type ?? '')),
                                         };
-                                        $dotColor  = 'bg-violet-500';
-                                        $badgeText = 'Assigned';
+                                        $dotColor   = 'bg-violet-500';
+                                        $badgeText  = 'Assigned';
                                         $badgeClass = 'badge-neutral';
-                                        $label     = $roleLabel . ' Assigned';
-                                        $actor     = $d->previousUser
-                                            ? ($d->previousUser->name . ' → ' . ($d->assignedUser?->name ?? '—'))
-                                            : ($d->assignedUser?->name ?? '—');
-                                        $meta      = ($d->assignedByUser ? 'by ' . $d->assignedByUser->name . ' · ' : '') . $time->format('d M Y H:i');
-                                        $note      = $d->notes ?: null;
+                                        $label      = $roleLabel . ' Assigned';
+                                        $actor      = $d->previousUser
+                                            ? trim($d->previousUser->name . ' → ' . ($d->assignedUser?->name ?? ''))
+                                            : ($d->assignedUser?->name ?? '');
+                                        $meta       = ($d->assignedByUser ? 'by ' . $d->assignedByUser->name . ' · ' : '') . $time->format('d M Y H:i');
+                                        $note       = $d->notes ?: null;
 
                                     } elseif ($event['type'] === 'activity') {
                                         $desc = $d->description;
@@ -739,17 +740,17 @@
                                             default                                         => ['bg-slate-400',   'Activity',     'badge-neutral'],
                                         };
                                         $label = $desc;
-                                        $actor = $d->causer?->name ?? '—';
+                                        $actor = $d->causer?->name ?? '';
                                         $meta  = $time->format('d M Y H:i');
                                         $note  = $d->properties['comment'] ?? $d->properties['reason'] ?? null;
 
                                     } elseif ($event['type'] === 'created') {
-                                        $dotColor  = 'bg-slate-400';
-                                        $badgeText = 'Created';
+                                        $dotColor   = 'bg-slate-400';
+                                        $badgeText  = 'Created';
                                         $badgeClass = 'badge-neutral';
-                                        $label     = 'Order Created';
-                                        $actor     = $d->requestedBy?->name ?? '—';
-                                        $meta      = $time->format('d M Y H:i');
+                                        $label      = 'Order Created';
+                                        $actor      = $d->requestedBy?->name ?? '';
+                                        $meta       = $time->format('d M Y H:i');
                                     }
                                 @endphp
 
@@ -767,7 +768,9 @@
                                         <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
                                             <div class="min-w-0 flex-1">
                                                 <p class="break-words text-sm font-medium text-slate-800 dark:text-slate-200">{{ $label }}</p>
-                                                <p class="break-words text-xs text-slate-500 dark:text-slate-400">{{ $actor }} · {{ $meta }}</p>
+                                                <p class="break-words text-xs text-slate-500 dark:text-slate-400">
+                                                    @if (filled($actor)){{ $actor }} · @endif{{ $meta }}
+                                                </p>
                                                 @if ($note)
                                                     <div class="mt-1.5 border-l-2 border-slate-300 pl-2.5 dark:border-slate-600">
                                                         <p class="break-words text-xs italic text-slate-500 dark:text-slate-400">{{ trim($note) }}</p>
@@ -783,6 +786,7 @@
                     </div>
                 @endif
             </div>
+
 
             {{-- Issues --}}
             @if ($purchaseOrder->issues->isNotEmpty())
