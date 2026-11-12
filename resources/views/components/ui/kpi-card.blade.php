@@ -79,7 +79,7 @@
             @if($loading)
                 <div class="kpi-card__main">
                     <div class="kpi-skeleton kpi-skeleton--value"></div>
-                    <div class="kpi-skeleton kpi-skeleton--hint" style="margin-top:.5rem"></div>
+                    <div class="kpi-skeleton kpi-skeleton--hint" style="margin-top:.4rem"></div>
                 </div>
             @else
                 <div class="kpi-card__main">
