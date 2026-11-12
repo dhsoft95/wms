@@ -76,13 +76,8 @@
 
     {{-- ── KPI cards grid ──────────────────────────────────────────────────── --}}
 
-    <div wire:loading class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 auto-rows-fr">
-        @for ($i = 0; $i < 5; $i++)
-            <x-ui.kpi-card loading />
-        @endfor
-    </div>
-
-    <div wire:loading.remove class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 auto-rows-fr">
+    <div wire:loading.class="kpi-cards--loading"
+         class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3 auto-rows-fr">
         @foreach ($this->kpis as $kpi)
             <x-ui.kpi-card
                 :label="$kpi['label']"

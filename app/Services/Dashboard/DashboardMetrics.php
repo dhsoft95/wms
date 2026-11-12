@@ -30,6 +30,7 @@ use App\Models\Location;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderApproval;
 use App\Models\PutawayTask;
+use App\Models\WarehouseTransferLine;
 use App\Models\StockStatusRequest;
 use App\Models\StockTransfer;
 use App\Models\User;
@@ -81,18 +82,30 @@ final class DashboardMetrics
                 $poQuery->where('warehouse_id', $warehouseId);
             }
 
-            $grnQuery = Grn::whereIn('status', ['draft', 'receiving', 'pending_variance_approval', 'received', 'putaway_in_progress', 'putaway_complete']);
+            $mrnQuery = DeliveryOrder::whereNotIn('status', [
+                DeliveryOrderStatus::Dispatched->value,
+                DeliveryOrderStatus::Delivered->value,
+                DeliveryOrderStatus::Cancelled->value,
+            ]);
             if ($warehouseId) {
-                $grnQuery->where('warehouse_id', $warehouseId);
+                $mrnQuery->whereHas('lines', fn ($q) => $q->where('warehouse_id', $warehouseId));
             }
 
-            $transferQuery = StockTransfer::whereIn('status', [TransferStatus::Draft->value, TransferStatus::Submitted->value, TransferStatus::Accepted->value]);
+            $transferQuery = StockTransfer::whereIn('status', [
+                TransferStatus::Draft->value,
+                TransferStatus::Submitted->value,
+                TransferStatus::Accepted->value,
+            ]);
+
+            $poCount       = $poQuery->count();
+            $mrnCount      = $mrnQuery->count();
+            $transferCount = $transferQuery->count();
 
             return [
-                'po_count'       => $poQuery->count(),
-                'grn_count'      => $grnQuery->count(),
-                'transfer_count' => $transferQuery->count(),
-                'total'          => $poQuery->count() + $grnQuery->count() + $transferQuery->count(),
+                'po_count'       => $poCount,
+                'mrn_count'      => $mrnCount,
+                'transfer_count' => $transferCount,
+                'total'          => $poCount + $mrnCount + $transferCount,
             ];
         });
     }
@@ -284,16 +297,25 @@ final class DashboardMetrics
     public function inTransit(User $user, ?int $warehouseId = null): array
     {
         return $this->remember('in_transit', $user, $warehouseId, function () use ($user, $warehouseId) {
-            $containers = $this->containerQuery->queryFor($user)
-                ->whereIn('status', [ContainerStatus::Expected->value, ContainerStatus::Arrived->value])
-                ->count();
+            $query = WarehouseTransfer::whereIn('status', [
+                WarehouseTransferStatus::Submitted->value,
+                WarehouseTransferStatus::Accepted->value,
+                WarehouseTransferStatus::Dispatched->value,
+            ]);
+            if ($warehouseId) {
+                $query->where(fn ($q) => $q
+                    ->where('from_warehouse_id', $warehouseId)
+                    ->orWhere('to_warehouse_id', $warehouseId)
+                );
+            }
 
-            $transfers = StockTransfer::where('status', TransferStatus::Accepted->value)->count();
+            $transferIds = (clone $query)->pluck('id');
+            $qty = WarehouseTransferLine::whereIn('warehouse_transfer_id', $transferIds)
+                ->sum('qty_base');
 
             return [
-                'containers' => $containers,
-                'transfers'  => $transfers,
-                'total'      => $containers + $transfers,
+                'transfers' => $transferIds->count(),
+                'total'     => (int) $qty,
             ];
         });
     }

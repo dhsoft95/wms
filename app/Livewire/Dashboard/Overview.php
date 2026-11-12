@@ -8,9 +8,11 @@ use App\Services\Dashboard\DashboardMetrics;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Collection;
 use Livewire\Attributes\Computed;
+use Livewire\Attributes\Lazy;
 use Livewire\Attributes\Url;
 use Livewire\Component;
 
+#[Lazy]
 class Overview extends Component
 {
     #[Url]
@@ -18,6 +20,17 @@ class Overview extends Component
 
     #[Url]
     public int $days = 30;
+
+    public function placeholder(): View
+    {
+        $role       = auth()->user()?->roleSlug() ?? 'viewer-auditor';
+        $visibility = config("dashboard.kpi_visibility.{$role}", []);
+        $allKeys    = ['stock_on_hand', 'open_orders', 'pending_approvals', 'to_receive',
+                       'awaiting_putaway', 'to_pick', 'in_transit', 'low_stock', 'expiring', 'containers_in_yard'];
+        $count = $visibility === 'all' ? count($allKeys) : count((array) $visibility);
+
+        return view('livewire.dashboard.overview-placeholder', ['kpiCount' => $count]);
+    }
 
     private function metrics(): DashboardMetrics
     {
@@ -163,10 +176,10 @@ class Overview extends Component
             $all[] = [
                 'label' => 'Open Orders',
                 'value' => number_format($this->openOrders['total']),
-                'hint'  => $this->openOrders['po_count'] . ' PO · ' . $this->openOrders['grn_count'] . ' GRN · ' . $this->openOrders['transfer_count'] . ' transfer',
+                'hint'  => $this->openOrders['po_count'] . ' PO · ' . $this->openOrders['mrn_count'] . ' MRN · ' . $this->openOrders['transfer_count'] . ' STN',
                 'icon'  => 'clipboard-list',
                 'tone'  => 'brand',
-                'href'  => null,
+                'href'  => route('outbound.orders.index'),
                 'spark' => null,
                 'trend' => null,
             ];
@@ -228,10 +241,10 @@ class Overview extends Component
             $all[] = [
                 'label' => 'In Transit',
                 'value' => number_format($this->inTransit['total']),
-                'hint'  => $this->inTransit['containers'] . ' containers · ' . $this->inTransit['transfers'] . ' transfers',
+                'hint'  => $this->inTransit['transfers'] . ' transfers',
                 'icon'  => 'cube',
                 'tone'  => 'brand',
-                'href'  => null,
+                'href'  => route('warehouse.wtr.index'),
                 'spark' => null,
                 'trend' => null,
             ];
