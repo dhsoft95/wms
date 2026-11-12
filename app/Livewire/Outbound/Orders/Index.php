@@ -27,14 +27,20 @@ class Index extends Component
     public bool    $overdueOnly    = false;
 
     // Modal state
-    public bool    $showRejectModal  = false;
-    public ?int    $actionDoId       = null;
-    public string  $rejectNotes      = '';
+    public bool    $showRejectModal    = false;
+    public ?int    $actionDoId         = null;
+    public string  $rejectNotes        = '';
+    public bool    $showBulkDeleteModal = false;
 
-    public function updatedSearch(): void        { $this->resetPage(); }
-    public function updatedStatusFilter(): void  { $this->resetPage(); }
-    public function updatedPriorityFilter(): void{ $this->resetPage(); }
-    public function updatedOverdueOnly(): void   { $this->resetPage(); }
+    // Bulk selection
+    /** @var array<int> */
+    public array $selectedIds = [];
+
+    public function updatedSearch(): void        { $this->resetPage(); $this->selectedIds = []; }
+    public function updatedStatusFilter(): void  { $this->resetPage(); $this->selectedIds = []; }
+    public function updatedPriorityFilter(): void{ $this->resetPage(); $this->selectedIds = []; }
+    public function updatedOverdueOnly(): void   { $this->resetPage(); $this->selectedIds = []; }
+    public function updatingPage(): void         { $this->selectedIds = []; }
 
     #[Computed]
     public function orders(): \Illuminate\Pagination\LengthAwarePaginator
@@ -180,6 +186,53 @@ class Index extends Component
     }
 
     public ?int $deleteOrderId = null;
+
+    public function selectAll(): void
+    {
+        $this->selectedIds = $this->orders->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    public function deselectAll(): void
+    {
+        $this->selectedIds = [];
+    }
+
+    #[Computed]
+    public function allOnPageSelected(): bool
+    {
+        if (empty($this->selectedIds) || $this->orders->isEmpty()) {
+            return false;
+        }
+        $pageIds = $this->orders->pluck('id')->map(fn ($id) => (int) $id)->all();
+        return count(array_intersect($pageIds, $this->selectedIds)) === count($pageIds);
+    }
+
+    public function bulkDelete(): void
+    {
+        abort_unless(auth()->user()->hasRole('system-admin'), 403);
+
+        if (empty($this->selectedIds)) {
+            $this->showBulkDeleteModal = false;
+            return;
+        }
+
+        $orders = DeliveryOrder::whereIn('id', $this->selectedIds)->get();
+        $count  = $orders->count();
+
+        try {
+            $workflow = app(DeliveryOrderWorkflow::class);
+            foreach ($orders as $order) {
+                $workflow->adminDelete($order, auth()->user());
+            }
+            $this->selectedIds        = [];
+            $this->showBulkDeleteModal = false;
+            $this->dispatch('toast', message: "{$count} " . ($count === 1 ? 'order' : 'orders') . " permanently deleted.", type: 'success');
+            $this->resetPage();
+        } catch (\Throwable $e) {
+            $this->showBulkDeleteModal = false;
+            $this->dispatch('toast', message: $e->getMessage(), type: 'error');
+        }
+    }
 
     public function deleteOrder(int $id): void
     {
