@@ -201,7 +201,13 @@ class PrintModal extends Component
         $this->show = false;
 
         match ($result->outputType) {
-            'pdf'  => $this->dispatch('label-print-pdf',  url: route('labels.pdf', $result->pdfToken)),
+            'pdf'  => $this->dispatch('toast',
+                          message:  'PDF ready.',
+                          type:     'success',
+                          duration: 15000,
+                          url:      route('labels.pdf', $result->pdfToken),
+                          urlLabel: 'Open PDF',
+                      ),
             'sent' => $this->dispatch('toast', message: "Sent to {$result->printerName}.", type: 'success'),
             'zpl'  => $this->dispatch('label-print-zpl',  content: base64_encode($result->content), filename: 'labels.zpl'),
             default => null,

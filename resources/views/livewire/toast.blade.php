@@ -15,7 +15,7 @@
             info:    'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
         },
 
-        show(message, type = 'success', duration = 3500) {
+        show(message, type = 'success', duration = 3500, url = null, urlLabel = null) {
             const key = this._colors[type] ? type : 'info';
             const id  = ++this._seq;
             this.toasts.push({
@@ -27,6 +27,8 @@
                 icon:     this._icons[key],
                 visible:  false,
                 paused:   false,
+                url:      url,
+                urlLabel: urlLabel || 'Open',
             });
             this.$nextTick(() => {
                 const t = this.toasts.find(t => t.id === id);
@@ -64,7 +66,7 @@
             toast._raf = requestAnimationFrame(tick);
         },
     }"
-    @toast.window="show($event.detail.message, $event.detail.type ?? 'success', $event.detail.duration ?? 3500)"
+    @toast.window="show($event.detail.message, $event.detail.type ?? 'success', $event.detail.duration ?? 3500, $event.detail.url ?? null, $event.detail.urlLabel ?? null)"
     class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 no-print"
 >
     <template x-for="toast in toasts" :key="toast.id">
@@ -95,6 +97,16 @@
 
             {{-- Message --}}
             <span class="flex-1" x-text="toast.message"></span>
+
+            {{-- Optional action link --}}
+            <a x-show="toast.url"
+               :href="toast.url"
+               target="_blank"
+               rel="noopener noreferrer"
+               @click="dismiss(toast.id)"
+               class="shrink-0 text-xs font-semibold underline underline-offset-2 opacity-80 hover:opacity-100 transition-opacity"
+               x-text="toast.urlLabel">
+            </a>
 
             {{-- Dismiss button --}}
             <button
