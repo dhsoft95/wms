@@ -21,7 +21,7 @@ class DatabaseSeeder extends Seeder
 //            StockDemoSeeder::class,
 //            ContainerDemoSeeder::class,
 //            ReceivingDemoSeeder::class,
-//            LabelsSeeder::class,
+            LabelsSeeder::class,
 //            OutboundDemoSeeder::class,
         ]);
 

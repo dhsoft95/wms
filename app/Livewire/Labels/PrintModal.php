@@ -160,7 +160,17 @@ class PrintModal extends Component
             $this->addError('reasonCodeId', $e->getMessage());
             return;
         } catch (\Illuminate\Auth\Access\AuthorizationException) {
-            $this->dispatch('toast', message: 'You are not authorised to reprint labels.', type: 'error');
+            $this->dispatch('toast', message: 'You are not authorised to print labels.', type: 'error');
+            return;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Label print failed', [
+                'type'       => $this->type,
+                'printer_id' => $this->printerId,
+                'template_id'=> $this->templateId,
+                'error'      => $e->getMessage(),
+                'file'       => $e->getFile() . ':' . $e->getLine(),
+            ]);
+            $this->dispatch('toast', message: 'Print failed: ' . $e->getMessage(), type: 'error');
             return;
         }
 
