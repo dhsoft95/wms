@@ -20,6 +20,12 @@ use App\Models\UnitOfMeasure;
 use App\Models\User;
 use App\Models\VirtualWarehouse;
 use App\Models\Warehouse;
+use App\Enums\Inventory\SerialStatus;
+use App\Livewire\Scan\Lookup;
+use App\Livewire\Scan\Move;
+use App\Models\Inventory\SerialNumber;
+use App\Models\Inventory\StockBalance;
+use App\Services\Inbound\GrnWorkflow;
 use App\Services\Inbound\PutawayEngine;
 use App\Services\Scanning\BarcodeResolver;
 use Livewire\Livewire;
@@ -300,4 +306,151 @@ it('putaway to a valid bin completes the task via PutawayEngine', function () {
     $task->refresh();
     expect($task->status->value)->toBe('completed')
         ->and($task->actual_location_id)->toBe($bin->id);
+});
+
+// ── 8. GrnWorkflow::addReceipt blocks over-receipt ─────────────────────────────
+
+it('GrnWorkflow::addReceipt throws DomainException when receipt would exceed expected qty', function () {
+    ['line' => $line, 'uom' => $uom, 'user' => $user] = scanTallyFixtures();
+
+    $this->actingAs($user);
+
+    // Receive the full expected qty (10)
+    app(GrnWorkflow::class)->addReceipt(
+        line: $line, qty: '10', uomId: $uom->id,
+        condition: 'good', batchNo: null, expiryDate: null, lpnId: null,
+    );
+    $line->refresh();
+
+    expect(fn () => app(GrnWorkflow::class)->addReceipt(
+        line: $line, qty: '1', uomId: $uom->id,
+        condition: 'good', batchNo: null, expiryDate: null, lpnId: null,
+    ))->toThrow(\DomainException::class, 'Over-receipt');
+});
+
+// ── 9. GrnWorkflow::addReceipt rejects duplicate serial numbers ────────────────
+
+it('GrnWorkflow::addReceipt throws DomainException for duplicate serials in one receipt', function () {
+    ['line' => $line, 'uom' => $uom, 'user' => $user] = scanTallyFixtures();
+
+    $this->actingAs($user);
+
+    expect(fn () => app(GrnWorkflow::class)->addReceipt(
+        line: $line, qty: '2', uomId: $uom->id,
+        condition: 'good', batchNo: null, expiryDate: null, lpnId: null,
+        serialNos: ['SN-DUPE-001', 'SN-DUPE-001'],
+    ))->toThrow(\DomainException::class, 'Duplicate serials');
+});
+
+it('GrnWorkflow::addReceipt throws DomainException when serial is already in stock', function () {
+    ['line' => $line, 'uom' => $uom, 'item' => $item, 'user' => $user] = scanTallyFixtures();
+
+    $this->actingAs($user);
+
+    // Seed an in-stock serial
+    SerialNumber::create([
+        'item_id'   => $item->id,
+        'serial_no' => 'SN-INSTOCK-001',
+        'status'    => SerialStatus::InStock,
+    ]);
+
+    expect(fn () => app(GrnWorkflow::class)->addReceipt(
+        line: $line, qty: '1', uomId: $uom->id,
+        condition: 'good', batchNo: null, expiryDate: null, lpnId: null,
+        serialNos: ['SN-INSTOCK-001'],
+    ))->toThrow(\DomainException::class, 'already in stock');
+});
+
+// ── 10. Scan/Move derives VW from StockBalance, not hardcoded ──────────────────
+
+it('Scan/Move sets vwId from StockBalance when item is scanned at source bin', function () {
+    $wh  = Warehouse::factory()->create(['is_active' => true]);
+    $vw  = VirtualWarehouse::factory()->create(['warehouse_id' => $wh->id, 'is_active' => true]);
+    $uom = UnitOfMeasure::firstOrCreate(['code' => 'EA'], ['name' => 'Each', 'type' => 'count', 'is_active' => true]);
+    $item = Item::factory()->create(['base_uom_id' => $uom->id, 'sku' => 'SCAN-MOVE-ITEM-001']);
+    $bin  = Location::factory()->create([
+        'warehouse_id' => $wh->id,
+        'code'         => 'BIN-MOVE-SRC-001',
+        'level'        => LocationLevel::Bin->value,
+        'type'         => LocationType::Storage->value,
+        'status'       => LocationStatus::Active->value,
+    ]);
+    $user = User::factory()->create(['status' => 'active']);
+    $user->givePermissionTo('scan.move');
+
+    $stockKey = new \App\Data\Inventory\StockKey(
+        itemId: $item->id, batchId: null, lpnId: null,
+        locationId: $bin->id, virtualWarehouseId: $vw->id,
+        stockStatus: \App\Enums\Inventory\StockStatus::Available,
+    );
+    StockBalance::create([
+        'key_hash'             => $stockKey->hash(),
+        'item_id'              => $item->id,
+        'location_id'          => $bin->id,
+        'uom_id'               => $uom->id,
+        'virtual_warehouse_id' => $vw->id,
+        'stock_status'         => \App\Enums\Inventory\StockStatus::Available->value,
+        'qty_on_hand'          => '5.0000',
+        'qty_reserved'         => '0.0000',
+        'qty_available'        => '5.0000',
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(Move::class)
+        ->set('scanInput', 'BIN-MOVE-SRC-001')
+        ->call('processScan')   // source_bin step → scans location
+        ->assertSet('step', 'lpn_or_item')
+        ->set('scanInput', 'SCAN-MOVE-ITEM-001')
+        ->call('processScan')   // lpn_or_item step → scans item
+        ->assertSet('step', 'dest_bin')
+        ->assertSet('vwId', $vw->id);
+});
+
+// ── 11. Scan/Lookup scopes stock to user's accessible VWs ──────────────────────
+
+it('Scan/Lookup itemStockData is scoped to the department user\'s accessible VWs', function () {
+    $wh   = Warehouse::factory()->create(['is_active' => true]);
+    $vwA  = VirtualWarehouse::factory()->create(['warehouse_id' => $wh->id, 'is_active' => true]);
+    $vwB  = VirtualWarehouse::factory()->create(['warehouse_id' => $wh->id, 'is_active' => true]);
+    $uom  = UnitOfMeasure::firstOrCreate(['code' => 'EA'], ['name' => 'Each', 'type' => 'count', 'is_active' => true]);
+    $item = Item::factory()->create(['base_uom_id' => $uom->id]);
+    $binA = Location::factory()->create(['warehouse_id' => $wh->id, 'level' => LocationLevel::Bin->value, 'type' => LocationType::Storage->value, 'status' => LocationStatus::Active->value]);
+    $binB = Location::factory()->create(['warehouse_id' => $wh->id, 'level' => LocationLevel::Bin->value, 'type' => LocationType::Storage->value, 'status' => LocationStatus::Active->value]);
+
+    $makeBalance = function ($locId, $vwId) use ($item, $uom) {
+        $key = new \App\Data\Inventory\StockKey(
+            itemId: $item->id, batchId: null, lpnId: null,
+            locationId: $locId, virtualWarehouseId: $vwId,
+            stockStatus: \App\Enums\Inventory\StockStatus::Available,
+        );
+        return StockBalance::create([
+            'key_hash'             => $key->hash(),
+            'item_id'              => $item->id,
+            'location_id'          => $locId,
+            'uom_id'               => $uom->id,
+            'virtual_warehouse_id' => $vwId,
+            'stock_status'         => \App\Enums\Inventory\StockStatus::Available->value,
+            'qty_on_hand'          => '3.0000',
+            'qty_reserved'         => '0.0000',
+            'qty_available'        => '3.0000',
+        ]);
+    };
+    $makeBalance($binA->id, $vwA->id);
+    $makeBalance($binB->id, $vwB->id);
+
+    $deptUser = User::factory()->create(['status' => 'active']);
+    $deptUser->assignRole('department-user');
+    $deptUser->virtualWarehouses()->attach($vwA->id);
+    $deptUser->givePermissionTo('scan.lookup');
+
+    $component = Livewire::actingAs($deptUser)
+        ->test(Lookup::class)
+        ->set('resultType', 'item')
+        ->set('resultId', $item->id);
+
+    $data  = $component->instance()->getResultData();
+    $vwIds = collect($data['stock'] ?? [])->map(fn ($s) => $s->vw)->all();
+
+    expect(count($data['stock']))->toBe(1)
+        ->and($vwIds[0])->toBe($vwA->name);
 });
