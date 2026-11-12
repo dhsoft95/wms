@@ -15,7 +15,15 @@
             try { if (id) localStorage.setItem('wms_last_printer_id', id); } catch (e) {}
         }
     }"
-    @label-print-pdf.window="window.open($event.detail.url, '_blank')"
+    @label-print-pdf.window="
+        const a = document.createElement('a');
+        a.href = $event.detail.url;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    "
     @label-print-zpl.window="
         const bytes  = atob($event.detail.content);
         const arr    = new Uint8Array(bytes.length);
