@@ -4,24 +4,28 @@ namespace App\Livewire\Inbound\Grn;
 
 use App\Enums\GrnStatus;
 use App\Enums\ReceiptCondition;
+use App\Enums\ScanResultType;
+use App\Livewire\Concerns\HandlesScans;
 use App\Models\Grn;
 use App\Models\GrnLine;
 use App\Models\GrnReceipt;
 use App\Models\Inventory\Lpn;
 use App\Models\ReasonCode;
 use App\Models\UnitOfMeasure;
+use App\Enums\LabelTemplateType;
+use App\Services\Foundation\SettingsService;
 use App\Services\Inbound\GrnWorkflow;
 use App\Services\Inbound\LpnService;
+use App\Services\Scanning\ScanResult;
 use Illuminate\Contracts\View\View;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
 
 class Receive extends Component
 {
-    public Grn $grn;
+    use HandlesScans;
 
-    // Scan bar
-    public string $scanInput = '';
+    public Grn $grn;
 
     // Active line for receipt entry
     public ?int $activeLine = null;
@@ -112,27 +116,49 @@ class Receive extends Component
 
     public function processScan(): void
     {
-        $input = trim($this->scanInput);
-        $this->scanInput = '';
+        $result = $this->resolveScan(null, $this->grn->warehouse_id);
+        if ($result === null) return;
 
-        if ($input === '') {
+        if (! $result->ok()) {
+            $this->scanFail($result->error ?? 'Barcode not recognised.');
             return;
         }
 
-        // Try matching to an item SKU or barcode
-        $line = $this->lines->first(function ($l) use ($input) {
-            return $l->item
-                && (
-                    strtoupper($l->item->sku) === strtoupper($input)
-                    || $l->item->barcodes()->where('barcode', $input)->exists()
-                );
-        });
+        // GS1 data → prefill qty / batch / expiry from barcode
+        if ($result->gs1Data) {
+            $gs1 = $result->gs1Data;
+            if (! empty($gs1['qty']))    $this->receiptQty     = (string) $gs1['qty'];
+            if (! empty($gs1['batch']))  $this->receiptBatchNo = $gs1['batch'];
+            if (! empty($gs1['expiry'])) $this->receiptExpiry  = $gs1['expiry'];
+        }
 
+        match ($result->type) {
+            ScanResultType::Item => $this->handleItemScan($result),
+            ScanResultType::Lpn  => $this->handleLpnScan($result),
+            default              => $this->scanFail('Scan not applicable here.'),
+        };
+    }
+
+    private function handleItemScan(ScanResult $result): void
+    {
+        $item = $result->record;
+        $line = $this->lines->first(fn ($l) => $l->item_id === $item?->getKey());
         if ($line) {
             $this->selectLine($line->id);
-            $this->dispatch('toast', message: "Line found: {$line->item->name}", type: 'info');
+            $this->scanOk("Line selected: {$item?->name}");
         } else {
-            $this->dispatch('toast', message: "No matching line for: {$input}", type: 'error');
+            $this->scanFail("Item {$item?->sku} not on this GRN.");
+        }
+    }
+
+    private function handleLpnScan(ScanResult $result): void
+    {
+        $lpn = $result->record;
+        if ($lpn) {
+            $this->receiptLpnId = (string) $lpn->getKey();
+            $this->scanOk("LPN set: {$lpn->code}");
+        } else {
+            $this->scanFail('LPN not found.');
         }
     }
 
@@ -231,6 +257,13 @@ class Receive extends Component
         $lpn = app(LpnService::class)->generate($this->grn);
         $this->receiptLpnId = (string) $lpn->id;
         $this->dispatch('toast', message: "LPN generated: {$lpn->code}", type: 'success');
+
+        if (SettingsService::get('labels.auto_print_lpn', true)) {
+            $this->dispatch('open-label-print',
+                type: LabelTemplateType::PalletLpn->value,
+                ids:  [$lpn->id],
+            );
+        }
     }
 
     // ─── Finish Receiving ─────────────────────────────────────────────────────

@@ -3,14 +3,15 @@ declare(strict_types=1);
 namespace App\Livewire\Scan;
 
 use App\Enums\GrnStatus;
+use App\Enums\Inventory\SerialStatus;
 use App\Enums\ScanResultType;
+use App\Livewire\Concerns\HandlesScans;
 use App\Models\Grn;
 use App\Models\GrnLine;
-use App\Models\GrnReceipt;
 use App\Models\Inventory\Lpn;
+use App\Models\Inventory\SerialNumber;
+use App\Services\Inbound\GrnWorkflow;
 use App\Services\Inbound\LpnService;
-use App\Services\Scanning\BarcodeResolver;
-use App\Services\Scanning\ScanContext;
 use Illuminate\Contracts\View\View;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
@@ -19,8 +20,9 @@ use Livewire\Component;
 
 class Receive extends Component
 {
+    use HandlesScans;
+
     public string $step      = 'grn';
-    public string $barcode   = '';
     public string $requestId = '';
 
     // Selections
@@ -34,6 +36,9 @@ class Receive extends Component
     public ?int    $lpnId       = null;
     public bool    $newLpn      = false;
     public ?array  $gs1Data     = null;
+
+    /** Accumulated serial numbers during the 'serials' step */
+    public array $serials = [];
 
     public function mount(): void
     {
@@ -68,67 +73,65 @@ class Receive extends Component
         return $this->lpnId ? Lpn::find($this->lpnId) : null;
     }
 
+    /** How many serials are required (= base qty, integer) */
+    #[Computed]
+    public function requiredSerials(): int
+    {
+        return max(1, (int) ceil((float) $this->qty));
+    }
+
     public function selectGrn(int $id): void
     {
         $this->grnId = $id;
         $this->step  = 'item';
-        $this->dispatch('scan-success');
+        $this->scanOk();
     }
 
     public function processScan(): void
     {
-        $raw = trim($this->barcode);
-        $this->barcode = '';
-        if ($raw === '') return;
-
-        $resolver = app(BarcodeResolver::class);
-
         match ($this->step) {
-            'grn'  => $this->handleGrnScan($raw, $resolver),
-            'item' => $this->handleItemScan($raw, $resolver),
-            'lpn'  => $this->handleLpnScan($raw, $resolver),
-            default => null,
+            'grn'     => $this->handleGrnScan(),
+            'item'    => $this->handleItemScan(),
+            'serials' => $this->handleSerialScan(),
+            'lpn'     => $this->handleLpnScan(),
+            default   => null,
         };
     }
 
-    private function handleGrnScan(string $raw, BarcodeResolver $resolver): void
+    private function handleGrnScan(): void
     {
-        $result = $resolver->resolve($raw, new ScanContext(expects: ScanResultType::Grn));
+        $result = $this->resolveScan(ScanResultType::Grn);
+        if ($result === null) return;
+
         if ($result->type === ScanResultType::Grn) {
             $grn = $result->record;
-            if ($grn->status->value !== GrnStatus::Receiving->value) {
-                $this->dispatch('toast', message: 'GRN is not in Receiving status.', type: 'error');
-                $this->dispatch('scan-error');
+            if ($grn->status !== GrnStatus::Receiving) {
+                $this->scanFail('GRN is not in Receiving status.');
                 return;
             }
             $this->grnId = $grn->id;
             $this->step  = 'item';
-            $this->dispatch('scan-success');
+            $this->scanOk();
         } else {
-            $this->dispatch('toast', message: $result->error ?? 'Not a GRN barcode.', type: 'error');
-            $this->dispatch('scan-error');
+            $this->scanFail($result->error ?? 'Not a GRN barcode.');
         }
     }
 
-    private function handleItemScan(string $raw, BarcodeResolver $resolver): void
+    private function handleItemScan(): void
     {
-        $result = $resolver->resolve($raw, new ScanContext(expects: ScanResultType::Item));
+        $result = $this->resolveScan(ScanResultType::Item);
+        if ($result === null) return;
+
         if ($result->type !== ScanResultType::Item) {
-            $this->dispatch('toast', message: $result->error ?? 'Item not recognised.', type: 'error');
-            $this->dispatch('scan-error');
+            $this->scanFail($result->error ?? 'Item not recognised.');
             return;
         }
 
         $item = $result->record;
-
-        // Resolve GRN line — find open line for this item in the selected GRN
-        $line = GrnLine::where('grn_id', $this->grnId)
-            ->where('item_id', $item->id)
-            ->first();
+        $line = GrnLine::where('grn_id', $this->grnId)->where('item_id', $item->id)->first();
 
         if (! $line) {
-            $this->dispatch('toast', message: "Item {$item->sku} not on this GRN.", type: 'error');
-            $this->dispatch('scan-error');
+            $this->scanFail("Item {$item->sku} not on this GRN.");
             return;
         }
 
@@ -138,31 +141,75 @@ class Receive extends Component
 
         // Pre-fill from GS1
         if ($result->gs1Data) {
-            $this->qty        = (string) ($result->gs1Data['qty'] ?? '');
+            $this->qty        = $result->gs1Data['qty'] ? (string) $result->gs1Data['qty'] : '';
             $this->batchNo    = $result->gs1Data['batch'] ?? '';
             $this->expiryDate = $result->gs1Data['expiry'] ?? '';
         }
 
         $this->step = 'qty';
-        $this->dispatch('scan-success');
+        $this->scanOk();
     }
 
-    private function handleLpnScan(string $raw, BarcodeResolver $resolver): void
+    private function handleSerialScan(): void
     {
-        $result = $resolver->resolve($raw, new ScanContext(expects: ScanResultType::Lpn));
+        // Serials are raw strings — read scanInput directly (not via resolver)
+        $raw = trim($this->scanInput);
+        $this->scanInput = '';
+        if ($raw === '') return;
+
+        $serial = SerialNumber::normalize($raw);
+
+        // Duplicate within this receipt
+        if (in_array($serial, $this->serials, true)) {
+            $this->scanFail("Serial {$serial} already scanned in this receipt.");
+            return;
+        }
+
+        // Already in stock
+        $inStock = SerialNumber::where('item_id', $this->itemId)
+            ->where('serial_no', $serial)
+            ->where('status', SerialStatus::InStock)
+            ->exists();
+        if ($inStock) {
+            $this->scanFail("Serial {$serial} is already in stock.");
+            return;
+        }
+
+        $this->serials[] = $serial;
+        $count           = count($this->serials);
+        $required        = $this->requiredSerials;
+
+        if ($count >= $required) {
+            $this->step = 'lpn';
+            $this->scanOk("All {$required} serial(s) scanned.");
+        } else {
+            $this->scanOk("{$count} of {$required} serial(s) scanned.");
+        }
+    }
+
+    private function handleLpnScan(): void
+    {
+        $result = $this->resolveScan(ScanResultType::Lpn);
+        if ($result === null) return;
+
         if ($result->type === ScanResultType::Lpn) {
             $this->lpnId  = $result->record->id;
             $this->newLpn = false;
             $this->step   = 'confirm';
-            $this->dispatch('scan-success');
+            $this->scanOk();
         } else {
-            $this->dispatch('toast', message: $result->error ?? 'LPN not recognised.', type: 'error');
-            $this->dispatch('scan-error');
+            $this->scanFail($result->error ?? 'LPN not recognised.');
         }
     }
 
     public function setQty(string $qty): void
     {
+        // Validate expiry not in past when pre-filled from GS1
+        if ($this->expiryDate && \Carbon\Carbon::parse($this->expiryDate)->startOfDay()->isPast()) {
+            $this->scanFail("Expiry date {$this->expiryDate} is in the past.");
+            return;
+        }
+
         $this->qty  = $qty;
         $this->step = 'condition';
     }
@@ -170,7 +217,14 @@ class Receive extends Component
     public function setCondition(string $condition): void
     {
         $this->condition = $condition;
-        $this->step      = 'lpn';
+        $item = $this->currentItem;
+
+        if ($item?->track_serial) {
+            $this->serials = [];
+            $this->step    = 'serials';
+        } else {
+            $this->step = 'lpn';
+        }
     }
 
     public function createNewLpn(): void
@@ -180,12 +234,11 @@ class Receive extends Component
         $this->lpnId  = $lpn->id;
         $this->newLpn = true;
         $this->step   = 'confirm';
-        $this->dispatch('scan-success');
+        $this->scanOk();
     }
 
     public function saveReceipt(): void
     {
-        // Idempotency guard
         $cacheKey = "scan_req:{$this->requestId}";
         if (Cache::has($cacheKey)) {
             $this->dispatch('toast', message: 'Already saved.', type: 'info');
@@ -203,29 +256,34 @@ class Receive extends Component
         $line = GrnLine::findOrFail($this->grnLineId);
         $item = \App\Models\Item::findOrFail($this->itemId);
 
-        GrnReceipt::create([
-            'grn_line_id' => $line->id,
-            'qty'         => $this->qty,
-            'uom_id'      => $item->base_uom_id,
-            'batch_no'    => $this->batchNo ?: null,
-            'expiry_date' => $this->expiryDate ?: null,
-            'condition'   => $this->condition,
-            'lpn_id'      => $this->lpnId,
-            'received_by' => auth()->id(),
-            'device'      => session('scan_device_code'),
-        ]);
-
-        $line->recalculateTotals();
+        try {
+            app(GrnWorkflow::class)->addReceipt(
+                line:      $line,
+                qty:       $this->qty,
+                uomId:     $item->base_uom_id,
+                condition: $this->condition,
+                batchNo:   $this->batchNo ?: null,
+                expiryDate: $this->expiryDate ?: null,
+                lpnId:     $this->lpnId,
+                serialNos: $this->serials,
+                device:    session('scan_device_code'),
+            );
+        } catch (\DomainException $e) {
+            Cache::forget($cacheKey); // allow retry after correction
+            $this->scanFail($e->getMessage());
+            return;
+        }
 
         $this->dispatch('toast', message: "Receipt saved for {$item->sku}.", type: 'success');
-        $this->dispatch('scan-success');
+        $this->scanOk();
         $this->resetForNextItem();
     }
 
     private function resetForNextItem(): void
     {
         $grnId = $this->grnId;
-        $this->reset(['itemId', 'grnLineId', 'qty', 'batchNo', 'expiryDate', 'condition', 'lpnId', 'newLpn', 'gs1Data']);
+        $this->reset(['itemId', 'grnLineId', 'qty', 'batchNo', 'expiryDate', 'condition',
+                      'lpnId', 'newLpn', 'gs1Data', 'serials']);
         $this->grnId     = $grnId;
         $this->requestId = (string) Str::uuid();
         $this->step      = 'item';
@@ -233,11 +291,17 @@ class Receive extends Component
 
     public function back(): void
     {
+        if ($this->step === 'grn') {
+            $this->redirect(route('scan.home'), navigate: true);
+            return;
+        }
+
         $this->step = match ($this->step) {
             'item'      => 'grn',
             'qty'       => 'item',
             'condition' => 'qty',
-            'lpn'       => 'condition',
+            'serials'   => 'condition',
+            'lpn'       => $this->currentItem?->track_serial ? 'serials' : 'condition',
             'confirm'   => 'lpn',
             default     => 'grn',
         };

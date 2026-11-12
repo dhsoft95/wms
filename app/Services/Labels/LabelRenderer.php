@@ -126,7 +126,6 @@ final class LabelRenderer
 
     private function pdfBarcodeElement(array $el, string $value, string $style, float $wMm, float $hMm): string
     {
-        // Amendment 7: PDF barcodes are PNG at 300 dpi
         $symbology = match($el['symbology'] ?? 'code128') {
             'qr'         => 'QRCODE,H',
             'ean13'      => 'EAN13',
@@ -134,15 +133,28 @@ final class LabelRenderer
             default      => 'C128',
         };
 
+        // QR codes must be square — take the smaller dimension and center
+        $renderW = $wMm;
+        $renderH = $hMm;
+        $elStyle = $style;
+        if (($el['symbology'] ?? '') === 'qr') {
+            $side    = min($wMm, $hMm);
+            $offX    = round(($wMm - $side) / 2, 2);
+            $offY    = round(($hMm - $side) / 2, 2);
+            $x       = round(($el['x_mm'] ?? 0) + $offX, 2);
+            $y       = round(($el['y_mm'] ?? 0) + $offY, 2);
+            $elStyle = "left:{$x}mm;top:{$y}mm;width:{$side}mm;height:{$side}mm;";
+            $renderW = $renderH = $side;
+        }
+
         try {
             $barcode = new Barcode();
-            // Width/height in px at 300dpi: 1mm = 300/25.4 = 11.81px
-            $wPx  = (int) round($wMm * 11.81);
-            $hPx  = (int) round($hMm * 11.81);
+            $wPx  = (int) round($renderW * 11.81);
+            $hPx  = (int) round($renderH * 11.81);
             $bobj = $barcode->getBarcodeObj($symbology, $value, $wPx, $hPx);
             $png  = $bobj->getPngData(true);
             $b64  = base64_encode($png);
-            return "<img class='el' src='data:image/png;base64,{$b64}' style='{$style}' />";
+            return "<img class='el' src='data:image/png;base64,{$b64}' style='{$elStyle}' />";
         } catch (\Throwable) {
             return "<div class='el' style='{$style}border:1px solid red;font-size:7pt;color:red;'>Barcode error</div>";
         }
@@ -262,11 +274,20 @@ final class LabelRenderer
                         'datamatrix' => 'DATAMATRIX',
                         default      => 'C128',
                     };
+                    // QR codes must be square — center within the element bounds
+                    $imgX = $x; $imgY = $y;
+                    $renderW = (int) $w; $renderH = (int) $h;
+                    if (($el['symbology'] ?? '') === 'qr') {
+                        $side    = min($w, $h);
+                        $imgX    = $x + ($w - $side) / 2;
+                        $imgY    = $y + ($h - $side) / 2;
+                        $renderW = $renderH = (int) $side;
+                    }
                     try {
                         $barcode = new Barcode();
-                        $bobj    = $barcode->getBarcodeObj($sym, $bVal, (int) $w, (int) $h);
+                        $bobj    = $barcode->getBarcodeObj($sym, $bVal, $renderW, $renderH);
                         $svg     = $bobj->getSvgCode();
-                        $inner  .= "<image x='{$x}' y='{$y}' width='{$w}' height='{$h}' href='data:image/svg+xml;base64," . base64_encode($svg) . "'/>";
+                        $inner  .= "<image x='{$imgX}' y='{$imgY}' width='{$renderW}' height='{$renderH}' href='data:image/svg+xml;base64," . base64_encode($svg) . "'/>";
                     } catch (\Throwable) {
                         $inner .= "<rect x='{$x}' y='{$y}' width='{$w}' height='{$h}' fill='none' stroke='red'/>";
                     }

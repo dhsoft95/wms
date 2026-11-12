@@ -7,6 +7,7 @@ namespace App\Livewire\Inbound\Containers;
 use App\Enums\ContainerDiscrepancyType;
 use App\Enums\ContainerDocumentType;
 use App\Enums\ContainerStatus;
+use App\Enums\LabelTemplateType;
 use App\Models\Container;
 use App\Models\ContainerDiscrepancy;
 use App\Models\ContainerDocument;
@@ -210,6 +211,10 @@ class Show extends Component
             $this->container->refresh();
             $this->arrivalModalOpen = false;
             $this->dispatch('toast', message: 'Arrival confirmed.', type: 'success');
+            $this->dispatch('open-label-print',
+                type: LabelTemplateType::Container->value,
+                ids:  [$this->container->id],
+            );
         } catch (\Throwable $e) {
             $this->dispatch('toast', message: $e->getMessage(), type: 'error');
         }

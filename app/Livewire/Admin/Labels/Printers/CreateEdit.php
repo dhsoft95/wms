@@ -70,7 +70,7 @@ class CreateEdit extends Component
             'name'          => $this->name,
             'kind'          => $this->kind,
             'ip'            => $this->isNetworkPrinter() ? $this->ip : null,
-            'port'          => $this->isNetworkPrinter() ? (int) $this->port : null,
+            'port'          => (int) ($this->isNetworkPrinter() ? $this->port : 9100),
             'dpi'           => (int) $this->dpi,
             'location_note' => $this->locationNote ?: null,
             'is_active'     => $this->isActive,

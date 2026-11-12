@@ -51,6 +51,10 @@
         },
         submit(el) {
             if (!el.value.trim()) return;
+            if (!navigator.onLine) {
+                this.flash(false, 'Offline — scan not sent');
+                return;
+            }
             const now = Date.now();
             if (this.dedupMs > 0 && el.value === this.lastScan && now - this.lastAt < this.dedupMs) {
                 el.value = '';

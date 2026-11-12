@@ -1,10 +1,12 @@
 <div>
     {{-- Step header --}}
     @php
-        $steps = ['grn'=>1,'item'=>2,'qty'=>3,'condition'=>4,'lpn'=>5,'confirm'=>6];
-        $stepLabels = ['grn'=>'Scan GRN','item'=>'Scan Item','qty'=>'Enter Qty','condition'=>'Condition','lpn'=>'Scan LPN','confirm'=>'Confirm'];
+        $isSerial = $this->currentItem?->track_serial ?? false;
+        $steps = ['grn'=>1,'item'=>2,'qty'=>3,'condition'=>4,'lpn'=>($isSerial?6:5),'confirm'=>($isSerial?7:6)];
+        if ($isSerial) $steps['serials'] = 5;
+        $total   = $isSerial ? 7 : 6;
+        $stepLabels = ['grn'=>'Scan GRN','item'=>'Scan Item','qty'=>'Enter Qty','condition'=>'Condition','serials'=>'Scan Serials','lpn'=>'Scan LPN','confirm'=>'Confirm'];
         $current = $steps[$step] ?? 1;
-        $total = 6;
     @endphp
     <div class="flex items-center gap-3 mb-4">
         <button wire:click="back" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
@@ -25,11 +27,7 @@
     @if ($step === 'grn')
         <div class="space-y-3">
             <p class="text-lg font-bold text-slate-800 dark:text-slate-100">Scan GRN barcode or select:</p>
-            <input type="text" wire:model.defer="barcode"
-                   x-data="{lastScan:'',lastAt:0}"
-                   x-on:keydown.enter="const now=Date.now();if($el.value===lastScan&&now-lastAt<600){$el.value='';return;}lastScan=$el.value;lastAt=now;$wire.processScan()"
-                   data-scan-input placeholder="GRN-XXXXX"
-                   class="input text-lg h-14" autocomplete="off" autofocus />
+            <x-scan-input wire:model="scanInput" :method="'processScan'" placeholder="GRN-XXXXX" class="text-lg h-14" />
             <div class="space-y-2 mt-2">
                 @foreach ($this->openGrns as $grn)
                     <button wire:click="selectGrn({{ $grn->id }})"
@@ -53,11 +51,7 @@
                 <p class="font-bold text-simba-700 dark:text-simba-400">{{ $this->currentGrn?->number }}</p>
             </div>
             <p class="text-lg font-bold text-slate-800 dark:text-slate-100">Scan item barcode:</p>
-            <input type="text" wire:model.defer="barcode"
-                   x-data="{lastScan:'',lastAt:0}"
-                   x-on:keydown.enter="const now=Date.now();if($el.value===lastScan&&now-lastAt<600){$el.value='';return;}lastScan=$el.value;lastAt=now;$wire.processScan()"
-                   data-scan-input placeholder="SKU or barcode"
-                   class="input text-lg h-14" autocomplete="off" autofocus />
+            <x-scan-input wire:model="scanInput" :method="'processScan'" placeholder="SKU or barcode" class="text-lg h-14" />
         </div>
     @endif
 
@@ -104,15 +98,40 @@
         </div>
     @endif
 
+    {{-- Serials Step --}}
+    @if ($step === 'serials')
+        <div class="space-y-4">
+            <div class="flex items-center justify-between">
+                <p class="text-lg font-bold">Scan serial numbers:</p>
+                <span class="text-sm font-semibold tabular-nums px-3 py-1 rounded-full
+                    {{ count($serials) >= $this->requiredSerials
+                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                        : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' }}">
+                    {{ count($serials) }} / {{ $this->requiredSerials }}
+                </span>
+            </div>
+
+            <x-scan-input wire:model="scanInput" :method="'processScan'" placeholder="Scan serial number" class="text-lg h-14" />
+
+            @if (count($serials) > 0)
+                <ul class="space-y-1 max-h-56 overflow-y-auto">
+                    @foreach ($serials as $i => $sn)
+                        <li class="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-mono">
+                            <span class="text-xs text-slate-400 w-5 text-right">{{ $i + 1 }}.</span>
+                            <span class="flex-1">{{ $sn }}</span>
+                            <span class="text-emerald-500">&#x2713;</span>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </div>
+    @endif
+
     {{-- LPN Step --}}
     @if ($step === 'lpn')
         <div class="space-y-3">
             <p class="text-lg font-bold">Scan LPN or create new pallet:</p>
-            <input type="text" wire:model.defer="barcode"
-                   x-data="{lastScan:'',lastAt:0}"
-                   x-on:keydown.enter="const now=Date.now();if($el.value===lastScan&&now-lastAt<600){$el.value='';return;}lastScan=$el.value;lastAt=now;$wire.processScan()"
-                   data-scan-input placeholder="LPN-XXXXX"
-                   class="input text-lg h-14" autocomplete="off" autofocus />
+            <x-scan-input wire:model="scanInput" :method="'processScan'" placeholder="LPN-XXXXX" class="text-lg h-14" />
             <button wire:click="createNewLpn"
                     class="w-full btn btn-secondary h-14 text-base font-bold">
                 + New Pallet (generate LPN)
@@ -139,6 +158,16 @@
                         <span class="text-sm font-semibold">{{ $value }}</span>
                     </div>
                 @endforeach
+                @if (count($serials) > 0)
+                    <div class="px-4 py-3">
+                        <span class="text-sm text-slate-400">Serials ({{ count($serials) }})</span>
+                        <ul class="mt-1 space-y-0.5">
+                            @foreach ($serials as $sn)
+                                <li class="text-sm font-mono font-semibold">{{ $sn }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
             </div>
             <button wire:click="saveReceipt" wire:loading.attr="disabled"
                     class="w-full btn btn-primary h-16 text-lg font-bold">

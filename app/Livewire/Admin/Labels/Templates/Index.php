@@ -97,6 +97,7 @@ class Index extends Component
             'height_mm' => $template->height_mm,
             'dpi'       => $template->dpi,
             'elements'  => $template->elements,
+            'settings'  => $template->settings,
             'is_default'=> false,
             'is_active' => $template->is_active,
         ]);

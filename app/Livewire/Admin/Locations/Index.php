@@ -24,6 +24,9 @@ class Index extends Component
     public string $filterStatus    = '';
     public string $viewMode        = 'list'; // 'list' or 'tree'
 
+    /** @var array<int> */
+    public array $selectedIds = [];
+
     public ?int  $blockingLocationId = null;
     public string $blockReason       = '';
 
@@ -68,24 +71,54 @@ class Index extends Component
 
     // ─── Updaters ─────────────────────────────────────────────────────────────
 
+    public function selectAll(): void
+    {
+        $this->selectedIds = $this->locations->pluck('id')->map(fn ($id) => (int) $id)->all();
+    }
+
+    public function deselectAll(): void
+    {
+        $this->selectedIds = [];
+    }
+
+    public function printSelected(): void
+    {
+        if (empty($this->selectedIds)) return;
+
+        $levels = Location::whereIn('id', $this->selectedIds)
+            ->whereNotNull('level')
+            ->pluck('level')
+            ->unique();
+
+        $this->dispatch('open-label-print',
+            type:          \App\Enums\LabelTemplateType::Location->value,
+            ids:           $this->selectedIds,
+            locationLevel: $levels->count() === 1 ? $levels->first() : '',
+        );
+    }
+
     public function updatingSearch(): void
     {
         $this->resetPage();
+        $this->selectedIds = [];
     }
 
     public function updatingFilterWarehouse(): void
     {
         $this->resetPage();
+        $this->selectedIds = [];
     }
 
     public function updatingFilterType(): void
     {
         $this->resetPage();
+        $this->selectedIds = [];
     }
 
     public function updatingFilterStatus(): void
     {
         $this->resetPage();
+        $this->selectedIds = [];
     }
 
     // ─── Block / Unblock ──────────────────────────────────────────────────────

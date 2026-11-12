@@ -23,6 +23,8 @@ class LabelTemplate extends Model
         'height_mm',
         'dpi',
         'elements',
+        'settings',
+        'for_levels',
         'is_default',
         'is_active',
     ];
@@ -31,7 +33,12 @@ class LabelTemplate extends Model
     {
         return [
             'type'       => LabelTemplateType::class,
+            'width_mm'   => 'float',
+            'height_mm'  => 'float',
+            'dpi'        => 'integer',
             'elements'   => 'array',
+            'settings'   => 'array',
+            'for_levels' => 'array',
             'is_default' => 'bool',
             'is_active'  => 'bool',
         ];
@@ -40,6 +47,16 @@ class LabelTemplate extends Model
     public function scopeActive($query): mixed
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeForLevel($query, ?string $level): mixed
+    {
+        if ($level === null) return $query;
+
+        return $query->where(function ($q) use ($level) {
+            $q->whereNull('for_levels')
+              ->orWhereJsonContains('for_levels', $level);
+        });
     }
 
     public function scopeDefaultForType($query, LabelTemplateType $type): mixed
@@ -54,23 +71,25 @@ class LabelTemplate extends Model
 
     public static function availableFields(LabelTemplateType $type): array
     {
+        $common = ['company_name'];
+
         return match($type) {
-            LabelTemplateType::PalletLpn => [
+            LabelTemplateType::PalletLpn => array_merge($common, [
                 'lpn_code', 'grn_number', 'warehouse_name', 'item_sku', 'item_name',
                 'batch_no', 'expiry_date', 'qty', 'uom_code', 'vw_name', 'receive_date', 'location_code',
-            ],
-            LabelTemplateType::Item => [
+            ]),
+            LabelTemplateType::Item => array_merge($common, [
                 'item_sku', 'item_name', 'barcode', 'batch_no', 'expiry_date', 'qty', 'uom_code',
-            ],
-            LabelTemplateType::Location => [
-                'location_code', 'location_type', 'warehouse_name', 'barcode',
-            ],
-            LabelTemplateType::Container => [
+            ]),
+            LabelTemplateType::Location => array_merge($common, [
+                'location_code', 'location_level', 'location_type', 'warehouse_name', 'barcode',
+            ]),
+            LabelTemplateType::Container => array_merge($common, [
                 'container_no', 'iso_number', 'warehouse_name', 'status',
-            ],
-            LabelTemplateType::Dispatch => [
+            ]),
+            LabelTemplateType::Dispatch => array_merge($common, [
                 'do_number', 'partner_name', 'warehouse_name', 'item_sku', 'qty',
-            ],
+            ]),
         };
     }
 

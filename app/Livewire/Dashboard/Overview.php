@@ -136,6 +136,175 @@ class Overview extends Component
         return $this->metrics()->sparkOrdersDispatched($this->user(), $this->warehouseId);
     }
 
+    // ── KPI card definitions ─────────────────────────────────────────────────
+
+    #[Computed]
+    public function kpis(): array
+    {
+        $stockSpark = $this->sparkStockReceived;
+        $pickSpark  = $this->sparkOrdersDispatched;
+
+        $all = [];
+
+        if ($this->canSeeKpi('stock_on_hand')) {
+            $all[] = [
+                'label' => 'Stock on Hand',
+                'value' => number_format($this->stockOnHand['qty'], 0),
+                'hint'  => number_format($this->stockOnHand['sku_count']) . ' SKUs',
+                'icon'  => 'archive',
+                'tone'  => 'brand',
+                'href'  => route('inventory.stock.index'),
+                'spark' => $stockSpark,
+                'trend' => $this->computeTrend($stockSpark),
+            ];
+        }
+
+        if ($this->canSeeKpi('open_orders')) {
+            $all[] = [
+                'label' => 'Open Orders',
+                'value' => number_format($this->openOrders['total']),
+                'hint'  => $this->openOrders['po_count'] . ' PO · ' . $this->openOrders['grn_count'] . ' GRN · ' . $this->openOrders['transfer_count'] . ' transfer',
+                'icon'  => 'clipboard-list',
+                'tone'  => 'brand',
+                'href'  => null,
+                'spark' => null,
+                'trend' => null,
+            ];
+        }
+
+        if ($this->canSeeKpi('pending_approvals')) {
+            $all[] = [
+                'label' => 'Pending Approvals',
+                'value' => (string) $this->pendingApprovals['total'],
+                'hint'  => 'For you to action',
+                'icon'  => 'bell',
+                'tone'  => $this->pendingApprovals['total'] > 0 ? 'warning' : 'neutral',
+                'href'  => route('approvals.index'),
+                'spark' => null,
+                'trend' => null,
+            ];
+        }
+
+        if ($this->canSeeKpi('to_receive')) {
+            $all[] = [
+                'label' => 'To Receive',
+                'value' => (string) $this->toReceive['total'],
+                'hint'  => $this->toReceive['today'] . ' started today',
+                'icon'  => 'inbox',
+                'tone'  => 'brand',
+                'href'  => route('inbound.grn.index'),
+                'spark' => null,
+                'trend' => null,
+            ];
+        }
+
+        if ($this->canSeeKpi('awaiting_putaway')) {
+            $all[] = [
+                'label' => 'Awaiting Put-Away',
+                'value' => (string) $this->awaitingPutaway['total'],
+                'hint'  => 'Open tasks',
+                'icon'  => 'arrows',
+                'tone'  => 'brand',
+                'href'  => route('inbound.putaway.index'),
+                'spark' => null,
+                'trend' => null,
+            ];
+        }
+
+        if ($this->canSeeKpi('to_pick')) {
+            $all[] = [
+                'label' => 'To Pick / Dispatch',
+                'value' => (string) $this->toPick['total'],
+                'hint'  => 'Orders ready to pick',
+                'icon'  => 'truck',
+                'tone'  => 'success',
+                'href'  => route('outbound.orders.index'),
+                'spark' => $pickSpark,
+                'trend' => $this->computeTrend($pickSpark),
+            ];
+        }
+
+        if ($this->canSeeKpi('in_transit')) {
+            $all[] = [
+                'label' => 'In Transit',
+                'value' => number_format($this->inTransit['total']),
+                'hint'  => $this->inTransit['containers'] . ' containers · ' . $this->inTransit['transfers'] . ' transfers',
+                'icon'  => 'cube',
+                'tone'  => 'brand',
+                'href'  => null,
+                'spark' => null,
+                'trend' => null,
+            ];
+        }
+
+        if ($this->canSeeKpi('low_stock')) {
+            $all[] = [
+                'label' => 'Low Stock',
+                'value' => (string) $this->lowStock['count'],
+                'hint'  => 'SKUs below min stock',
+                'icon'  => 'alert',
+                'tone'  => $this->lowStock['count'] > 0 ? 'danger' : 'neutral',
+                'href'  => route('inventory.stock.index'),
+                'spark' => null,
+                'trend' => null,
+            ];
+        }
+
+        if ($this->canSeeKpi('expiring')) {
+            $all[] = [
+                'label' => 'Expiring Soon',
+                'value' => (string) $this->expiring['count'],
+                'hint'  => 'SKUs expiring in ≤ 30 days',
+                'icon'  => 'clock',
+                'tone'  => $this->expiring['count'] > 0 ? 'warning' : 'neutral',
+                'href'  => route('inventory.stock.index'),
+                'spark' => null,
+                'trend' => null,
+            ];
+        }
+
+        if ($this->canSeeKpi('containers_in_yard')) {
+            $overDwell = $this->containersInYard['over_dwell'];
+            $all[] = [
+                'label' => 'Containers in Yard',
+                'value' => (string) $this->containersInYard['total'],
+                'hint'  => $overDwell > 0 ? $overDwell . ' over dwell limit' : 'All within dwell limit',
+                'icon'  => 'cube',
+                'tone'  => 'brand',
+                'href'  => route('inbound.containers.index'),
+                'spark' => null,
+                'trend' => null,
+            ];
+        }
+
+        return $all;
+    }
+
+    private function computeTrend(array $spark): ?array
+    {
+        if (count($spark) < 6) {
+            return null;
+        }
+
+        $recent   = array_sum(array_slice($spark, -3));
+        $previous = array_sum(array_slice($spark, -6, 3));
+
+        if ($previous == 0) {
+            return null;
+        }
+
+        $percent = (int) round((($recent - $previous) / $previous) * 100);
+
+        return [
+            'direction' => match (true) {
+                $percent > 0 => 'up',
+                $percent < 0 => 'down',
+                default      => 'flat',
+            },
+            'percent' => abs($percent),
+        ];
+    }
+
     // ── Action list computed properties ──────────────────────────────────────
 
     #[Computed]

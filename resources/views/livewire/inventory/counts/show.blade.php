@@ -44,6 +44,26 @@
         </div>
     </div>
 
+    {{-- Scan Input (active counts only) --}}
+    @if(in_array($count->status, [\App\Enums\CycleCountStatus::Open, \App\Enums\CycleCountStatus::Counting]))
+        @can('recordCount', $count)
+            <div class="space-y-2">
+                <x-scan-input
+                    wire:model="scanInput"
+                    :method="'processScan'"
+                    placeholder="Scan item, LPN, or location..."
+                    autofocus
+                />
+                <label class="flex items-center gap-2 text-sm cursor-pointer select-none">
+                    <input type="checkbox" wire:model.live="unitScanMode"
+                           class="rounded border-slate-300 dark:border-white/20 text-simba-600 focus:ring-simba-600 h-4 w-4" />
+                    <span class="font-medium text-slate-700 dark:text-slate-300">Scan adds 1</span>
+                    <span class="text-slate-500 dark:text-slate-400 text-xs">— each re-scan of the same item increments the counted qty by 1</span>
+                </label>
+            </div>
+        @endcan
+    @endif
+
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {{-- Count Lines --}}
         <div class="card lg:col-span-2">
@@ -91,6 +111,7 @@
                                                type="number" step="0.0001" min="0"
                                                class="input input-sm w-28 mono text-right"
                                                wire:change="saveEntry({{ $line->id }})"
+                                               @focus-count-line.window="if ($event.detail.id == {{ $line->id }}) $el.select()"
                                         >
                                     @else
                                         <span class="tabular-nums text-sm">{{ $line->counted_qty !== null ? number_format((float)$line->counted_qty, 4) : '—' }}</span>

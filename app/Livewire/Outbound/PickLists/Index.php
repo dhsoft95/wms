@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Livewire\Outbound\PickLists;
 
 use App\Enums\Outbound\PickListStatus;
+use App\Enums\ScanResultType;
+use App\Livewire\Concerns\HandlesScans;
+use App\Models\DeliveryOrder;
 use App\Models\Inventory\SerialNumber;
 use App\Models\PickList;
 use App\Models\PickTask;
@@ -19,6 +22,7 @@ use Livewire\WithPagination;
 class Index extends Component
 {
     use WithPagination;
+    use HandlesScans;
 
     public string $statusFilter = 'open';
     public string $search       = '';
@@ -104,6 +108,56 @@ class Index extends Component
     public function activeTask(): ?PickTask
     {
         return $this->activeTaskId ? PickTask::with(['pickList.deliveryOrder', 'allocation.item', 'allocation.location', 'allocation.batch'])->find($this->activeTaskId) : null;
+    }
+
+    // ─── Scan ─────────────────────────────────────────────────────────────────
+
+    public function processScan(): void
+    {
+        $result = $this->resolveScan();
+        if ($result === null) return;
+
+        if (! $result->ok()) {
+            $this->scanFail($result->error ?? 'Barcode not recognised.');
+            return;
+        }
+
+        match ($result->type) {
+            ScanResultType::PickList      => $this->openFirstTask($result->record),
+            ScanResultType::DispatchOrder => $this->openFirstTaskForDo($result->record),
+            default                       => $this->scanFail('Not a pick list or delivery order barcode.'),
+        };
+    }
+
+    private function openFirstTask(?PickList $pl): void
+    {
+        if (! $pl) {
+            $this->scanFail('Pick list not found.');
+            return;
+        }
+        $task = $pl->tasks()->where('status', 'open')->first();
+        if (! $task) {
+            $this->scanFail("No open tasks on {$pl->number}.");
+            return;
+        }
+        $this->openPickTask($task->id);
+        $this->scanOk("Task opened: {$pl->number}.");
+    }
+
+    private function openFirstTaskForDo(?DeliveryOrder $do): void
+    {
+        if (! $do) {
+            $this->scanFail('Delivery order not found.');
+            return;
+        }
+        $pl = PickList::where('delivery_order_id', $do->getKey())
+            ->whereIn('status', ['open', 'in_progress'])
+            ->first();
+        if (! $pl) {
+            $this->scanFail("No open pick list for {$do->number}.");
+            return;
+        }
+        $this->openFirstTask($pl);
     }
 
     // ─── Actions ──────────────────────────────────────────────────────────────

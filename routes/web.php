@@ -403,9 +403,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ─── Label Templates ──────────────────────────────────────────────────────────
     Route::get('/admin/labels/templates', \App\Livewire\Admin\Labels\Templates\Index::class)
         ->middleware('permission:labels.templates.manage')->name('admin.labels.templates.index');
-    Route::get('/admin/labels/templates/create', \App\Livewire\Admin\Labels\Templates\Create::class)
+    Route::get('/admin/labels/templates/create', \App\Livewire\Admin\Labels\Templates\CreateEdit::class)
         ->middleware('permission:labels.templates.manage')->name('admin.labels.templates.create');
-    Route::get('/admin/labels/templates/{template}/edit', \App\Livewire\Admin\Labels\Templates\Edit::class)
+    Route::get('/admin/labels/templates/{template}/edit', \App\Livewire\Admin\Labels\Templates\CreateEdit::class)
         ->middleware('permission:labels.templates.manage')->name('admin.labels.templates.edit');
 
     // ─── Printers ─────────────────────────────────────────────────────────────────
@@ -423,6 +423,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // ─── Label Print Log ──────────────────────────────────────────────────────────
     Route::get('/reports/labels/log', \App\Livewire\Reports\Labels\Log::class)
         ->middleware('permission:labels.log.view')->name('reports.labels.log');
+
+    Route::get('/reports/scan-log', \App\Livewire\Reports\ScanLog::class)
+        ->middleware('permission:reports.view')->name('reports.scan-log');
+
+    Route::get('/labels/pdf/{token}', \App\Http\Controllers\LabelPdfController::class)
+        ->middleware('permission:labels.print')->name('labels.pdf');
 
     // Legacy SKU redirect — keep for backward compatibility
     Route::redirect('/admin/skus', '/admin/items')->name('admin.skus.index');

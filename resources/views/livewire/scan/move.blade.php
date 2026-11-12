@@ -1,10 +1,15 @@
 <div>
     {{-- Step header --}}
     @php
-        $steps = ['source_bin'=>1,'lpn_or_item'=>2,'dest_bin'=>3,'confirm'=>4];
-        $stepLabels = ['source_bin'=>'Source Bin','lpn_or_item'=>'Scan LPN/Item','dest_bin'=>'Dest Bin','confirm'=>'Confirm'];
+        $hasPickVw = $step === 'pick_vw' || ($step !== 'source_bin' && $step !== 'lpn_or_item' && count($stockOptions) > 0);
+        if ($hasPickVw) {
+            $steps = ['source_bin'=>1,'lpn_or_item'=>2,'pick_vw'=>3,'dest_bin'=>4,'confirm'=>5];
+        } else {
+            $steps = ['source_bin'=>1,'lpn_or_item'=>2,'dest_bin'=>3,'confirm'=>4];
+        }
+        $stepLabels = ['source_bin'=>'Source Bin','lpn_or_item'=>'Scan LPN/Item','pick_vw'=>'Select Warehouse','dest_bin'=>'Dest Bin','confirm'=>'Confirm'];
+        $total   = count($steps);
         $current = $steps[$step] ?? 1;
-        $total = 4;
     @endphp
     <div class="flex items-center gap-3 mb-4">
         <button wire:click="back" class="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">
@@ -25,11 +30,7 @@
     @if ($step === 'source_bin')
         <div class="space-y-3">
             <p class="text-lg font-bold text-slate-800 dark:text-slate-100">Scan source bin location:</p>
-            <input type="text" wire:model.defer="barcode"
-                   x-data="{lastScan:'',lastAt:0}"
-                   x-on:keydown.enter="const now=Date.now();if($el.value===lastScan&&now-lastAt<600){$el.value='';return;}lastScan=$el.value;lastAt=now;$wire.processScan()"
-                   data-scan-input placeholder="BIN-XXXXX"
-                   class="input text-lg h-14 font-mono" autocomplete="off" autofocus />
+            <x-scan-input wire:model="scanInput" :method="'processScan'" placeholder="BIN-XXXXX" class="text-lg h-14 font-mono" />
             <p class="text-xs text-slate-400">Scan the bin you are picking from.</p>
         </div>
     @endif
@@ -42,11 +43,7 @@
                 <p class="font-bold text-simba-700 dark:text-simba-400 font-mono">{{ $this->sourceBin?->code }}</p>
             </div>
             <p class="text-lg font-bold text-slate-800 dark:text-slate-100">Scan LPN or item:</p>
-            <input type="text" wire:model.defer="barcode"
-                   x-data="{lastScan:'',lastAt:0}"
-                   x-on:keydown.enter="const now=Date.now();if($el.value===lastScan&&now-lastAt<600){$el.value='';return;}lastScan=$el.value;lastAt=now;$wire.processScan()"
-                   data-scan-input placeholder="LPN or SKU/barcode"
-                   class="input text-lg h-14" autocomplete="off" autofocus />
+            <x-scan-input wire:model="scanInput" :method="'processScan'" placeholder="LPN or SKU/barcode" class="text-lg h-14" />
             <div class="grid grid-cols-2 gap-2 mt-1">
                 <div class="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-center border border-slate-200 dark:border-slate-700">
                     <p class="text-xs text-slate-400 mb-0.5">Full Pallet</p>
@@ -60,10 +57,28 @@
         </div>
     @endif
 
+    {{-- Pick Virtual Warehouse Step --}}
+    @if ($step === 'pick_vw')
+        <div class="space-y-3">
+            <div class="bg-simba-50 dark:bg-simba-900/20 border border-simba-200 rounded-xl p-3 text-sm">
+                <p class="text-slate-500">Item</p>
+                <p class="font-bold text-simba-700 dark:text-simba-400 font-mono">{{ $this->currentItem?->sku }}</p>
+            </div>
+            <p class="text-lg font-bold">Select virtual warehouse:</p>
+            <div class="space-y-2">
+                @foreach ($stockOptions as $option)
+                    <button wire:click="pickVw({{ $option['id'] }})"
+                            class="w-full text-left p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-simba-400 transition-colors">
+                        <p class="font-semibold">{{ $option['name'] }}</p>
+                    </button>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     {{-- Dest Bin Step --}}
     @if ($step === 'dest_bin')
         <div class="space-y-3">
-            {{-- Show what we're moving --}}
             @if ($this->currentLpn)
                 <div class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
                     <p class="text-xs text-slate-400">Moving Pallet</p>
@@ -85,12 +100,7 @@
                 </div>
             @endif
             <p class="text-lg font-bold text-slate-800 dark:text-slate-100">Scan destination bin:</p>
-            <input type="text" wire:model.defer="barcode"
-                   x-data="{lastScan:'',lastAt:0}"
-                   x-on:keydown.enter="const now=Date.now();if($el.value===lastScan&&now-lastAt<600){$el.value='';return;}lastScan=$el.value;lastAt=now;$wire.processScan()"
-                   data-scan-input placeholder="BIN-XXXXX"
-                   class="input text-lg h-14 font-mono" autocomplete="off"
-                   {{ $this->currentItem ? '' : 'autofocus' }} />
+            <x-scan-input wire:model="scanInput" :method="'processScan'" placeholder="BIN-XXXXX" class="text-lg h-14 font-mono" />
         </div>
     @endif
 
@@ -125,7 +135,6 @@
                 @endif
             </div>
 
-            {{-- Visual from→to --}}
             <div class="flex items-center gap-3">
                 <div class="flex-1 text-center p-4 bg-slate-100 dark:bg-slate-800 rounded-xl">
                     <p class="text-xs text-slate-400 mb-1">From</p>

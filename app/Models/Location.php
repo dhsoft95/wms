@@ -89,6 +89,17 @@ class Location extends Model
         return Location::where('path', 'like', $this->path . $this->id . '/%')->get();
     }
 
+    // ─── Boot ─────────────────────────────────────────────────────────────────
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $location): void {
+            if (empty($location->barcode)) {
+                $location->barcode = strtoupper($location->code);
+            }
+        });
+    }
+
     // ─── Scopes ───────────────────────────────────────────────────────────────
 
     public function scopeActive($query): mixed

@@ -13,8 +13,12 @@
     $resolvedId = $chartId ?? 'chart-' . md5(uniqid('', true));
 
     $isEmpty = empty($series) || collect($series)->every(function ($s) {
+        // radialBar / pie / donut — series is a flat numeric array
+        if (is_numeric($s)) {
+            return (float) $s === 0.0;
+        }
         $data = is_array($s) && isset($s['data']) ? $s['data'] : (is_array($s) ? $s : []);
-        return empty($data) || collect($data)->every(fn($v) => (float)$v === 0.0);
+        return empty($data) || collect($data)->every(fn ($v) => (float) $v === 0.0);
     });
 @endphp
 

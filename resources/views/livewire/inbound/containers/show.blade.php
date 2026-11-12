@@ -40,6 +40,12 @@
                    class="btn btn-secondary shadow-sm">
                     <x-ui.icon name="printer" class="w-4 h-4" /> Print Report
                 </a>
+                @can('labels.print')
+                <button @click="$dispatch('open-label-print', { type: 'container', ids: [{{ $container->id }}] })"
+                        class="btn btn-secondary shadow-sm gap-1.5">
+                    <x-ui.icon name="tag" class="w-4 h-4" /> Print Label
+                </button>
+                @endcan
                 @if($status === \App\Enums\ContainerStatus::Expected)
                     @can('arrive', $container)
                         <button wire:click="$set('arrivalModalOpen', true)" class="btn btn-primary shadow-sm">

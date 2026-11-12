@@ -17,9 +17,9 @@ final class RelocationService
 {
     public function __construct(private readonly StockLedger $ledger) {}
 
-    public function moveLpn(Lpn $lpn, Location $destination, User $user, string $requestId): StockTransaction
+    public function moveLpn(Lpn $lpn, Location $destination, User $user, string $requestId, ?string $device = null): StockTransaction
     {
-        return DB::transaction(function () use ($lpn, $destination, $user, $requestId) {
+        return DB::transaction(function () use ($lpn, $destination, $user, $requestId, $device) {
             $balances = StockBalance::where('lpn_id', $lpn->id)
                 ->where('qty_on_hand', '>', 0)
                 ->with('item')
@@ -47,6 +47,7 @@ final class RelocationService
                     uomId:          $balance->item->base_uom_id,
                     ref:            $ref,
                     idempotencyKey: "relocation:{$requestId}:lpn:{$lpn->id}:{$balance->id}",
+                    device:         $device,
                 );
             }
 
@@ -67,6 +68,7 @@ final class RelocationService
         array $serials,
         User $user,
         string $requestId,
+        ?string $device = null,
     ): StockTransaction {
         $fromKey = new StockKey(
             itemId:             $itemId,
@@ -89,6 +91,7 @@ final class RelocationService
             ref:            $ref,
             serials:        $serials,
             idempotencyKey: "relocation:{$requestId}:item:{$itemId}",
+            device:         $device,
         );
     }
 }

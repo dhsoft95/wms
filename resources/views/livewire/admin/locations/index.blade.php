@@ -12,6 +12,14 @@
             <p class="page-sub">Manage warehouse zones, aisles, racks, shelf levels, and bins.</p>
         </div>
         <div class="flex items-center gap-2">
+            @can('labels.print')
+                @if (count($selectedIds) > 0)
+                    <button wire:click="printSelected" class="btn btn-secondary gap-1.5">
+                        <x-ui.icon name="printer" class="w-4 h-4" />
+                        Print {{ count($selectedIds) }} Label{{ count($selectedIds) === 1 ? '' : 's' }}
+                    </button>
+                @endif
+            @endcan
             @can('locations.create')
                 <a href="{{ route('admin.locations.bulk-generate') }}" wire:navigate class="btn btn-secondary">
                     <x-ui.icon name="arrows" class="w-4 h-4" /> Bulk Generate
@@ -106,7 +114,17 @@
                                   bg-white/[0.45] dark:bg-white/[0.04]
                                   border-b border-white/50 dark:border-white/[0.07]">
                     <tr>
+                        @can('labels.print')
+                        <th class="px-3 py-3 w-8">
+                            <input type="checkbox"
+                                   class="rounded border-slate-300 dark:border-slate-600 text-simba-600 focus:ring-simba-500"
+                                   :checked="$wire.selectedIds.length > 0 && $wire.selectedIds.length >= {{ $this->locations->count() }}"
+                                   :indeterminate="$wire.selectedIds.length > 0 && $wire.selectedIds.length < {{ $this->locations->count() }}"
+                                   @change="$wire.selectedIds.length >= {{ $this->locations->count() }} ? $wire.deselectAll() : $wire.selectAll()" />
+                        </th>
+                        @endcan
                         <th class="px-5 py-3">Code</th>
+                        <th class="px-5 py-3 font-mono">Barcode</th>
                         <th class="px-5 py-3">Level</th>
                         <th class="px-5 py-3">Type</th>
                         <th class="px-5 py-3">Status</th>
@@ -121,6 +139,16 @@
                         <tr wire:key="loc-{{ $location->id }}"
                             class="transition hover:bg-white/30 dark:hover:bg-white/[0.04]">
 
+                            {{-- Checkbox --}}
+                            @can('labels.print')
+                            <td class="px-3 py-3.5">
+                                <input type="checkbox"
+                                       wire:model.live="selectedIds"
+                                       value="{{ $location->id }}"
+                                       class="rounded border-slate-300 dark:border-slate-600 text-simba-600 focus:ring-simba-500" />
+                            </td>
+                            @endcan
+
                             {{-- Code --}}
                             <td class="px-5 py-3.5">
                                 <span class="font-mono text-xs font-semibold text-slate-800 dark:text-slate-100">{{ $location->code }}</span>
@@ -129,6 +157,11 @@
                                         Pickable
                                     </span>
                                 @endif
+                            </td>
+
+                            {{-- Barcode --}}
+                            <td class="px-5 py-3.5">
+                                <span class="font-mono text-xs text-slate-500 dark:text-slate-400">{{ $location->barcode ?: $location->code }}</span>
                             </td>
 
                             {{-- Level --}}
@@ -188,7 +221,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-5 py-16 text-center">
+                            <td colspan="9" class="px-5 py-16 text-center">
                                 <x-ui.icon name="home" class="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600" />
                                 <p class="mt-3 font-medium text-slate-900 dark:text-white">No locations found</p>
                                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">

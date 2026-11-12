@@ -102,7 +102,7 @@ final class StockLedger
         return $this->post(new StockPosting(MovementType::Receipt, $ref, [$line], $idempotencyKey));
     }
 
-    public function move(StockKey $from, int $toLocationId, string $qty, int $uomId, StockReference $ref, array $serials = [], ?string $idempotencyKey = null): StockTransaction
+    public function move(StockKey $from, int $toLocationId, string $qty, int $uomId, StockReference $ref, array $serials = [], ?string $idempotencyKey = null, ?string $device = null): StockTransaction
     {
         $outLine = new StockLine(
             itemId: $from->itemId,
@@ -128,7 +128,7 @@ final class StockLedger
             serials: $serials,
         );
 
-        return $this->post(new StockPosting(MovementType::Relocation, $ref, [$outLine, $inLine], $idempotencyKey));
+        return $this->post(new StockPosting(MovementType::Relocation, $ref, [$outLine, $inLine], $idempotencyKey, device: $device ?? 'desktop'));
     }
 
     public function changeOwner(StockKey $from, int $toVwId, string $qty, int $uomId, StockReference $ref, array $serials = [], ?string $idempotencyKey = null): StockTransaction

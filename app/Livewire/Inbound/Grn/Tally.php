@@ -37,7 +37,8 @@ class Tally extends Component
     public string $receiptCondition    = 'good';
     public string $receiptDamageRemark = '';
     public string $receiptSerials      = '';
-    public string $receiptLpnId        = '';
+    public string $serialInput        = '';
+    public string $receiptLpnId       = '';
 
     public function mount(Grn $grn): void
     {
@@ -205,7 +206,29 @@ class Tally extends Component
         $this->receiptCondition    = 'good';
         $this->receiptDamageRemark = '';
         $this->receiptSerials      = '';
+        $this->serialInput         = '';
         $this->receiptLpnId        = '';
+    }
+
+    public function addScannedSerial(): void
+    {
+        $sn = trim($this->serialInput);
+        $this->serialInput = '';
+
+        if ($sn === '') return;
+
+        // Avoid duplicates
+        $existing = array_map('trim', preg_split('/[\r\n,]+/', $this->receiptSerials));
+        if (in_array($sn, array_filter($existing), true)) {
+            $this->dispatch('toast', message: "Serial {$sn} already in list.", type: 'warning');
+            return;
+        }
+
+        $this->receiptSerials = trim($this->receiptSerials) !== ''
+            ? $this->receiptSerials . "\n" . $sn
+            : $sn;
+
+        $this->dispatch('scan-success', message: $sn);
     }
 
     public function addReceipt(): void
@@ -289,6 +312,7 @@ class Tally extends Component
         $this->receiptCondition    = 'good';
         $this->receiptDamageRemark = '';
         $this->receiptSerials      = '';
+        $this->serialInput         = '';
         $this->receiptLpnId        = '';
 
         $this->dispatch('toast', message: 'Receipt recorded.', type: 'success');

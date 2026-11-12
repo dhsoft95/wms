@@ -119,11 +119,13 @@
 
                     {{-- Actions --}}
                     <td class="px-4 py-3.5">
-                        @if ($device->is_active)
-                            <x-ui.row-actions :label="'Actions for ' . $device->name">
+                        <x-ui.row-actions :label="'Actions for ' . $device->name">
+                            @if ($device->is_active)
                                 <x-ui.row-actions.item icon="x" label="Deactivate" tone="warning" wire:confirm="Deactivate {{ $device->name }}?" wire:click="deactivate({{ $device->id }})" />
-                            </x-ui.row-actions>
-                        @endif
+                            @else
+                                <x-ui.row-actions.item icon="check" label="Activate" tone="success" wire:confirm="Activate {{ $device->name }}?" wire:click="activate({{ $device->id }})" />
+                            @endif
+                        </x-ui.row-actions>
                     </td>
 
                 </tr>
@@ -148,5 +150,66 @@
         @endif
 
     </div>
+
+    {{-- Per-device scan event log --}}
+    @foreach ($this->devices as $device)
+        <div x-data="{ open: false }" class="card overflow-hidden">
+
+            <button
+                type="button"
+                @click="open = !open"
+                class="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-white/30 dark:hover:bg-white/[0.04] transition"
+            >
+                <div class="flex items-center gap-3">
+                    <span class="badge badge-slate mono">{{ $device->code }}</span>
+                    <span class="font-medium text-slate-900 dark:text-slate-100">{{ $device->name }}</span>
+                    @php $failedToday = $this->failedTodayByDevice->get($device->id, 0); @endphp
+                    @if ($failedToday > 0)
+                        <span class="badge badge-red">{{ $failedToday }} failed today</span>
+                    @endif
+                </div>
+                <x-ui.icon name="chevron-down" class="w-4 h-4 text-slate-400 transition-transform" ::class="open ? 'rotate-180' : ''" />
+            </button>
+
+            <div x-show="open" x-cloak>
+                @php $events = $this->recentEventsByDevice->get($device->id, collect()); @endphp
+                @if ($events->isEmpty())
+                    <p class="px-4 py-6 text-sm text-center text-slate-500 dark:text-slate-400">No scan events recorded for this device.</p>
+                @else
+                    <x-ui.table>
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2">Time</th>
+                                <th class="px-4 py-2">User</th>
+                                <th class="px-4 py-2">Raw Value</th>
+                                <th class="px-4 py-2">Resolved Type</th>
+                                <th class="px-4 py-2">Result</th>
+                                <th class="px-4 py-2">Error</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/50 dark:divide-white/[0.06]">
+                            @foreach ($events as $event)
+                                <tr class="text-sm">
+                                    <td class="px-4 py-2 whitespace-nowrap text-slate-500">{{ $event->created_at->format('d M H:i:s') }}</td>
+                                    <td class="px-4 py-2">{{ $event->user?->name ?? '—' }}</td>
+                                    <td class="px-4 py-2 font-mono">{{ $event->raw_value }}</td>
+                                    <td class="px-4 py-2 text-slate-500">{{ $event->resolved_type ?? '—' }}</td>
+                                    <td class="px-4 py-2">
+                                        @if ($event->success)
+                                            <span class="badge badge-green">OK</span>
+                                        @else
+                                            <span class="badge badge-red">Fail</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-2 text-red-600 dark:text-red-400 text-xs">{{ $event->error_message ?? '' }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </x-ui.table>
+                @endif
+            </div>
+
+        </div>
+    @endforeach
 
 </div>

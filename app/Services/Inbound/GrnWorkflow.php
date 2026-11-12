@@ -16,10 +16,12 @@ use App\Enums\PutawayTaskStatus;
 use App\Events\Inbound\GrnConfirmed;
 use App\Events\Inbound\VarianceApprovalRequested;
 use App\Exceptions\InvalidTransitionException;
+use App\Enums\Inventory\SerialStatus;
 use App\Models\Grn;
 use App\Models\GrnLine;
 use App\Models\GrnReceipt;
 use App\Models\GrnVarianceApproval;
+use App\Models\Inventory\SerialNumber;
 use App\Models\Inventory\Batch;
 use App\Models\Location;
 use App\Models\PurchaseOrder;
@@ -574,6 +576,73 @@ final class GrnWorkflow
                 }
             }
         }
+    }
+
+    /**
+     * Validate and persist a single receipt line.
+     * Throws \DomainException on over-receipt, past expiry, or duplicate/in-stock serials.
+     * Idempotency (request-level) must be handled by the caller.
+     *
+     * @param  array<string>  $serialNos
+     */
+    public function addReceipt(
+        GrnLine $line,
+        string $qty,
+        int $uomId,
+        string $condition,
+        ?string $batchNo,
+        ?string $expiryDate,
+        ?int $lpnId,
+        array $serialNos = [],
+        ?string $device = null,
+    ): GrnReceipt {
+        // Over-receipt guard
+        $received = bcadd((string) ($line->received_good_qty ?? '0'), (string) ($line->received_damaged_qty ?? '0'), 4);
+        $newTotal = bcadd($received, $qty, 4);
+        $expected = (string) ($line->expected_qty ?? '0');
+        if (bccomp($expected, '0', 4) > 0 && bccomp($newTotal, $expected, 4) > 0) {
+            $remaining = bcsub($expected, $received, 4);
+            throw new \DomainException("Over-receipt: expected {$expected}, already received {$received}. Max remaining: {$remaining}.");
+        }
+
+        // Expiry must not be in the past
+        if ($expiryDate && Carbon::parse($expiryDate)->startOfDay()->isPast()) {
+            throw new \DomainException("Expiry date {$expiryDate} is in the past.");
+        }
+
+        // Serial validation
+        if (! empty($serialNos)) {
+            $dupes = array_keys(array_filter(array_count_values($serialNos), fn ($c) => $c > 1));
+            if (! empty($dupes)) {
+                throw new \DomainException('Duplicate serials in this receipt: ' . implode(', ', $dupes));
+            }
+
+            $inStock = SerialNumber::where('item_id', $line->item_id)
+                ->whereIn('serial_no', $serialNos)
+                ->where('status', SerialStatus::InStock)
+                ->pluck('serial_no')
+                ->all();
+            if (! empty($inStock)) {
+                throw new \DomainException('Serial(s) already in stock: ' . implode(', ', $inStock));
+            }
+        }
+
+        $receipt = GrnReceipt::create([
+            'grn_line_id' => $line->id,
+            'qty'         => $qty,
+            'uom_id'      => $uomId,
+            'condition'   => $condition,
+            'batch_no'    => $batchNo ?: null,
+            'expiry_date' => $expiryDate ?: null,
+            'serial_nos'  => ! empty($serialNos) ? $serialNos : null,
+            'lpn_id'      => $lpnId,
+            'received_by' => auth()->id(),
+            'device'      => $device,
+        ]);
+
+        $line->recalculateTotals();
+
+        return $receipt;
     }
 
     public function cancel(Grn $grn, string $reason, User $user): void

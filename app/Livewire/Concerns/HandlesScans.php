@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Livewire\Concerns;
 
 use App\Enums\ScanResultType;
+use App\Models\ScanEvent;
 use App\Services\Scanning\BarcodeResolver;
 use App\Services\Scanning\ScanContext;
 use App\Services\Scanning\ScanResult;
@@ -51,7 +52,25 @@ trait HandlesScans
             virtualWarehouseId: $virtualWarehouseId,
         );
 
-        return app(BarcodeResolver::class)->resolve($raw, $context);
+        $result = app(BarcodeResolver::class)->resolve($raw, $context);
+
+        try {
+            ScanEvent::create([
+                'user_id'           => auth()->id(),
+                'scanner_device_id' => session('scan_device_id'),
+                'route_name'        => request()->route()?->getName(),
+                'raw_value'         => $raw,
+                'resolved_type'     => $result->ok() ? $result->type->value : null,
+                'resolved_id'       => $result->record?->getKey(),
+                'success'           => $result->ok(),
+                'error_message'     => $result->ok() ? null : $result->error,
+                'created_at'        => now(),
+            ]);
+        } catch (\Throwable) {
+            // never block the scan
+        }
+
+        return $result;
     }
 
     /**
