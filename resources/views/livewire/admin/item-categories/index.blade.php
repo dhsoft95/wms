@@ -257,7 +257,6 @@
                     </div>
                 </div>
             </div>
-
             <x-slot:footer>
                 <button type="button" wire:click="closeUsersModal" class="btn btn-secondary">Done</button>
                 <button type="button" wire:click="addUser" class="btn btn-primary">

@@ -16,6 +16,7 @@ use App\Models\Printer;
 use App\Models\ReasonCode;
 use App\Services\Labels\PrintJobService;
 use Illuminate\Contracts\View\View;
+use Illuminate\Support\Facades\Log;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
@@ -134,16 +135,32 @@ class PrintModal extends Component
 
     public function confirmPrint(): void
     {
+        Log::info('Label print started', [
+            'type'        => $this->type,
+            'ids'         => $this->ids,
+            'template_id' => $this->templateId,
+            'printer_id'  => $this->printerId,
+            'copies'      => $this->copies,
+            'user_id'     => auth()->id(),
+        ]);
+
         $this->validate([
-            'templateId' => ['required', 'exists:label_templates,id'],
-            'printerId'  => ['required', 'exists:printers,id'],
-            'copies'     => ['required', 'integer', 'min:1', 'max:99'],
+            'templateId'   => ['required', 'exists:label_templates,id'],
+            'printerId'    => ['required', 'exists:printers,id'],
+            'copies'       => ['required', 'integer', 'min:1', 'max:99'],
             'reasonCodeId' => $this->needsReprintReason ? ['required'] : ['nullable'],
         ]);
 
         $type    = LabelTemplateType::from($this->type);
         $tpl     = LabelTemplate::findOrFail($this->templateId);
         $printer = Printer::findOrFail($this->printerId);
+
+        Log::info('Label print validated', [
+            'template' => $tpl->name,
+            'printer'  => $printer->name,
+            'kind'     => $printer->kind->value,
+            'printables_count' => $this->printables->count(),
+        ]);
 
         try {
             $result = app(PrintJobService::class)->print(
@@ -156,19 +173,26 @@ class PrintModal extends Component
                 reasonCodeId: $this->reasonCodeId ?: null,
                 note:         $this->reprintNote ?: null,
             );
+
+            Log::info('Label print succeeded', [
+                'output_type' => $result->outputType,
+                'pdf_token'   => $result->pdfToken,
+                'printer_name'=> $result->printerName,
+            ]);
         } catch (\InvalidArgumentException $e) {
+            Log::warning('Label print invalid argument', ['error' => $e->getMessage()]);
             $this->addError('reasonCodeId', $e->getMessage());
             return;
-        } catch (\Illuminate\Auth\Access\AuthorizationException) {
+        } catch (\Illuminate\Auth\Access\AuthorizationException $e) {
+            Log::warning('Label print unauthorized', ['error' => $e->getMessage(), 'user_id' => auth()->id()]);
             $this->dispatch('toast', message: 'You are not authorised to print labels.', type: 'error');
             return;
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Label print failed', [
-                'type'       => $this->type,
-                'printer_id' => $this->printerId,
-                'template_id'=> $this->templateId,
-                'error'      => $e->getMessage(),
-                'file'       => $e->getFile() . ':' . $e->getLine(),
+            Log::error('Label print failed', [
+                'error'   => $e->getMessage(),
+                'class'   => get_class($e),
+                'file'    => $e->getFile() . ':' . $e->getLine(),
+                'trace'   => collect(explode("\n", $e->getTraceAsString()))->take(10)->implode("\n"),
             ]);
             $this->dispatch('toast', message: 'Print failed: ' . $e->getMessage(), type: 'error');
             return;

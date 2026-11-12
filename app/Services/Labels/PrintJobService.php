@@ -24,6 +24,7 @@ use App\Services\Labels\Data\LpnLabelData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 final class PrintJobService
@@ -44,6 +45,7 @@ final class PrintJobService
         ?string           $reasonCodeId = null,
         ?string           $note         = null,
     ): PrintResult {
+        Log::debug('PrintJobService: checking labels.print permission', ['user_id' => $user->id]);
         Gate::forUser($user)->authorize('labels.print');
 
         $tpl ??= LabelTemplate::where('type', $type->value)
@@ -52,10 +54,13 @@ final class PrintJobService
             ->firstOrFail();
 
         $output = $this->outputForPrinter($printer);
-        $rows   = [];
+        Log::debug('PrintJobService: output mode determined', ['output' => $output->value, 'printer_kind' => $printer->kind->value]);
+
+        $rows = [];
 
         foreach ($printables as $printable) {
             $isReprint = $this->isReprint($printable);
+            Log::debug('PrintJobService: building data row', ['printable' => get_class($printable), 'id' => $printable->getKey(), 'is_reprint' => $isReprint]);
 
             if ($isReprint) {
                 Gate::forUser($user)->authorize('labels.reprint');
@@ -87,9 +92,13 @@ final class PrintJobService
             }
         }
 
+        Log::debug('PrintJobService: rendering', ['output' => $output->value, 'rows' => count($rows), 'copies' => $copies]);
+
         $rendered = $output === PrintOutput::Pdf
             ? $this->renderer->toPdf($tpl, $rows, $copies)
             : $this->renderer->toZpl($tpl, $rows, $copies);
+
+        Log::debug('PrintJobService: render complete', ['rendered_size' => strlen($rendered)]);
 
         return $this->buildResult($printer, $output, $rendered);
     }
@@ -101,18 +110,22 @@ final class PrintJobService
         if ($output === PrintOutput::Pdf) {
             $token = Str::uuid()->toString();
             Cache::put("label_pdf:{$token}", base64_encode($rendered), now()->addMinutes(15));
+            Log::debug('PrintJobService: PDF cached', ['token' => $token, 'cache_driver' => config('cache.default')]);
             return new PrintResult(outputType: 'pdf', content: $rendered, pdfToken: $token);
         }
 
         if ($printer->kind === PrinterKind::ZplNetwork) {
+            Log::debug('PrintJobService: sending ZPL over network', ['ip' => $printer->ip, 'port' => $printer->port]);
             $result = $this->sendZplOverNetwork($printer, $rendered);
             if ($result['success']) {
+                Log::info('PrintJobService: ZPL sent to network printer', ['printer' => $printer->name]);
                 return new PrintResult(outputType: 'sent', printerName: $printer->name);
             }
-            // Fall back to download on network failure
+            Log::warning('PrintJobService: ZPL network send failed, falling back to download', ['error' => $result['error'] ?? 'unknown']);
             return new PrintResult(outputType: 'zpl', content: $rendered);
         }
 
+        Log::debug('PrintJobService: returning ZPL for download');
         return new PrintResult(outputType: 'zpl', content: $rendered);
     }
 
